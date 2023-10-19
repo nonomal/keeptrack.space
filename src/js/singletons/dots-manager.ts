@@ -46,7 +46,6 @@ export class DotsManager {
     position: <WebGLBuffer>null,
     size: <WebGLBuffer>null,
     color: <WebGLBuffer>null,
-    pickability: <WebGLBuffer>null,
   };
 
   inSunData: Int8Array;
@@ -57,7 +56,7 @@ export class DotsManager {
   pickingBuffers = {
     position: <WebGLBuffer>null,
     color: <WebGLBuffer>null,
-    pickability: <WebGLBuffer>null,
+    pickability: <WebGLBuffer>null, // Same as the main color buffer
   };
 
   pickingFrameBuffer: WebGLFramebuffer;
@@ -77,6 +76,7 @@ export class DotsManager {
         u_pMvCamMatrix: <WebGLUniformLocation>null,
         u_minSize: <WebGLUniformLocation>null,
         u_maxSize: <WebGLUniformLocation>null,
+        u_colors: <WebGLUniformLocation>null,
       },
       vao: <WebGLVertexArrayObject>null,
     },
@@ -125,6 +125,7 @@ export class DotsManager {
       gl.uniform1f(this.programs.dots.uniforms.u_minSize, this.settings_.satShader.minSize);
       gl.uniform1f(this.programs.dots.uniforms.u_maxSize, this.settings_.satShader.maxSize);
     }
+    gl.uniform1fv(this.programs.dots.uniforms.u_colors, settingsManager.satShader.colors);
 
     gl.bindVertexArray(this.programs.dots.vao);
 
@@ -308,7 +309,7 @@ export class DotsManager {
     gl.useProgram(this.programs.dots.program);
 
     GlUtils.assignAttributes(this.programs.dots.attribs, gl, this.programs.dots.program, ['a_position', 'a_color', 'a_star']);
-    GlUtils.assignUniforms(this.programs.dots.uniforms, gl, this.programs.dots.program, ['u_minSize', 'u_maxSize', 'u_pMvCamMatrix']);
+    GlUtils.assignUniforms(this.programs.dots.uniforms, gl, this.programs.dots.program, ['u_minSize', 'u_maxSize', 'u_pMvCamMatrix', 'u_colors']);
   }
 
   /**
@@ -358,7 +359,7 @@ export class DotsManager {
     const colorSchemeManagerInstance = keepTrackApi.getColorSchemeManager();
     gl.bindBuffer(gl.ARRAY_BUFFER, colorSchemeManagerInstance.colorBuffer);
     gl.enableVertexAttribArray(this.programs.dots.attribs.a_color);
-    gl.vertexAttribPointer(this.programs.dots.attribs.a_color, 4, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribPointer(this.programs.dots.attribs.a_color, 1, gl.FLOAT, false, 0, 0);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.size);
     gl.enableVertexAttribArray(this.programs.dots.attribs.a_star);
@@ -378,9 +379,9 @@ export class DotsManager {
     gl.enableVertexAttribArray(this.programs.picking.attribs.a_color);
     gl.vertexAttribPointer(this.programs.picking.attribs.a_color, 3, gl.FLOAT, false, 0, 0);
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, colorSchemeManagerInstance.pickableBuffer);
+    gl.bindBuffer(gl.ARRAY_BUFFER, colorSchemeManagerInstance.colorBuffer);
     gl.enableVertexAttribArray(this.programs.picking.attribs.a_pickable);
-    gl.vertexAttribPointer(this.programs.picking.attribs.a_pickable, 1, gl.UNSIGNED_BYTE, false, 0, 0);
+    gl.vertexAttribPointer(this.programs.picking.attribs.a_pickable, 1, gl.FLOAT, false, 0, 0);
 
     gl.bindVertexArray(null);
   }
@@ -669,11 +670,14 @@ export class DotsManager {
         frag: `#version 300 es
             precision mediump float;
 
-            in vec4 vColor;
+            flat in int vColor;
             in float vStar;
             in float vDist;
 
             out vec4 fragColor;
+
+            // An array of floats
+            uniform float u_colors[${settingsManager.satShader.colors.length * 4}];
 
             float when_lt(float x, float y) {
             return max(sign(y - x), 0.0);
@@ -700,7 +704,8 @@ export class DotsManager {
 
             alpha = min(alpha, 1.0);
             if (alpha == 0.0) discard;
-            fragColor = vec4(vColor.rgb, vColor.a * alpha);
+            vec4 rgbaColor = vec4(u_colors[vColor], u_colors[vColor + 1], u_colors[vColor + 2], u_colors[vColor + 3]);
+            fragColor = vec4(rgbaColor.rgb, rgbaColor.a * alpha);
 
             // Reduce Flickering from Depth Fighting
             gl_FragDepth = gl_FragCoord.z * 0.99999975;
@@ -708,7 +713,7 @@ export class DotsManager {
           `,
         vert: `#version 300 es
           in vec3 a_position;
-          in vec4 a_color;
+          in float a_color;
           in float a_star;
 
           uniform float u_minSize;
@@ -716,7 +721,7 @@ export class DotsManager {
 
           uniform mat4 u_pMvCamMatrix;
 
-          out vec4 vColor;
+          flat out int vColor;
           out float vStar;
           out float vDist;
 
@@ -749,7 +754,9 @@ export class DotsManager {
 
               gl_PointSize = drawSize;
               gl_Position = position;
-              vColor = a_color;
+
+              // a_color is a 3 digit float, the first digit is 1 or 2 and is the pickability. We only need the last two digits
+              vColor = int((a_color - 200.0) * 4.0);
               vStar = a_star * 1.0;
               vDist = dist;
           }
@@ -765,11 +772,17 @@ export class DotsManager {
 
                 out vec3 vColor;
 
+                float when_lt(float x, float y) {
+                  return max(sign(y - x), 0.0);
+                }
+
                 void main(void) {
                 vec4 position = u_pMvCamMatrix * vec4(a_position, 1.0);
                 gl_Position = position;
-                gl_PointSize = ${settingsManager.pickingDotSize} * a_pickable;
-                vColor = a_color * a_pickable;
+                float pickability = 1.0;
+                pickability += when_lt(a_pickable, 200.0) * -1.0;
+                gl_PointSize = ${settingsManager.pickingDotSize} * pickability;
+                vColor = a_color * pickability;
                 }
             `,
         frag: `#version 300 es

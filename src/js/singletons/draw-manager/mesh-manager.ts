@@ -528,7 +528,7 @@ export class MeshManager {
               'rv',
             ];
 
-      settingsManager.selectedColor = [0.0, 0.0, 0.0, 0.0];
+      settingsManager.selectedColor = settingsManager.colors.transparent;
 
       this.fileList_ = [];
 

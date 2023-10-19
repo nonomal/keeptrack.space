@@ -363,7 +363,7 @@ export class Camera {
       this.camDistBuffer = <Kilometers>Math.min(Math.max(this.camDistBuffer, this.settings_.minDistanceFromSatellite), this.thresholdForCloseCamera);
     } else if (this.camDistBuffer >= this.thresholdForCloseCamera) {
       // Zooming In
-      settingsManager.selectedColor = [0, 0, 0, 0];
+      settingsManager.selectedColor = settingsManager.colors.transparent;
       this.zoomTarget += delta / 100 / 50 / this.speedModifier; // delta is +/- 100
       this.earthCenteredLastZoom = this.zoomTarget;
       this.camZoomSnappedOnSat = false;
@@ -899,7 +899,7 @@ export class Camera {
         (this.camSnapToSat.camDistTarget - this.settings_.minZoomDistance) / (this.settings_.maxZoomDistance - this.settings_.minZoomDistance),
         1 / ZOOM_EXP
       );
-      settingsManager.selectedColor = [0, 0, 0, 0];
+      settingsManager.selectedColor = settingsManager.colors.transparent;
       // errorManagerInstance.debug(`Zoom Target: ${this.zoomTarget_}`);
       this.earthCenteredLastZoom = this.zoomTarget_ + 0.1;
 

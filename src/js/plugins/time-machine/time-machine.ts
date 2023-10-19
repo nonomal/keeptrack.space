@@ -48,7 +48,7 @@ export class TimeMachine extends KeepTrackPlugin {
     this.isTimeMachineRunning = true;
     this.historyOfSatellitesRunCount++;
     keepTrackApi.getOrbitManager().tempTransColor = settingsManager.colors.transparent;
-    settingsManager.colors.transparent = [0, 0, 0, 0];
+    settingsManager.colorsRgba.transparent = [0, 0, 0, 0];
     for (let yy = 0; yy <= 200; yy++) {
       let year = 57 + yy;
       if (year >= 100) year = year - 100;
@@ -111,7 +111,7 @@ export class TimeMachine extends KeepTrackPlugin {
 
     if (runCount !== this.historyOfSatellitesRunCount) return;
     if (!this.isMenuButtonEnabled) return;
-    settingsManager.colors.transparent = <[number, number, number, number]>orbitManagerInstance.tempTransColor;
+    settingsManager.colors.transparent = orbitManagerInstance.tempTransColor;
     this.isMenuButtonEnabled = false;
     this.isTimeMachineRunning = false;
     groupManagerInstance.clearSelect();

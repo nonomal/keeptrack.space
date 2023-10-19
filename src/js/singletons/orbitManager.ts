@@ -50,7 +50,7 @@ export class StandardOrbitManager implements OrbitManager {
 
   orbitWorker = null;
   playNextSatellite = null;
-  tempTransColor: [number, number, number, number] = [0, 0, 0, 0];
+  tempTransColor = 1;
 
   addInViewOrbit(satId: number): void {
     for (let i = 0; i < this.currentInView_.length; i++) {
@@ -352,25 +352,22 @@ export class StandardOrbitManager implements OrbitManager {
       // gl.uniform4fv(pathShader.uColor, settingsManager.orbitGroupColor);
       groupManagerInstance.selectedGroup.objects.forEach((id: number) => {
         if (id === hoverManagerInstance.getHoverId() || id === this.currentSelectId_) return; // Skip hover and select objects
-        if (typeof colorSchemeManagerInstance.colorData[id * 4] === 'undefined') throw new Error(`color buffer for ${id} not valid`);
-        if (typeof colorSchemeManagerInstance.colorData[id * 4 + 1] === 'undefined') throw new Error(`color buffer for ${id} not valid`);
-        if (typeof colorSchemeManagerInstance.colorData[id * 4 + 2] === 'undefined') throw new Error(`color buffer for ${id} not valid`);
-        if (typeof colorSchemeManagerInstance.colorData[id * 4 + 3] === 'undefined') throw new Error(`color buffer for ${id} not valid`);
+        if (typeof colorSchemeManagerInstance.colorData[id] === 'undefined') throw new Error(`color buffer for ${id} not valid`);
         if (!catalogManagerInstance.satData[id].active) return; // Skip inactive objects
         if (catalogManagerInstance.selectedSat !== id) {
           // if color is black, we probably have old data, so recalculate color buffers
-          if (colorSchemeManagerInstance.colorData[id * 4] <= 0 && colorSchemeManagerInstance.colorData[id * 4 + 1] <= 0 && colorSchemeManagerInstance.colorData[id * 4 + 2] <= 0) {
-            colorSchemeManagerInstance.calculateColorBuffers(true);
-            // Fix: Crued workaround to getting dots to show up when loading with search parameter
-            setTimeout(() => {
-              colorSchemeManagerInstance.calculateColorBuffers(true);
-            }, 500);
-          }
-          if (colorSchemeManagerInstance.colorData[id * 4 + 3] <= 0) {
-            return; // Skip transparent objects
-            // Debug: This is useful when all objects are supposed to be visible but groups can filter out objects
-            // throw new Error(`color buffer for ${id} isn't visible`);
-          }
+          // if (colorSchemeManagerInstance.colorData[id * 4] <= 0 && colorSchemeManagerInstance.colorData[id * 4 + 1] <= 0 && colorSchemeManagerInstance.colorData[id * 4 + 2] <= 0) {
+          //   colorSchemeManagerInstance.calculateColorBuffers(true);
+          //   // Fix: Crued workaround to getting dots to show up when loading with search parameter
+          //   setTimeout(() => {
+          //     colorSchemeManagerInstance.calculateColorBuffers(true);
+          //   }, 500);
+          // }
+          // if (colorSchemeManagerInstance.colorData[id * 4 + 3] <= 0) {
+          // return; // Skip transparent objects
+          // Debug: This is useful when all objects are supposed to be visible but groups can filter out objects
+          // throw new Error(`color buffer for ${id} isn't visible`);
+          // }
         }
         this.lineManagerInstance_.setColorUniforms([
           colorSchemeManagerInstance.colorData[id * 4],

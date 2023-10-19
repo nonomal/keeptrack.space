@@ -653,11 +653,8 @@ export class StandardCatalogManager implements CatalogManager {
     const lastSelectedObject = this.lastSelectedSat();
     if (lastSelectedObject !== -1) {
       const newColor = colorSchemeManagerInstance.currentColorScheme(this.getSat(lastSelectedObject)).color;
-      colorSchemeManagerInstance.colorData[lastSelectedObject * 4] = newColor[0]; // R
-      colorSchemeManagerInstance.colorData[lastSelectedObject * 4 + 1] = newColor[1]; // G
-      colorSchemeManagerInstance.colorData[lastSelectedObject * 4 + 2] = newColor[2]; // B
-      colorSchemeManagerInstance.colorData[lastSelectedObject * 4 + 3] = newColor[3]; // A
-      gl.bufferSubData(gl.ARRAY_BUFFER, lastSelectedObject * 4 * 4, new Float32Array(newColor));
+      colorSchemeManagerInstance.colorData[lastSelectedObject] = newColor;
+      gl.bufferSubData(gl.ARRAY_BUFFER, lastSelectedObject, new Float32Array(newColor));
 
       if (!settingsManager.lastSearchResults.includes(lastSelectedObject)) {
         dotsManagerInstance.sizeData[lastSelectedObject] = 0.0;
@@ -672,7 +669,7 @@ export class StandardCatalogManager implements CatalogManager {
         console.error('i is greater than colorData length');
         console.error(i);
       }
-      gl.bufferSubData(gl.ARRAY_BUFFER, i * 4 * 4, new Float32Array(settingsManager.selectedColor));
+      gl.bufferSubData(gl.ARRAY_BUFFER, i, new Float32Array(settingsManager.selectedColor));
 
       dotsManagerInstance.sizeData[i] = 1.0;
       gl.bindBuffer(gl.ARRAY_BUFFER, dotsManagerInstance.buffers.size);

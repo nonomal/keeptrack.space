@@ -77,7 +77,68 @@ export class SettingsManager {
     videoDirector: true,
   };
 
-  colors = null;
+  colors = {
+    version: '0.0.0',
+    facility: 1,
+    sunlight100: 2,
+    sunlight80: 3,
+    sunlight60: 4,
+    starHi: 5,
+    starMed: 6,
+    starLow: 7,
+    sensor: 8,
+    marker: [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26],
+    deselected: 27,
+    inFOV: 28,
+    inFOVAlt: 29,
+    radarData: 30,
+    radarDataMissile: 31,
+    radarDataSatellite: 32,
+    payload: 33,
+    rocketBody: 34,
+    debris: 35,
+    unknown: 36,
+    pink: 37,
+    trusat: 38,
+    analyst: 39,
+    missile: 40,
+    missileInview: 41,
+    transparent: 42,
+    satHi: 43,
+    satMed: 44,
+    satLow: 45,
+    sunlightInview: 46,
+    penumbral: 47,
+    umbral: 48,
+    satSmall: 49,
+    rcsXXSmall: 50,
+    rcsXSmall: 51,
+    rcsSmall: 52,
+    rcsMed: 53,
+    rcsLarge: 54,
+    rcsUnknown: 55,
+    ageNew: 56,
+    ageMed: 57,
+    ageOld: 58,
+    ageLost: 59,
+    lostobjects: 60,
+    satLEO: 61,
+    satGEO: 62,
+    inGroup: 63,
+    countryPRC: 64,
+    countryUS: 65,
+    countryCIS: 66,
+    countryOther: 67,
+    densityPayload: 68,
+    densityHi: 69,
+    densityMed: 70,
+    densityLow: 71,
+    densityOther: 72,
+    notional: 73,
+    red: 74,
+    yellow: 75,
+  };
+
   /**
    * Delay before advancing in Time Machine mode
    */
@@ -486,7 +547,7 @@ export class SettingsManager {
   /**
    * Color of the dot when hovering over an object.
    */
-  hoverColor = <[number, number, number, number]>[1.0, 1.0, 0.0, 1.0]; // Yellow
+  hoverColor = this.colors.yellow;
   installDirectory = '';
   /**
    * Determines whether or not to hide the propogation rate text on the GUI.
@@ -840,6 +901,10 @@ export class SettingsManager {
      * The maximum size of objects in the shader.
      */
     maxSize: 70.0,
+    /**
+     * Flat array of all color options
+     */
+    colors: [],
   };
 
   /**
@@ -849,7 +914,7 @@ export class SettingsManager {
   /**
    * Color of the dot when selected.
    */
-  selectedColor = <[number, number, number, number]>[1.0, 0.0, 0.0, 1.0]; // Red
+  selectedColor = 1; // Red
   /**
    * Determines whether the orbit should be shown through the Earth or not.
    */
@@ -916,7 +981,7 @@ export class SettingsManager {
    * Enables the old extended catalog including JSC Vimpel data
    */
   isEnableExtendedCatalog = false;
-  selectedColorFallback = <[number, number, number, number]>[0, 0, 0, 0];
+  selectedColorFallback = this.colors.transparent;
   /**
    * Flag if the keyboard should be disabled
    */
@@ -963,6 +1028,70 @@ export class SettingsManager {
   isDisableSkybox = false;
   isDisableMoon = false;
   isDisableAsyncReadPixels = false;
+  colorsRgba: {
+    facility: [number, number, number, number];
+    sunlight100: [number, number, number, number];
+    sunlight80: [number, number, number, number];
+    sunlight60: [number, number, number, number];
+    starHi: [number, number, number, number];
+    starMed: [number, number, number, number];
+    starLow: [number, number, number, number];
+    sensor: [number, number, number, number];
+    marker: [number, number, number, number][];
+    deselected: [number, number, number, number];
+    inFOV: [number, number, number, number];
+    inFOVAlt: [number, number, number, number];
+    radarData: [number, number, number, number];
+    radarDataMissile: [number, number, number, number];
+    radarDataSatellite: [number, number, number, number];
+    payload: [number, number, number, number];
+    rocketBody: [number, number, number, number];
+    debris: [number, number, number, number];
+    unknown: [number, number, number, number];
+    pink: [number, number, number, number];
+    trusat: [number, number, number, number];
+    analyst: [number, number, number, number];
+    missile: [number, number, number, number];
+    missileInview: [number, number, number, number];
+    transparent: [number, number, number, number];
+    satHi: [number, number, number, number];
+    satMed: [number, number, number, number];
+    satLow: [number, number, number, number];
+    sunlightInview: [number, number, number, number];
+    penumbral: [number, number, number, number];
+    umbral: [number, number, number, number];
+    // DEBUG Colors
+    // sunlight = [0.2, 0.4, 1.0, 1]
+    // penumbral = [0.5, 0.5, 0.5, 0.85]
+    // umbral = [0.2, 1.0, 0.0, 0.5]
+    satSmall: [number, number, number, number];
+    rcsXXSmall: [number, number, number, number];
+    rcsXSmall: [number, number, number, number];
+    rcsSmall: [number, number, number, number];
+    rcsMed: [number, number, number, number];
+    rcsLarge: [number, number, number, number];
+    rcsUnknown: [number, number, number, number];
+    ageNew: [number, number, number, number];
+    ageMed: [number, number, number, number];
+    ageOld: [number, number, number, number];
+    ageLost: [number, number, number, number];
+    lostobjects: [number, number, number, number];
+    satLEO: [number, number, number, number];
+    satGEO: [number, number, number, number];
+    inGroup: [number, number, number, number];
+    countryPRC: [number, number, number, number];
+    countryUS: [number, number, number, number];
+    countryCIS: [number, number, number, number];
+    countryOther: [number, number, number, number];
+    densityPayload: [number, number, number, number];
+    densityHi: [number, number, number, number];
+    densityMed: [number, number, number, number];
+    densityLow: [number, number, number, number];
+    densityOther: [number, number, number, number];
+    notional: [number, number, number, number];
+    red: [number, number, number, number];
+    yellow: [number, number, number, number];
+  };
 
   init(settingsOverride?: any) {
     this.pTime = [];
@@ -972,6 +1101,17 @@ export class SettingsManager {
     this.setMobileSettings();
     this.setEmbedOverrides();
     this.setColorSettings();
+
+    // Create a flat array from settingsManager.satShader.colors
+    this.satShader.colors = [];
+    let i = 0;
+    for (const key in this.colorsRgba) {
+      if (key === 'marker') continue;
+      this.colors[key] = i;
+      this.satShader.colors = this.satShader.colors.concat(this.colorsRgba[key]);
+      i++;
+    }
+
     this.loadOverrides(settingsOverride);
 
     const params = this.loadOverridesFromUrl();
@@ -1021,13 +1161,12 @@ export class SettingsManager {
     this.colors = null;
     try {
       this.colors = JSON.parse(localStorage.getItem('this-colors'));
+      this.colorsRgba = JSON.parse(localStorage.getItem('this-colorsRgba'));
     } catch {
       console.warn('Settings Manager: Unable to get color settings - localStorage issue!');
     }
-    if (this.colors == null || this.colors.length === 0 || this.colors.version !== '1.2.0') {
-      this.colors = {
-        version: '1.2.0',
-        length: 0,
+    if (this.colors == null || this.colors.version !== '1.3.2' || this.colorsRgba == null) {
+      this.colorsRgba = {
         facility: [0.64, 0.0, 0.64, 1.0],
         sunlight100: [1.0, 1.0, 1.0, 1.0],
         sunlight80: [1.0, 1.0, 1.0, 0.85],
@@ -1082,10 +1221,6 @@ export class SettingsManager {
         // sunlight = [0.2, 0.4, 1.0, 1]
         // penumbral = [0.5, 0.5, 0.5, 0.85]
         // umbral = [0.2, 1.0, 0.0, 0.5]
-        gradientAmt: 0,
-        // Gradients Must be Edited in color-scheme.js
-        // apogeeGradient = [1.0 - this.colors.gradientAmt, this.colors.gradientAmt, 0.0, 1.0]
-        // velGradient = [1.0 - this.colors.gradientAmt, this.colors.gradientAmt, 0.0, 1.0]
         satSmall: [0.2, 1.0, 0.0, 0.65],
         rcsXXSmall: [1.0, 0, 0, 0.6],
         rcsXSmall: [1.0, 0.2, 0, 0.6],
@@ -1111,9 +1246,73 @@ export class SettingsManager {
         densityLow: [1, 1, 0, 0.9],
         densityOther: [0.8, 0.8, 0.8, 0.3],
         notional: [1, 0, 0, 0.8],
+        red: [1, 0, 0, 1],
+        yellow: [1, 1, 0, 1],
+      };
+      this.colors = {
+        version: '1.3.0',
+        facility: 1,
+        sunlight100: 2,
+        sunlight80: 3,
+        sunlight60: 4,
+        starHi: 5,
+        starMed: 6,
+        starLow: 7,
+        sensor: 8,
+        marker: [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26],
+        deselected: 27,
+        inFOV: 28,
+        inFOVAlt: 29,
+        radarData: 30,
+        radarDataMissile: 31,
+        radarDataSatellite: 32,
+        payload: 33,
+        rocketBody: 34,
+        debris: 35,
+        unknown: 36,
+        pink: 37,
+        trusat: 38,
+        analyst: 39,
+        missile: 40,
+        missileInview: 41,
+        transparent: 42,
+        satHi: 43,
+        satMed: 44,
+        satLow: 45,
+        sunlightInview: 46,
+        penumbral: 47,
+        umbral: 48,
+        satSmall: 49,
+        rcsXXSmall: 50,
+        rcsXSmall: 51,
+        rcsSmall: 52,
+        rcsMed: 53,
+        rcsLarge: 54,
+        rcsUnknown: 55,
+        ageNew: 56,
+        ageMed: 57,
+        ageOld: 58,
+        ageLost: 59,
+        lostobjects: 60,
+        satLEO: 61,
+        satGEO: 62,
+        inGroup: 63,
+        countryPRC: 64,
+        countryUS: 65,
+        countryCIS: 66,
+        countryOther: 67,
+        densityPayload: 68,
+        densityHi: 69,
+        densityMed: 70,
+        densityLow: 71,
+        densityOther: 72,
+        notional: 73,
+        red: 74,
+        yellow: 75,
       };
       try {
         localStorage.setItem('this-colors', JSON.stringify(this.colors));
+        localStorage.setItem('this-colorsRgba', JSON.stringify(this.colorsRgba));
       } catch {
         console.warn('Settings Manager: Unable to save color settings - localStorage issue!');
       }
@@ -1207,9 +1406,9 @@ export class SettingsManager {
                 this.isDisableControlSites = true;
                 this.isDisableLaunchSites = true;
                 this.isLoadLastSensor = false;
-                this.colors.rocketBody = [0.5, 0.5, 0.5, 1];
-                this.colors.unknown = [0.5, 0.5, 0.5, 1];
-                this.colors.pink = [0.5, 0.5, 0.5, 1];
+                this.colorsRgba.rocketBody = [0.5, 0.5, 0.5, 1];
+                this.colorsRgba.unknown = [0.5, 0.5, 0.5, 1];
+                this.colorsRgba.pink = [0.5, 0.5, 0.5, 1];
                 break;
               case 'outreach':
                 this.satShader.minSize = 30.0;
@@ -1259,9 +1458,9 @@ export class SettingsManager {
                 this.isDisableControlSites = true;
                 this.isDisableLaunchSites = true;
                 this.isLoadLastSensor = false;
-                this.colors.rocketBody = [0.5, 0.5, 0.5, 1];
-                this.colors.unknown = [0.5, 0.5, 0.5, 1];
-                this.colors.pink = [0.5, 0.5, 0.5, 1];
+                this.colorsRgba.rocketBody = [0.5, 0.5, 0.5, 1];
+                this.colorsRgba.unknown = [0.5, 0.5, 0.5, 1];
+                this.colorsRgba.pink = [0.5, 0.5, 0.5, 1];
                 this.maxOribtsDisplayedDesktopAll = 100000;
                 this.maxOribtsDisplayed = 100000;
                 this.searchLimit = 100000;
@@ -1286,21 +1485,21 @@ export class SettingsManager {
                 this.maxAnalystSats = 1;
                 this.maxMissiles = 1;
                 this.maxFieldOfViewMarkers = 1;
-                // this.isNotionalDebris = true;
-                // this.isEnableExtendedCatalog = true;
+                this.isNotionalDebris = true;
+                this.isEnableExtendedCatalog = true;
                 this.isShowAgencies = false;
                 this.isDisableLaunchSites = true;
                 this.isDisableControlSites = true;
                 this.isDisableSensors = true;
-                this.colors.transparent = [1, 1, 1, 0.4];
-                this.colors.rocketBody = [0.5, 0.5, 0.5, 1];
-                this.colors.unknown = [0.5, 0.5, 0.5, 1];
-                this.colors.pink = [0.5, 0.5, 0.5, 1];
-                this.colors.notional = [0.5, 0.5, 0.5, 1];
-                this.colors.deselected = [1, 1, 1, 0.4];
-                this.selectedColor = [0, 0, 0, 0];
-                this.selectedColorFallback = [0, 0, 0, 0];
-                this.maxNotionalDebris = 0.5 * 1000000; // 2.5 million
+                this.colorsRgba.transparent = [1, 1, 1, 0.4];
+                this.colorsRgba.rocketBody = [0.5, 0.5, 0.5, 1];
+                this.colorsRgba.unknown = [0.5, 0.5, 0.5, 1];
+                this.colorsRgba.pink = [0.5, 0.5, 0.5, 1];
+                this.colorsRgba.notional = [0.5, 0.5, 0.5, 1];
+                this.colorsRgba.deselected = [1, 1, 1, 0.4];
+                this.selectedColor = 0;
+                this.selectedColorFallback = 0;
+                this.maxNotionalDebris = 1.0 * 1000000; // 2.5 million
                 this.isDrawOrbits = false;
                 this.searchLimit = 100000;
                 this.isEPFL = true;
@@ -1487,11 +1686,11 @@ export class SettingsManager {
     this.isDisableControlSites = true;
     this.isDisableLaunchSites = true;
     this.isLoadLastSensor = false;
-    this.colors.payload = [0.2, 1.0, 0.0, 0.1];
-    this.colors.rocketBody = [0.5, 0.5, 0.5, 0.1];
-    this.colors.debris = [0.5, 0.5, 0.5, 0.1];
-    this.colors.unknown = [0.5, 0.5, 0.5, 0.1];
-    this.colors.pink = [0.5, 0.5, 0.5, 0.1];
+    this.colorsRgba.payload = [0.2, 1.0, 0.0, 0.1];
+    this.colorsRgba.rocketBody = [0.5, 0.5, 0.5, 0.1];
+    this.colorsRgba.debris = [0.5, 0.5, 0.5, 0.1];
+    this.colorsRgba.unknown = [0.5, 0.5, 0.5, 0.1];
+    this.colorsRgba.pink = [0.5, 0.5, 0.5, 0.1];
     keepTrackApi.register({
       method: KeepTrackApiMethods.onCruncherReady,
       cbName: 'satFromSettings',

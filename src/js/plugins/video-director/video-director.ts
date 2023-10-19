@@ -206,7 +206,7 @@ export class VideoDirectorPlugin extends KeepTrackPlugin {
 
     if ((<HTMLInputElement>getEl('video-director-selectedColor')).checked && settingsManager.selectedColor[3] !== 0) {
       settingsManager.selectedColorFallback = settingsManager.selectedColor;
-      settingsManager.selectedColor = [0, 0, 0, 0];
+      settingsManager.selectedColor = settingsManager.colors.transparent;
     } else {
       settingsManager.selectedColor = settingsManager.selectedColorFallback;
     }

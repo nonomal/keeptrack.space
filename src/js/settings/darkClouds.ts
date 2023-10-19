@@ -36,18 +36,18 @@ export const darkClouds = () => {
 
   settingsManager.startWithOrbitsDisplayed = true;
 
-  settingsManager.colors.payload = [0.2, 1.0, 0.0, 0.5]; // Green
-  settingsManager.colors.pink = [0.2, 1.0, 0.0, 0.5]; // "Special" objects often have no data - make them match payloads
+  settingsManager.colorsRgba.payload = [0.2, 1.0, 0.0, 0.5]; // Green
+  settingsManager.colorsRgba.pink = [0.2, 1.0, 0.0, 0.5]; // "Special" objects often have no data - make them match payloads
 
-  settingsManager.colors.unknown = [1, 0.8, 0.1, 0.85]; // Dark Yellow
-  settingsManager.colors.rocketBody = [1, 0.8, 0.1, 0.85]; // Dark Yellow
-  settingsManager.colors.debris = [0.8, 0.8, 0.1, 0.85]; // Yellow
-  // settingsManager.colors.rocketBody = [0.7, 0.7, 0.7, 0.85]; // Ted's recommendation - Dark Gray
-  // settingsManager.colors.debris = [0.8, 0.8, 0.8, 0.85]; // Ted's recommendation - Gray
+  settingsManager.colorsRgba.unknown = [1, 0.8, 0.1, 0.85]; // Dark Yellow
+  settingsManager.colorsRgba.rocketBody = [1, 0.8, 0.1, 0.85]; // Dark Yellow
+  settingsManager.colorsRgba.debris = [0.8, 0.8, 0.1, 0.85]; // Yellow
+  // settingsManager.colorsRgba.rocketBody = [0.7, 0.7, 0.7, 0.85]; // Ted's recommendation - Dark Gray
+  // settingsManager.colorsRgba.debris = [0.8, 0.8, 0.8, 0.85]; // Ted's recommendation - Gray
 
-  settingsManager.colors.transparent = [1.0, 1.0, 1.0, 0.0]; // Transparent
+  settingsManager.colorsRgba.transparent = [1.0, 1.0, 1.0, 0.0]; // Transparent
 
-  settingsManager.hoverColor = [1.0, 0.0, 0.0, 1.0]; // Objects Red on Hover
+  settingsManager.hoverColor = settingsManager.colors.red; // Objects Red on Hover
   settingsManager.orbitHoverColor = [1.0, 0.0, 0.0, 0.9]; // Orbit Red on Hover
   settingsManager.orbitGroupAlpha = 0.25; // Transparency of satellite orbits (transparency has no impact on load times)
 

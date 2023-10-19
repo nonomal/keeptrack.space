@@ -344,49 +344,49 @@ export class SettingsMenuPlugin extends KeepTrackPlugin {
         const that = this;
 
         (<any>$('#settings-color-payload')).colorPick({
-          initialColor: rgbCss(settingsManager.colors?.payload || [0.2, 1.0, 0.0, 0.5]),
+          initialColor: rgbCss(settingsManager.colorsRgba?.payload || [0.2, 1.0, 0.0, 0.5]),
           palette: colorPalette,
           onColorSelected: function () {
             that.onColorSelected(this, 'payload');
           },
         });
         (<any>$('#settings-color-rocketBody')).colorPick({
-          initialColor: rgbCss(settingsManager.colors?.rocketBody || [0.2, 0.4, 1.0, 1]),
+          initialColor: rgbCss(settingsManager.colorsRgba?.rocketBody || [0.2, 0.4, 1.0, 1]),
           palette: colorPalette,
           onColorSelected: function () {
             that.onColorSelected(this, 'rocketBody');
           },
         });
         (<any>$('#settings-color-debris')).colorPick({
-          initialColor: rgbCss(settingsManager.colors?.debris || [0.5, 0.5, 0.5, 1]),
+          initialColor: rgbCss(settingsManager.colorsRgba?.debris || [0.5, 0.5, 0.5, 1]),
           palette: colorPalette,
           onColorSelected: function () {
             that.onColorSelected(this, 'debris');
           },
         });
         (<any>$('#settings-color-inview')).colorPick({
-          initialColor: rgbCss(settingsManager.colors?.inFOV || [0.85, 0.5, 0.0, 1.0]),
+          initialColor: rgbCss(settingsManager.colorsRgba?.inFOV || [0.85, 0.5, 0.0, 1.0]),
           palette: colorPalette,
           onColorSelected: function () {
             that.onColorSelected(this, 'inview');
           },
         });
         (<any>$('#settings-color-missile')).colorPick({
-          initialColor: rgbCss(settingsManager.colors?.missile || [1.0, 1.0, 0.0, 1.0]),
+          initialColor: rgbCss(settingsManager.colorsRgba?.missile || [1.0, 1.0, 0.0, 1.0]),
           palette: colorPalette,
           onColorSelected: function () {
             that.onColorSelected(this, 'missile');
           },
         });
         (<any>$('#settings-color-missileInview')).colorPick({
-          initialColor: rgbCss(settingsManager.colors?.missileInview || [1.0, 0.0, 0.0, 1.0]),
+          initialColor: rgbCss(settingsManager.colorsRgba?.missileInview || [1.0, 0.0, 0.0, 1.0]),
           palette: colorPalette,
           onColorSelected: function () {
             that.onColorSelected(this, 'missileInview');
           },
         });
         (<any>$('#settings-color-special')).colorPick({
-          initialColor: rgbCss(settingsManager.colors?.pink || [1.0, 0.0, 0.6, 1.0]),
+          initialColor: rgbCss(settingsManager.colorsRgba?.pink || [1.0, 0.0, 0.6, 1.0]),
           palette: colorPalette,
           onColorSelected: function () {
             that.onColorSelected(this, 'pink');
@@ -528,7 +528,7 @@ export class SettingsMenuPlugin extends KeepTrackPlugin {
 
     settingsManager.isEciOnHover = (<HTMLInputElement>getEl('settings-eciOnHover')).checked;
     const isHOSChecked = (<HTMLInputElement>getEl('settings-hos')).checked;
-    settingsManager.colors.transparent = isHOSChecked ? [1.0, 1.0, 1.0, 0] : [1.0, 1.0, 1.0, 0.1];
+    settingsManager.colorsRgba.transparent = isHOSChecked ? [1.0, 1.0, 1.0, 0] : [1.0, 1.0, 1.0, 0.1];
     settingsManager.isDemoModeOn = (<HTMLInputElement>getEl('settings-demo-mode')).checked;
     settingsManager.isSatLabelModeOn = (<HTMLInputElement>getEl('settings-sat-label-mode')).checked;
     settingsManager.isShowNextPass = (<HTMLInputElement>getEl('settings-snp')).checked;

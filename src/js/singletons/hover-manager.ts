@@ -206,7 +206,17 @@ export class HoverManager {
     // Use this as a default if no UI
     if (settingsManager.disableUI || settingsManager.isEPFL) {
       this.satHoverBoxNode1.textContent = sat.name;
-      let year = sat.intlDes.split('-')[0] === 'none' ? 'Unknown' : sat.intlDes.split('-')[0];
+      let year = '?';
+      if (sat.intlDes) {
+        year = sat.intlDes.split('-')[0] === 'none' ? 'Unknown' : sat.intlDes.split('-')[0];
+      } else {
+        year = sat.TLE1.slice(9, 11);
+        if (parseInt(year) < 57) {
+          year = '20' + year;
+        } else {
+          year = '19' + year;
+        }
+      }
       this.satHoverBoxNode2.textContent = settingsManager.isEPFL ? `Launched: ${year}` : sat.sccNum;
       let country = StringExtractor.extractCountry(sat.country);
       country = country.length > 0 ? country : 'Unknown';
@@ -395,16 +405,13 @@ export class HoverManager {
     // If Old Select Sat Picked Color it Correct Color
     if (this.lasthoveringSat !== -1 && this.lasthoveringSat !== catalogManagerInstance.selectedSat) {
       const newColor = colorSchemeManagerInstance.currentColorScheme(catalogManagerInstance.getSat(this.lasthoveringSat)).color;
-      colorSchemeManagerInstance.colorData[this.lasthoveringSat * 4] = newColor[0]; // R
-      colorSchemeManagerInstance.colorData[this.lasthoveringSat * 4 + 1] = newColor[1]; // G
-      colorSchemeManagerInstance.colorData[this.lasthoveringSat * 4 + 2] = newColor[2]; // B
-      colorSchemeManagerInstance.colorData[this.lasthoveringSat * 4 + 3] = newColor[3]; // A
+      colorSchemeManagerInstance.colorData[this.lasthoveringSat] = newColor + 200;
 
-      gl.bufferSubData(gl.ARRAY_BUFFER, this.lasthoveringSat * 4 * 4, new Float32Array(newColor));
+      gl.bufferSubData(gl.ARRAY_BUFFER, this.lasthoveringSat, new Float32Array(newColor));
     }
     // If New Hover Sat Picked Color it
     if (this.hoveringSat !== -1 && this.hoveringSat !== catalogManagerInstance.selectedSat) {
-      gl.bufferSubData(gl.ARRAY_BUFFER, this.hoveringSat * 4 * 4, new Float32Array(settingsManager.hoverColor));
+      gl.bufferSubData(gl.ARRAY_BUFFER, this.hoveringSat, new Float32Array(settingsManager.hoverColor));
     }
     this.lasthoveringSat = this.hoveringSat;
   }

@@ -21,7 +21,7 @@
  */
 
 import { keepTrackContainer } from '../container';
-import { CatalogManager, ColorInformation, ColorRuleSet, Colors, Pickable, rgbaArray, SatObject, Singletons, UiManager } from '../interfaces';
+import { CatalogManager, ColorInformation, ColorRuleSet, Colors, Pickable, SatObject, Singletons, UiManager } from '../interfaces';
 import { keepTrackApi } from '../keepTrackApi';
 import { getEl } from '../lib/get-el';
 import { SpaceObjectType } from '../lib/space-object-type';
@@ -91,13 +91,9 @@ export class StandardColorSchemeManager {
     densityOther: true,
   };
 
-  public pickableBuffer: WebGLBuffer;
-  public pickableBufferOneTime: boolean;
-  public pickableData: Int8Array;
-
-  public static apogee(sat: SatObject): ColorInformation {
+  public static apogee(_sat: SatObject): ColorInformation {
     return {
-      color: [1.0 - Math.min(sat.apogee / 45000, 1.0), Math.min(sat.apogee / 45000, 1.0), 0.0, 1.0],
+      color: 1, // [1.0 - Math.min(sat.apogee / 45000, 1.0), Math.min(sat.apogee / 45000, 1.0), 0.0, 1.0],
       pickable: Pickable.Yes,
     };
   }
@@ -186,7 +182,7 @@ export class StandardColorSchemeManager {
     try {
       // These two variables only need to be set once, but we want to make sure they aren't called before the satellites
       // are loaded into catalogManagerInstance. Don't move the buffer data creation into the constructor!
-      if (!this.pickableData || !this.colorData) return;
+      if (!this.colorData) return;
 
       // Revert colorscheme if search box is empty
       this.preValidateColorScheme_(isForceRecolor);
@@ -454,7 +450,7 @@ export class StandardColorSchemeManager {
       }
     }
 
-    let color: [number, number, number, number] = [0, 0, 0, 0];
+    let color;
     if (sat.country === 'ANALSAT') {
       color = this.colorTheme.analyst;
     } else if (sat.type === SpaceObjectType.PAYLOAD) {
@@ -525,7 +521,7 @@ export class StandardColorSchemeManager {
     if (sat.isInGroup) {
       if (sat.missile) return this.missileColor_(sat);
 
-      let color: [number, number, number, number] = [0, 0, 0, 0];
+      let color;
       switch (sat.type) {
         case SpaceObjectType.PAYLOAD:
           color = this.colorTheme.payload;
@@ -587,70 +583,10 @@ export class StandardColorSchemeManager {
     const drawManagerInstance = keepTrackContainer.get<DrawManager>(Singletons.DrawManager);
 
     this.gl_ = drawManagerInstance.gl;
-    this.colorTheme = settingsManager.colors || {
-      transparent: [0, 0, 0, 0] as rgbaArray,
-      inFOV: [0.0, 1.0, 0.0, 1.0] as rgbaArray,
-      deselected: [0.0, 0.0, 0.0, 0.0] as rgbaArray,
-      sensor: [0.0, 0.0, 0.0, 1.0] as rgbaArray,
-      payload: [0.0, 0.0, 1.0, 1.0] as rgbaArray,
-      rocketBody: [0.0, 1.0, 0.0, 1.0] as rgbaArray,
-      debris: [1.0, 0.0, 0.0, 1.0] as rgbaArray,
-      pink: [1.0, 0.0, 1.0, 1.0] as rgbaArray,
-      unknown: [1.0, 1.0, 1.0, 1.0] as rgbaArray,
-      starLow: [0.0, 0.0, 0.0, 1.0] as rgbaArray,
-      starMed: [0.0, 0.0, 0.0, 1.0] as rgbaArray,
-      starHi: [0.0, 0.0, 0.0, 1.0] as rgbaArray,
-      satLEO: [0.0, 0.0, 1.0, 1.0] as rgbaArray,
-      satGEO: [0.0, 1.0, 0.0, 1.0] as rgbaArray,
-      satLow: [0.0, 0.0, 1.0, 1.0] as rgbaArray,
-      satMed: [0.0, 0.0, 1.0, 1.0] as rgbaArray,
-      satHi: [0.0, 0.0, 1.0, 1.0] as rgbaArray,
-      satSmall: [0.0, 0.0, 1.0, 1.0] as rgbaArray,
-      rcsSmall: [0.0, 0.0, 1.0, 1.0] as rgbaArray,
-      rcsMed: [0.0, 0.0, 1.0, 1.0] as rgbaArray,
-      rcsLarge: [0.0, 0.0, 1.0, 1.0] as rgbaArray,
-      rcsUnknown: [0.0, 0.0, 1.0, 1.0] as rgbaArray,
-      ageNew: [0.0, 0.0, 1.0, 1.0] as rgbaArray,
-      ageMed: [0.0, 0.0, 1.0, 1.0] as rgbaArray,
-      ageOld: [0.0, 0.0, 1.0, 1.0] as rgbaArray,
-      ageLost: [0.0, 0.0, 1.0, 1.0] as rgbaArray,
-      countryUS: [0.0, 0.0, 1.0, 1.0] as rgbaArray,
-      countryPRC: [0.0, 0.0, 1.0, 1.0] as rgbaArray,
-      countryCIS: [0.0, 0.0, 1.0, 1.0] as rgbaArray,
-      countryOther: [0.0, 0.0, 1.0, 1.0] as rgbaArray,
-      densityPayload: [0.0, 0.0, 1.0, 1.0] as rgbaArray,
-      densityHi: [0.0, 0.0, 1.0, 1.0] as rgbaArray,
-      densityMed: [0.0, 0.0, 1.0, 1.0] as rgbaArray,
-      densityLow: [0.0, 0.0, 1.0, 1.0] as rgbaArray,
-      densityOther: [0.0, 0.0, 1.0, 1.0] as rgbaArray,
-      radarData: [0.0, 0.0, 1.0, 1.0] as rgbaArray,
-      radarDataSatellite: [0.0, 0.0, 1.0, 1.0] as rgbaArray,
-      radarDataMissile: [0.0, 0.0, 1.0, 1.0] as rgbaArray,
-      analyst: [0.0, 0.0, 1.0, 1.0] as rgbaArray,
-      facility: [0.0, 0.0, 1.0, 1.0] as rgbaArray,
-      missile: [0.0, 0.0, 1.0, 1.0] as rgbaArray,
-      missileInview: [0.0, 0.0, 1.0, 1.0] as rgbaArray,
-      gradientAmt: 0.0,
-      inFOVAlt: [0.0, 0.0, 0.0, 1.0] as rgbaArray,
-      inGroup: [0.0, 0.0, 0.0, 1.0] as rgbaArray,
-      length: 0,
-      lostobjects: [0.0, 0.0, 0.0, 1.0] as rgbaArray,
-      marker: [[0.0, 0.0, 0.0, 1.0]] as rgbaArray[],
-      umbral: [0.0, 0.0, 0.0, 1.0] as rgbaArray,
-      penumbral: [0.0, 0.0, 0.0, 1.0] as rgbaArray,
-      sunlight100: [0.0, 0.0, 0.0, 1.0] as rgbaArray,
-      sunlight80: [0.0, 0.0, 0.0, 1.0] as rgbaArray,
-      sunlight60: [0.0, 0.0, 0.0, 1.0] as rgbaArray,
-      sunlightInview: [0.0, 0.0, 0.0, 1.0] as rgbaArray,
-      rcsXSmall: [0.0, 0.0, 0.0, 1.0] as rgbaArray,
-      rcsXXSmall: [0.0, 0.0, 0.0, 1.0] as rgbaArray,
-      trusat: [0.0, 0.0, 0.0, 1.0] as rgbaArray,
-      version: '0',
-    };
+    this.colorTheme = settingsManager.colors;
 
     this.resetObjectTypeFlags();
     this.colorBuffer = drawManagerInstance.gl.createBuffer();
-    this.pickableBuffer = drawManagerInstance.gl.createBuffer();
 
     // Create the color buffers as soon as the position cruncher is ready
     keepTrackApi.register({
@@ -660,8 +596,7 @@ export class StandardColorSchemeManager {
         const catalogManagerInstance = keepTrackContainer.get<CatalogManager>(Singletons.CatalogManager);
 
         // Generate some public buffers
-        this.colorData = new Float32Array(catalogManagerInstance.numSats * 4);
-        this.pickableData = new Int8Array(catalogManagerInstance.numSats);
+        this.colorData = new Float32Array(catalogManagerInstance.numSats);
         this.calculateColorBuffers().then(() => {
           this.isReady = true;
         });
@@ -967,7 +902,6 @@ export class StandardColorSchemeManager {
       this.currentColorScheme = scheme;
       this.calculateColorBuffers(isForceRecolor);
       dotsManagerInstance.buffers.color = this.colorBuffer;
-      dotsManagerInstance.buffers.pickability = this.pickableBuffer;
     } catch (error) {
       // If we can't load the color scheme, just use the default
       console.debug(error);
@@ -1170,7 +1104,7 @@ export class StandardColorSchemeManager {
     };
     */
     return {
-      color: [1.0 - Math.min(sat.velocity.total / 15, 1.0), Math.min(sat.velocity.total / 15, 1.0), 0.0, 1.0],
+      color: 1, // [1.0 - Math.min(sat.velocity.total / 15, 1.0), Math.min(sat.velocity.total / 15, 1.0), 0.0, 1.0],
       pickable: Pickable.Yes,
     };
   }
@@ -1209,35 +1143,31 @@ export class StandardColorSchemeManager {
 
       if (!settingsManager.isShowLeoSats && satData[i].apogee < 6000) {
         colors = {
-          color: [0, 0, 0, 0],
+          color: this.colorTheme.transparent,
           pickable: Pickable.No,
         };
       }
       if (!settingsManager.isShowHeoSats && (satData[i].eccentricity >= 0.1 || (satData[i].apogee >= 6000 && satData[i].perigee < 6000))) {
         colors = {
-          color: [0, 0, 0, 0],
+          color: this.colorTheme.transparent,
           pickable: Pickable.No,
         };
       }
       if (!settingsManager.isShowMeoSats && satData[i].perigee <= 32000 && satData[i].perigee >= 6000) {
         colors = {
-          color: [0, 0, 0, 0],
+          color: this.colorTheme.transparent,
           pickable: Pickable.No,
         };
       }
       if (!settingsManager.isShowGeoSats && satData[i].perigee > 32000) {
         colors = {
-          color: [0, 0, 0, 0],
+          color: this.colorTheme.transparent,
           pickable: Pickable.No,
         };
       }
       colors ??= this.currentColorScheme(satData[i], params);
 
-      this.colorData[i * 4] = colors.color[0]; // R
-      this.colorData[i * 4 + 1] = colors.color[1]; // G
-      this.colorData[i * 4 + 2] = colors.color[2]; // B
-      this.colorData[i * 4 + 3] = colors.color[3]; // A
-      this.pickableData[i] = colors.pickable;
+      this.colorData[i] = colors.color + (colors.pickable ? 200 : 100);
     }
   }
 
@@ -1251,35 +1181,31 @@ export class StandardColorSchemeManager {
       let colors: ColorInformation = null;
       if (!settingsManager.isShowLeoSats && satData[i].apogee < 6000) {
         colors = {
-          color: [0, 0, 0, 0],
+          color: this.colorTheme.transparent,
           pickable: Pickable.No,
         };
       }
       if (!settingsManager.isShowHeoSats && (satData[i].eccentricity >= 0.1 || (satData[i].apogee >= 6000 && satData[i].perigee < 6000))) {
         colors = {
-          color: [0, 0, 0, 0],
+          color: this.colorTheme.transparent,
           pickable: Pickable.No,
         };
       }
       if (!settingsManager.isShowMeoSats && satData[i].perigee <= 32000 && satData[i].perigee >= 6000) {
         colors = {
-          color: [0, 0, 0, 0],
+          color: this.colorTheme.transparent,
           pickable: Pickable.No,
         };
       }
       if (!settingsManager.isShowGeoSats && satData[i].perigee > 32000) {
         colors = {
-          color: [0, 0, 0, 0],
+          color: this.colorTheme.transparent,
           pickable: Pickable.No,
         };
       }
       colors ??= this.currentColorScheme(satData[i], params);
 
-      this.colorData[i * 4] = colors.color[0]; // R
-      this.colorData[i * 4 + 1] = colors.color[1]; // G
-      this.colorData[i * 4 + 2] = colors.color[2]; // B
-      this.colorData[i * 4 + 3] = colors.color[3]; // A
-      this.pickableData[i] = colors.pickable;
+      this.colorData[i] = colors.color + (colors.pickable ? 200 : 100);
     }
   }
 
@@ -1533,15 +1459,6 @@ export class StandardColorSchemeManager {
     } else {
       gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.colorData);
     }
-
-    // Next the buffer for which objects can be picked -- different than what color they are on the pickable frame (that is in the dots class)
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.pickableBuffer);
-    if (!this.pickableBufferOneTime) {
-      gl.bufferData(gl.ARRAY_BUFFER, this.pickableData, gl.DYNAMIC_DRAW);
-      this.pickableBufferOneTime = true;
-    } else {
-      gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.pickableData);
-    }
   }
 
   private setSelectedAndHoverBuffer_() {
@@ -1549,18 +1466,12 @@ export class StandardColorSchemeManager {
 
     const selSat = catalogManagerInstance.selectedSat;
     // Selected satellites are always one color so forget whatever we just did
-    this.colorData[selSat * 4] = settingsManager.selectedColor[0]; // R
-    this.colorData[selSat * 4 + 1] = settingsManager.selectedColor[1]; // G
-    this.colorData[selSat * 4 + 2] = settingsManager.selectedColor[2]; // B
-    this.colorData[selSat * 4 + 3] = settingsManager.selectedColor[3]; // A
+    this.colorData[selSat] = settingsManager.selectedColor + 200;
 
     const hovSat = keepTrackApi.getHoverManager().hoveringSat;
     // Hover satellites are always one color so forget whatever we just did
     // We check this last so you can hover over the selected satellite
-    this.colorData[hovSat * 4] = settingsManager.hoverColor[0]; // R
-    this.colorData[hovSat * 4 + 1] = settingsManager.hoverColor[1]; // G
-    this.colorData[hovSat * 4 + 2] = settingsManager.hoverColor[2]; // B
-    this.colorData[hovSat * 4 + 3] = settingsManager.hoverColor[3];
+    this.colorData[hovSat] = settingsManager.hoverColor + 200;
   }
 
   private starColor_(sat: SatObject): ColorInformation {
