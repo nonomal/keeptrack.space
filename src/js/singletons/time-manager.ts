@@ -5,6 +5,7 @@ import { StringPad } from '../lib/stringPad';
 import { getDayOfYear } from '../lib/transforms';
 import { DateTimeManager } from '../plugins/date-time-manager/date-time-manager';
 import { UrlManager } from '../static/url-manager';
+import { errorManagerInstance } from './errorManager';
 
 export class TimeManager {
   dateDOM = null;
@@ -191,7 +192,12 @@ export class TimeManager {
 
       // Load the current JDAY
       const jday = getDayOfYear(this.simulationTimeObj);
-      getEl('jday').innerHTML = jday.toString();
+      const jdayDom = getEl('jday');
+      if (jdayDom !== null) {
+        jdayDom.innerHTML = jday.toString();
+      } else {
+        errorManagerInstance.debug('jdayDom is null');
+      }
     }
   }
 

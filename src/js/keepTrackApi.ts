@@ -150,6 +150,63 @@ type rmbMenuItem = {
    */
   isRmbOnSat: boolean;
 };
+/**
+ * Enum containing the registrable events used in the KeepTrack API.
+ */
+export enum KeepTrackApiEvents {
+  onHelpMenuClick = 'onHelpMenuClick',
+  /**
+   * Run at the end of catalogManager.selectSat with parameters (sat: SatObject, satId: number)
+   */
+  selectSatData = 'selectSatData',
+  onKeepTrackReady = 'onKeepTrackReady',
+  updateSelectBox = 'updateSelectBox',
+  onCruncherReady = 'onCruncherReady',
+  onCruncherMessage = 'onCruncherMessage',
+  uiManagerInit = 'uiManagerInit',
+  uiManagerOnReady = 'uiManagerOnReady',
+  bottomMenuClick = 'bottomMenuClick',
+  hideSideMenus = 'hideSideMenus',
+  nightToggle = 'nightToggle',
+  orbitManagerInit = 'orbitManagerInit',
+  drawManagerLoadScene = 'drawManagerLoadScene',
+  drawOptionalScenery = 'drawOptionalScenery',
+  updateLoop = 'updateLoop',
+  rmbMenuActions = 'rmbMenuActions',
+  rightBtnMenuAdd = 'rightBtnMenuAdd',
+  updateDateTime = 'updateDateTime',
+  uiManagerFinal = 'uiManagerFinal',
+  resetSensor = 'resetSensor',
+  /**
+   * Run in the setSensor method of SensorManager instance with parameters (sensor: SensorObject | string, staticId: number)
+   */
+  setSensor = 'setSensor',
+  changeSensorMarkers = 'changeSensorMarkers',
+  altCanvasResize = 'altCanvasResize',
+  endOfDraw = 'endOfDraw',
+  /**
+   * Run in the updateWatchlist method of CatalogManager instance with parameters (watchlist: number[])
+   */
+  onWatchlistUpdated = 'onWatchlistUpdated',
+  /**
+   * Run in the staticOffset setter of TimeManager instance with parameters (staticOffset: number)
+   */
+  staticOffsetChange = 'staticOffsetChange',
+}
+
+/**
+ * Represents an object that can be in the catalog, such as a satellite, missile, or sensor.
+ */
+type CatalogObject = SatObject | MissileObject | SensorObject;
+
+export const isSensorObject = (sat: CatalogObject): boolean =>
+  !!((<SensorObject>sat).observerGd?.lat || (<SensorObject>sat).observerGd?.lon || (<SensorObject>sat).observerGd?.alt);
+export const isMissileObject = (sat: CatalogObject): boolean => !!(<MissileObject>sat).missile;
+export const isSatObject = (sat: CatalogObject): boolean => {
+  if (!sat) return false;
+
+  return !!((<SatObject>sat).sccNum || (<SatObject>sat).intlDes);
+};
 
 export const keepTrackApi = {
   html: html,
@@ -297,61 +354,4 @@ export const keepTrackApi = {
   getSelectSatManager: () => keepTrackContainer.get<SelectSatManager>(Singletons.SelectSatManager),
   getMainCamera: () => keepTrackContainer.get<Camera>(Singletons.MainCamera),
 };
-
-/**
- * Enum containing the registrable events used in the KeepTrack API.
- */
-export enum KeepTrackApiEvents {
-  onHelpMenuClick = 'onHelpMenuClick',
-  /**
-   * Run at the end of catalogManager.selectSat with parameters (sat: SatObject, satId: number)
-   */
-  selectSatData = 'selectSatData',
-  onKeepTrackReady = 'onKeepTrackReady',
-  updateSelectBox = 'updateSelectBox',
-  onCruncherReady = 'onCruncherReady',
-  onCruncherMessage = 'onCruncherMessage',
-  uiManagerInit = 'uiManagerInit',
-  uiManagerOnReady = 'uiManagerOnReady',
-  bottomMenuClick = 'bottomMenuClick',
-  hideSideMenus = 'hideSideMenus',
-  nightToggle = 'nightToggle',
-  orbitManagerInit = 'orbitManagerInit',
-  drawManagerLoadScene = 'drawManagerLoadScene',
-  drawOptionalScenery = 'drawOptionalScenery',
-  updateLoop = 'updateLoop',
-  rmbMenuActions = 'rmbMenuActions',
-  rightBtnMenuAdd = 'rightBtnMenuAdd',
-  updateDateTime = 'updateDateTime',
-  uiManagerFinal = 'uiManagerFinal',
-  resetSensor = 'resetSensor',
-  /**
-   * Run in the setSensor method of SensorManager instance with parameters (sensor: SensorObject | string, staticId: number)
-   */
-  setSensor = 'setSensor',
-  changeSensorMarkers = 'changeSensorMarkers',
-  altCanvasResize = 'altCanvasResize',
-  endOfDraw = 'endOfDraw',
-  /**
-   * Run in the updateWatchlist method of CatalogManager instance with parameters (watchlist: number[])
-   */
-  onWatchlistUpdated = 'onWatchlistUpdated',
-  /**
-   * Run in the staticOffset setter of TimeManager instance with parameters (staticOffset: number)
-   */
-  staticOffsetChange = 'staticOffsetChange',
-}
-
-/**
- * Represents an object that can be in the catalog, such as a satellite, missile, or sensor.
- */
-type CatalogObject = SatObject | MissileObject | SensorObject;
-
-export const isSensorObject = (sat: CatalogObject): boolean =>
-  !!((<SensorObject>sat).observerGd?.lat || (<SensorObject>sat).observerGd?.lon || (<SensorObject>sat).observerGd?.alt);
-export const isMissileObject = (sat: CatalogObject): boolean => !!(<MissileObject>sat).missile;
-export const isSatObject = (sat: CatalogObject): boolean => {
-  if (!sat) return false;
-
-  return !!((<SatObject>sat).sccNum || (<SatObject>sat).intlDes);
-};
+if (global) (<any>global).keepTrackApi = keepTrackApi;
