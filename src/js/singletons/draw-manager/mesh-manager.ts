@@ -10,6 +10,7 @@ import { SpaceObjectType } from '../../lib/space-object-type';
 import { SatMath } from '../../static/sat-math';
 import { SplashScreen } from '../../static/splash-screen';
 import { errorManagerInstance } from '../errorManager';
+import { GTLFMesh } from './mesh-manager/gtlf-mesh';
 import { OcclusionProgram } from './post-processing';
 
 type MeshModel = {
@@ -232,6 +233,9 @@ export class MeshManager {
     debris2: null,
   };
 
+  gtlfModels: GTLFMesh[] = [];
+  gtlfModel: GTLFMesh;
+
   public checkIfNameKnown(name: string): boolean {
     // TODO: Currently all named models aim at nadir - that isn't always true
 
@@ -259,6 +263,12 @@ export class MeshManager {
     // Meshes aren't finished loading
     if (settingsManager.disableUI || settingsManager.isDrawLess) return;
     if (!this.isReady_) return;
+
+    if (this.gtlfModel) {
+      this.gtlfModel.draw(pMatrix, camMatrix, tgtBuffer);
+      return;
+    }
+
     if (typeof this.currentMeshObject.id == 'undefined' || typeof this.currentMeshObject.model == 'undefined' || this.currentMeshObject.id == -1 || this.currentMeshObject.static)
       return;
 
@@ -385,10 +395,14 @@ export class MeshManager {
     }
   }
 
-  // This is intentionally complex to reduce object creation and GC
-  // Splitting it into subfunctions would not be optimal
-  // prettier-ignore
-  public getSatelliteModel(sat: SatObject, selectedDate: Date) { // NOSONAR
+  public getSatelliteModel(sat: SatObject, selectedDate: Date) {
+    if (sat.sccNum === '00005') {
+      this.gtlfModel = this.gtlfModels[0];
+      this.gtlfModel.geometry.translate(sat.position.x, sat.position.y, sat.position.z);
+    } else {
+      this.gtlfModel = null;
+    }
+
     if (this.checkIfNameKnown(sat.name)) {
       this.updateNadirYaw(SatMath.calculateNadirYaw(sat.position, selectedDate));
       return;
@@ -550,6 +564,8 @@ export class MeshManager {
       // Changes Loading Screen Text
       SplashScreen.loadStr(SplashScreen.msg.models);
 
+      this.gtlfModels.push(new GTLFMesh(this.gl_, '/meshes/robot/robot.gltf'));
+
       let p = OBJ.downloadModels(this.fileList_);
 
       p.then((models: any[]) => {
@@ -563,13 +579,13 @@ export class MeshManager {
         this.initBuffers();
         this.isReady_ = true;
         // eslint-disable-next-line no-unused-vars
-      }).catch(() => {
+      }).catch((error) => {
         // DEBUG:
-        // console.warn(error);
+        console.warn(error);
       });
-    } catch {
+    } catch (error) {
       // DEBUG:
-      // console.debug(error);
+      console.debug(error);
     }
   }
 
