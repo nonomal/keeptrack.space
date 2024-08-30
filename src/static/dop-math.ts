@@ -1,3 +1,4 @@
+import { ORIENTATION_PLACEHOLDER } from '@app/webworker/positionCruncher';
 import numeric from 'numeric';
 import { AzEl, DEG2RAD, Degrees, DetailedSatellite, Kilometers, MILLISECONDS_PER_SECOND, ecf2rae, eci2ecf } from 'ootk';
 import { dateFormat } from '../lib/dateFormat';
@@ -81,7 +82,7 @@ export abstract class DopMath {
     const inViewList = <AzEl<Degrees>[]>[];
 
     gpsSatObjects.forEach((sat: DetailedSatellite) => {
-      const lookAngles = ecf2rae({ lon, lat, alt }, eci2ecf(sat.position, gmst));
+      const lookAngles = ecf2rae({ lon, lat, alt }, eci2ecf(sat.position, gmst), ORIENTATION_PLACEHOLDER);
       const azel = {
         az: lookAngles.az,
         el: lookAngles.el,

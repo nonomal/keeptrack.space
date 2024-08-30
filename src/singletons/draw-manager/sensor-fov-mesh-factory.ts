@@ -110,6 +110,10 @@ export class SensorFovMeshFactory extends CustomMeshFactory<SensorFovMesh> {
         minRng: sensor.minRng2,
         maxRng: sensor.maxRng2,
         volume: sensor.isVolumetric,
+        orientation: {
+          azimuth: sensor.orientation.azimuth2 ?? sensor.orientation.azimuth,
+          elevation: sensor.orientation.elevation2 ?? sensor.orientation.elevation,
+        },
       });
 
       this.create_(sensor2);

@@ -39,7 +39,7 @@ import { SatMath } from '@app/static/sat-math';
 import { TearrData } from '@app/static/sensor-math';
 import { PositionCruncherOutgoingMsg } from '@app/webworker/constants';
 import { CruncerMessageTypes } from '@app/webworker/positionCruncher';
-import { DEG2RAD, DetailedSensor, GreenwichMeanSiderealTime, ZoomValue, spaceObjType2Str } from 'ootk';
+import { DEG2RAD, DetailedSensor, GreenwichMeanSiderealTime, Orientation, ZoomValue, spaceObjType2Str } from 'ootk';
 import { keepTrackApi } from '../../keepTrackApi';
 import { Astronomy } from '../astronomy/astronomy';
 import { Planetarium } from '../planetarium/planetarium';
@@ -47,6 +47,11 @@ import { SensorFov } from '../sensor-fov/sensor-fov';
 import { SensorSurvFence } from '../sensor-surv/sensor-surv-fence';
 import { LookAnglesPlugin } from './look-angles-plugin';
 import { SensorInfoPlugin } from './sensor-info-plugin';
+
+export const ORIENTATION_PLACEHOLDER = {
+  azimuth: 0,
+  elevation: 0,
+} as Orientation;
 
 export class SensorManager {
   lastMultiSiteArray: TearrData[];

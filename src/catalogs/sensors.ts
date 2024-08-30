@@ -40,9 +40,13 @@ export const sensors = <SensorList>{
     lat: <Degrees>41.754785,
     lon: <Degrees>-70.539151,
     alt: <Kilometers>0.060966,
-    minAz: <Degrees>347,
-    maxAz: <Degrees>227,
-    boresightAz: [47 as Degrees, 227 as Degrees],
+    minAz: <Degrees>(347),
+    maxAz: <Degrees>(227),
+    boresightAz: [47 as Degrees, 167 as Degrees],
+    orientation: {
+      azimuth: <Degrees>0, // Azimuth is accounted for in minAz and maxAz
+      elevation: <Degrees>0,
+    },
     minEl: <Degrees>3,
     maxEl: <Degrees>85,
     boresightEl: [20 as Degrees, 20 as Degrees],
@@ -123,10 +127,14 @@ export const sensors = <SensorList>{
     lat: <Degrees>30.572411,
     lon: <Degrees>-86.214836,
     alt: <Kilometers>0.039, // Open Street Maps
-    minAz: <Degrees>120,
-    maxAz: <Degrees>240,
+    minAz: <Degrees>(120 - 180 + 360),
+    maxAz: <Degrees>(240 - 180),
     boresightAz: [180 as Degrees],
-    minEl: <Degrees>3, // Should this be 0 for "horizon"?
+    orientation: {
+      azimuth: <Degrees>180, // Azimuth is accounted for in minAz and maxAz
+      elevation: <Degrees>15,
+    },
+    minEl: <Degrees>-12, // Should this be 0 for "horizon"?
     // TODO: Incorporate boresight into rae2ecf calculations for inclined sensors
     maxEl: <Degrees>90, // https://en.wikipedia.org/wiki/Eglin_AFB_Site_C-6 (an elevation range from the horizon to 15° past the zenith)
     // maxEl: <Degrees>105, // https://en.wikipedia.org/wiki/Eglin_AFB_Site_C-6 (an elevation range from the horizon to 15° past the zenith)
@@ -393,10 +401,14 @@ export const sensors = <SensorList>{
     lat: <Degrees>8.723, // SDC7-paper1014.pdf
     lon: <Degrees>167.719,
     alt: <Kilometers>0.007,
-    minAz: <Degrees>268, // TODO This needs a better system (same as LEO Labs)
-    maxAz: <Degrees>272,
-    minEl: <Degrees>5, // ??
-    maxEl: <Degrees>175, // ??
+    minAz: <Degrees>270,
+    maxAz: <Degrees>90,
+    minEl: <Degrees>-2, // ??
+    maxEl: <Degrees>2, // ??
+    orientation: {
+      azimuth: <Degrees>0,
+      elevation: <Degrees>90,
+    },
     minRng: <Kilometers>50,
     maxRng: <Kilometers>3057.754, // https://www.spaceforce.mil/News/Article/2142648/swinging-for-the-space-fence/
     zoom: ZoomValue.LEO,
@@ -745,18 +757,16 @@ export const sensors = <SensorList>{
     lat: <Degrees>31.9643,
     lon: <Degrees>-103.233245,
     alt: <Kilometers>0.855,
-    minAz: <Degrees>70,
-    maxAz: <Degrees>72,
-    minEl: <Degrees>30,
-    maxEl: <Degrees>91, // 91 to ensure visual overlap
+    minAz: <Degrees>295,
+    maxAz: <Degrees>65,
+    minEl: <Degrees>-1,
+    maxEl: <Degrees>1, // 91 to ensure visual overlap
     minRng: <Kilometers>100,
     maxRng: <Kilometers>1800,
-    minAz2: <Degrees>250,
-    maxAz2: <Degrees>252,
-    minEl2: <Degrees>30,
-    maxEl2: <Degrees>91, // 91 to ensure visual overlap
-    minRng2: <Kilometers>100,
-    maxRng2: <Kilometers>1800,
+    orientation: {
+      azimuth: <Degrees>-20,
+      elevation: <Degrees>90,
+    },
     zoom: ZoomValue.LEO,
     changeObjectInterval: <Milliseconds>1000,
     url: 'https://platform.leolabs.space/sites/msr',
@@ -824,12 +834,22 @@ export const sensors = <SensorList>{
      * minRng2: <Kilometers>100,
      * maxRng2: <Kilometers>1800,
      */
-    minAz: <Degrees>269,
-    maxAz: <Degrees>271,
-    minEl: <Degrees>10,
-    maxEl: <Degrees>170,
+    minAz: <Degrees>280,
+    maxAz: <Degrees>80,
+    minEl: <Degrees>2,
+    maxEl: <Degrees>4,
     minRng: <Kilometers>100,
     maxRng: <Kilometers>3000,
+    minAz2: <Degrees>280,
+    maxAz2: <Degrees>80,
+    minEl2: <Degrees>-4,
+    maxEl2: <Degrees>-2,
+    minRng2: <Kilometers>100,
+    maxRng2: <Kilometers>3000,
+    orientation: {
+      azimuth: <Degrees>0,
+      elevation: <Degrees>90,
+    },
     zoom: ZoomValue.LEO,
     changeObjectInterval: <Milliseconds>1000,
     url: 'https://platform.leolabs.space/sites/ksr',
@@ -848,18 +868,40 @@ export const sensors = <SensorList>{
     lat: <Degrees>10.611782670733335, // https://www.radartutorial.eu/19.kartei/02.surv/karte087.en.html
     lon: <Degrees>-85.52869380341954,
     alt: <Kilometers>0.0,
-    minAz: <Degrees>209,
-    maxAz: <Degrees>211,
-    minEl: <Degrees>20,
-    maxEl: <Degrees>180, // NOTE: Not sure why this looks correct, but 200 goes into the earth
+    /*
+     * minAz: <Degrees>209,
+     * maxAz: <Degrees>211,
+     * minEl: <Degrees>20,
+     * maxEl: <Degrees>90, // NOTE: Not sure why this looks correct, but 200 goes into the earth
+     * minRng: <Kilometers>100,
+     * maxRng: <Kilometers>3000,
+     */
+    /*
+     * minAz2: <Degrees>119,
+     * maxAz2: <Degrees>121,
+     * minEl2: <Degrees>20,
+     * maxEl2: <Degrees>180, // NOTE: Not sure why this looks correct, but 200 goes into the earth
+     * minRng2: <Kilometers>100,
+     * maxRng2: <Kilometers>3000,
+     */
+    minAz: <Degrees>358,
+    maxAz: <Degrees>2,
+    minEl: <Degrees>-80,
+    maxEl: <Degrees>80,
     minRng: <Kilometers>100,
     maxRng: <Kilometers>3000,
-    minAz2: <Degrees>119,
-    maxAz2: <Degrees>121,
-    minEl2: <Degrees>20,
-    maxEl2: <Degrees>180, // NOTE: Not sure why this looks correct, but 200 goes into the earth
+    minAz2: <Degrees>358,
+    maxAz2: <Degrees>2,
+    minEl2: <Degrees>-80,
+    maxEl2: <Degrees>80,
     minRng2: <Kilometers>100,
     maxRng2: <Kilometers>3000,
+    orientation: {
+      azimuth: <Degrees>0,
+      elevation: <Degrees>90,
+      azimuth2: <Degrees>90,
+      elevation2: <Degrees>90,
+    },
     zoom: ZoomValue.LEO,
     changeObjectInterval: <Milliseconds>1000,
     url: 'https://platform.leolabs.space/sites/crsr',
@@ -881,15 +923,17 @@ export const sensors = <SensorList>{
     minAz: <Degrees>209,
     maxAz: <Degrees>211,
     minEl: <Degrees>20,
-    maxEl: <Degrees>180, // NOTE: Not sure why this looks correct, but 200 goes into the earth
+    maxEl: <Degrees>90, // NOTE: Not sure why this looks correct, but 200 goes into the earth
     minRng: <Kilometers>100,
     maxRng: <Kilometers>3000,
-    minAz2: <Degrees>119,
-    maxAz2: <Degrees>121,
-    minEl2: <Degrees>20,
-    maxEl2: <Degrees>180, // NOTE: Not sure why this looks correct, but 200 goes into the earth
-    minRng2: <Kilometers>100,
-    maxRng2: <Kilometers>3000,
+    /*
+     * minAz2: <Degrees>119,
+     * maxAz2: <Degrees>121,
+     * minEl2: <Degrees>20,
+     * maxEl2: <Degrees>180, // NOTE: Not sure why this looks correct, but 200 goes into the earth
+     * minRng2: <Kilometers>100,
+     * maxRng2: <Kilometers>3000,
+     */
     zoom: ZoomValue.LEO,
     changeObjectInterval: <Milliseconds>1000,
     url: 'https://platform.leolabs.space/sites/crsr',
@@ -908,12 +952,16 @@ export const sensors = <SensorList>{
     lat: <Degrees>-33.308487,
     lon: <Degrees>116.030608,
     alt: <Kilometers>0.241,
-    minAz: <Degrees>119,
-    maxAz: <Degrees>121,
-    minEl: <Degrees>10,
-    maxEl: <Degrees>170, // NOTE: Not sure why this looks correct, but 200 goes into the earth
+    minAz: <Degrees>280,
+    maxAz: <Degrees>80,
+    minEl: <Degrees>-1,
+    maxEl: <Degrees>1, // NOTE: Not sure why this looks correct, but 200 goes into the earth
     minRng: <Kilometers>100,
     maxRng: <Kilometers>3000,
+    orientation: {
+      azimuth: <Degrees>30,
+      elevation: <Degrees>90,
+    },
     zoom: ZoomValue.LEO,
     changeObjectInterval: <Milliseconds>1000,
     url: 'https://platform.leolabs.space/sites/crsr',

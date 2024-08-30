@@ -9,6 +9,7 @@ import { BaseObject, DEG2RAD, Degrees, DetailedSensor, EpochUTC, Kilometers, RAE
 import { KeepTrackPlugin } from '../KeepTrackPlugin';
 import { SatInfoBox } from '../select-sat-manager/sat-info-box';
 import { SelectSatManager } from '../select-sat-manager/select-sat-manager';
+import { ORIENTATION_PLACEHOLDER } from '../sensor/sensorManager';
 import { SoundNames } from '../sounds/SoundNames';
 
 export class ShortTermFences extends KeepTrackPlugin {
@@ -294,7 +295,7 @@ export class ShortTermFences extends KeepTrackPlugin {
     }
 
     const now = keepTrackApi.getTimeManager().simulationTimeObj;
-    const rae = eci2rae(now, this.selectSatManager_.primarySatObj.position, sensorManagerInstance.currentSensors[0]);
+    const rae = eci2rae(now, this.selectSatManager_.primarySatObj.position, sensorManagerInstance.currentSensors[0].lla(), ORIENTATION_PLACEHOLDER);
 
     (<HTMLInputElement>getEl('stf-az')).value = rae.az.toFixed(1);
     (<HTMLInputElement>getEl('stf-el')).value = rae.el.toFixed(1);

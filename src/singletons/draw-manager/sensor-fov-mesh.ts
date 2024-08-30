@@ -154,7 +154,7 @@ export class SensorFovMesh extends CustomMesh {
           }
         }
 
-        const eci = rae2eci({ az, el, rng }, this.sensor, 0);
+        const eci = rae2eci({ az, el, rng }, this.sensor.lla(), 0, this.sensor.orientation);
 
         this.verticesTmp_.push(eci.x, eci.y, eci.z);
         this.vertexCount_++;
@@ -228,7 +228,7 @@ export class SensorFovMesh extends CustomMesh {
       for (let j = 0; j <= 1; j++) {
         const rng = j ? rngEnd : rngStart;
 
-        const eci = rae2eci({ az: localAz, el, rng }, this.sensor, 0);
+        const eci = rae2eci({ az, el, rng }, this.sensor.lla(), 0, this.sensor.orientation);
 
         this.verticesTmp_.push(eci.x, eci.y, eci.z);
         this.vertexCount_++;
@@ -251,7 +251,16 @@ export class SensorFovMesh extends CustomMesh {
     if (maxEl <= 90) {
       // 1. Bottom surface
       this.createHorzGeometry(
-        { azStart: minAz, azEnd: maxAz, elStart: minEl, elEnd: minEl, rngStart: minRange, rngEnd: maxRange, azSegments: this.azimuthSegments, elSegments: this.rangeSegments },
+        {
+          azStart: minAz,
+          azEnd: maxAz,
+          elStart: minEl,
+          elEnd: minEl,
+          rngStart: minRange,
+          rngEnd: maxRange,
+          azSegments: this.azimuthSegments,
+          elSegments: this.rangeSegments,
+        },
       );
 
       this.indiciesBottom_ = new Uint16Array(this.indicesTmp_);

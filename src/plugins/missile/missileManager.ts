@@ -678,7 +678,7 @@ export const getMissileTEARR = (missile: MissileObject, sensors?: Sensor[]) => {
     currentTEARR.lon = gpos.lon;
     currentTEARR.lat = gpos.lat;
     positionEcf = eci2ecf({ x, y, z }, gmst);
-    lookAngles = ecfRad2rae(sensor.llaRad(), positionEcf);
+    lookAngles = ecfRad2rae(sensor.llaRad(), positionEcf, sensor.orientation);
     currentTEARR.az = lookAngles.az * RAD2DEG;
     currentTEARR.el = lookAngles.el * RAD2DEG;
     currentTEARR.rng = lookAngles.rng;

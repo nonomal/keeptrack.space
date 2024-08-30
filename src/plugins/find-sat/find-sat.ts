@@ -11,6 +11,7 @@ import { countryCodeList, countryMapList, countryNameList } from '@app/catalogs/
 import { BaseObject, Degrees, DetailedSatellite, Kilometers, Minutes, eci2rae } from 'ootk';
 import { keepTrackApi } from '../../keepTrackApi';
 import { KeepTrackPlugin, clickDragOptions } from '../KeepTrackPlugin';
+import { ORIENTATION_PLACEHOLDER } from '../sensor/sensorManager';
 
 export interface SearchSatParams {
   argPe: Degrees;
@@ -55,7 +56,8 @@ export class FindSatPlugin extends KeepTrackPlugin {
       const rae = eci2rae(
         keepTrackApi.getTimeManager().simulationTimeObj,
         keepTrackApi.getCatalogManager().getSat(pos.id, GetSatType.POSITION_ONLY).position,
-        keepTrackApi.getSensorManager().currentSensors[0],
+        keepTrackApi.getSensorManager().currentSensors[0].lla(),
+        ORIENTATION_PLACEHOLDER,
       );
 
 
@@ -72,7 +74,8 @@ export class FindSatPlugin extends KeepTrackPlugin {
       const rae = eci2rae(
         keepTrackApi.getTimeManager().simulationTimeObj,
         keepTrackApi.getCatalogManager().getSat(pos.id, GetSatType.POSITION_ONLY).position,
-        keepTrackApi.getSensorManager().currentSensors[0],
+        keepTrackApi.getSensorManager().currentSensors[0].lla(),
+        ORIENTATION_PLACEHOLDER,
       );
 
 
@@ -100,7 +103,8 @@ export class FindSatPlugin extends KeepTrackPlugin {
       const rae = eci2rae(
         keepTrackApi.getTimeManager().simulationTimeObj,
         keepTrackApi.getCatalogManager().getSat(pos.id, GetSatType.POSITION_ONLY).position,
-        keepTrackApi.getSensorManager().currentSensors[0],
+        keepTrackApi.getSensorManager().currentSensors[0].lla(),
+        ORIENTATION_PLACEHOLDER,
       );
 
 

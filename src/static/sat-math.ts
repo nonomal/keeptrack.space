@@ -22,6 +22,7 @@
  * /////////////////////////////////////////////////////////////////////////////
  */
 
+import { ORIENTATION_PLACEHOLDER } from '@app/plugins/sensor/sensorManager';
 import { vec3 } from 'gl-matrix';
 import numeric from 'numeric';
 import {
@@ -265,7 +266,7 @@ export abstract class SatMath {
     };
 
     if (sat.position.x > 0) {
-      rae = eci2rae(propTime, sat.position, sensor as unknown as Sensor);
+      rae = eci2rae(propTime, sat.position, sensor.lla(), ORIENTATION_PLACEHOLDER);
     } else {
       rae = SatMath.getRae(propTime, sat.satrec, sensor);
     }
@@ -677,7 +678,7 @@ export abstract class SatMath {
     }
     const positionEcf = eci2ecf(positionEci, gmst);
 
-    return ecfRad2rae(sensor.llaRad(), positionEcf);
+    return ecfRad2rae(sensor.llaRad(), positionEcf, sensor.orientation);
   }
 
   /**

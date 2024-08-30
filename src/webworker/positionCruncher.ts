@@ -36,6 +36,7 @@ import {
   Kilometers,
   Milliseconds,
   Minutes,
+  Orientation,
   PI,
   Radians,
   RaeVec3,
@@ -44,6 +45,7 @@ import {
   Sun,
   TAU,
   Vector3D,
+  ecf2rae,
   ecfRad2rae,
   eci2ecf,
   eci2lla,
@@ -97,6 +99,11 @@ export enum CruncerMessageTypes {
 export enum MarkerMode {
   OFF,
 }
+
+export const ORIENTATION_PLACEHOLDER = {
+  azimuth: 0,
+  elevation: 0,
+} as Orientation;
 
 const EMPTY_FLOAT32_ARRAY = new Float32Array(0);
 const EMPTY_INT8_ARRAY = new Int8Array(0);
@@ -465,7 +472,7 @@ export const updateStar = (i: number, now: Date, gmst: GreenwichMeanSiderealTime
    */
   const starPosition = Celestial.azEl(now, STAR_LAT, STAR_LON, objCache[i].ra, objCache[i].dec);
   const rae = { az: starPosition.az, el: starPosition.el, rng: STAR_DISTANCE };
-  const pos = rae2eci(rae, { lat: <Degrees>0, lon: <Degrees>0, alt: <Kilometers>0 }, gmst);
+  const pos = rae2eci(rae, { lat: <Degrees>0, lon: <Degrees>0, alt: <Kilometers>0 }, gmst, ORIENTATION_PLACEHOLDER);
 
   /*
    * Reduce Random Jitter by Requiring New Positions to be Similar to Old
@@ -553,7 +560,7 @@ export const updateMissile = (i: number, now: Date, gmstNext: number, gmst: Gree
       if (satInView[i] === 1) {
         break;
       }
-      const rae = ecfRad2rae(sensor.llaRad(), positionEcf);
+      const rae = ecfRad2rae(sensor.llaRad(), positionEcf, sensor.orientation);
 
       satInView[i] = sensor.isRaeInFov(rae) ? 1 : 0;
     }
@@ -696,16 +703,30 @@ export const updateSatellite = (now: Date, i: number, gmst: GreenwichMeanSiderea
           }
           try {
             positionEcf = eci2ecf(pv.position, gmst); // pv.position is called positionEci originally
-            rae = ecfRad2rae(sensor.llaRad(), positionEcf);
+            rae = ecf2rae(sensors[0], positionEcf, sensors[0].orientation);
           } catch (e) {
             continue;
+          }
+          // If we have an orientation then rae is relative to that orientation - lets convert it
+          if (sensor.orientation.azimuth !== 0 || sensor.orientation.elevation !== 0) {
+            rae.az = (rae.az + sensor.orientation.azimuth) % 360 as Degrees;
+            rae.el = (rae.el + sensor.orientation.elevation) % 360 as Degrees;
           }
           satInView[i] = sensor.isRaeInFov(rae) ? 1 : 0;
         }
       }
       // Skip Calculating Lookangles if No Sensor is Selected
     } else if (isSensor) {
-      rae = ecfRad2rae(sensors[0].llaRad(), eci2ecf(pv.position, gmst));
+      rae = ecf2rae(sensors[0], eci2ecf(pv.position, gmst), sensors[0].orientation);
+
+      /*
+       * If we have an orientation then rae is relative to that orientation - lets convert it
+       * if (sensors[0].orientation.azimuth !== 0 || sensors[0].orientation.elevation !== 0) {
+       *   rae.az = (rae.az + sensors[0].orientation.azimuth + 360) % 360 as Degrees;
+       *   rae.el = (rae.el + sensors[0].orientation.elevation) as Degrees;
+       * }
+       */
+
       // If it is an optical sensor and the satellite is in the dark, skip it
       if (!(sensors[0].type === SpaceObjectType.OPTICAL && satInSun[i] === SunStatus.UMBRAL)) {
         satInView[i] = sensors[0].isRaeInFov(rae) ? 1 : 0;

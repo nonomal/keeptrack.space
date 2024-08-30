@@ -3,6 +3,7 @@ import { SensorObjectCruncher } from '../../interfaces';
 import { A } from '../../lib/external/meuusjs';
 import { jday } from '../../lib/transforms';
 import { oneOrZero } from '../constants';
+import { ORIENTATION_PLACEHOLDER } from '../positionCruncher';
 
 /* Returns Current Propagation Time */
 export const propTime = (dynamicOffsetEpoch: number, staticOffset: number, propRate: number) => {
@@ -42,7 +43,7 @@ export const checkSunExclusion = (
   const sunRange = <Kilometers>((sunR * 149597870700) / 1000); // au to km conversion
 
   // RAE to ECI
-  const sunECI = rae2eci({ az: sunAz, el: sunEl, rng: sunRange }, { lat: <Degrees>0, lon: <Degrees>0, alt: <Kilometers>0 }, gmst);
+  const sunECI = rae2eci({ az: sunAz, el: sunEl, rng: sunRange }, { lat: <Degrees>0, lon: <Degrees>0, alt: <Kilometers>0 }, gmst, ORIENTATION_PLACEHOLDER);
 
 
   return sensor && (sensor.type === SpaceObjectType.OPTICAL || sensor.type === SpaceObjectType.OBSERVER) && sunElRel > -6 ? [true, sunECI] : [false, sunECI];
@@ -64,7 +65,7 @@ export const isInFov = (sensor: SensorObjectCruncher, lookangles?: RaeVec3): one
     }
   } else if (
     (az >= sensor.minAz && az <= sensor.maxAz && el >= sensor.minEl && el <= sensor.maxEl && rng <= sensor.maxRng && rng >= sensor.minRng) ||
-      (az >= sensor.minAz2 && az <= sensor.maxAz2 && el >= sensor.minEl2 && el <= sensor.maxEl2 && rng <= sensor.maxRng2 && rng >= sensor.minRng2)
+    (az >= sensor.minAz2 && az <= sensor.maxAz2 && el >= sensor.minEl2 && el <= sensor.maxEl2 && rng <= sensor.maxRng2 && rng >= sensor.minRng2)
   ) {
     return 1;
   }

@@ -179,7 +179,7 @@ export class SensorMath {
       tearr.lon = gpos.lon;
       tearr.lat = gpos.lat;
       const positionEcf = eci2ecf(positionEci, gmst);
-      const lookAngles = ecfRad2rae(sensor.llaRad(), positionEcf);
+      const lookAngles = ecfRad2rae(sensor.llaRad(), positionEcf, sensor.orientation);
 
       tearr.az = lookAngles.az;
       tearr.el = lookAngles.el;
@@ -283,7 +283,7 @@ export class SensorMath {
       const dist = Math.sqrt(distX + distY + distZ);
 
       const positionEcf = eci2ecf(eci, gmst);
-      const lookAngles = ecfRad2rae(sensor.llaRad(), positionEcf);
+      const lookAngles = ecfRad2rae(sensor.llaRad(), positionEcf, sensor.orientation);
       const { az, el, rng } = lookAngles;
 
       if (sensor.minAz > sensor.maxAz) {

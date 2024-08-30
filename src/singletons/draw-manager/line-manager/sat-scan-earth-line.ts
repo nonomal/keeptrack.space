@@ -1,5 +1,6 @@
 import { EciArr3 } from '@app/interfaces';
 import { keepTrackApi } from '@app/keepTrackApi';
+import { ORIENTATION_PLACEHOLDER } from '@app/webworker/positionCruncher';
 import { vec4 } from 'gl-matrix';
 import { Degrees, DetailedSatellite, ecf2rae, eci2ecf, Kilometers, lla2ecf } from 'ootk';
 import { Line, LineColors } from './line';
@@ -29,7 +30,7 @@ export class SatScanEarthLine extends Line {
 
       const lla = { lat: this.lat_, lon: this.lon_, alt: <Kilometers>0.05 };
       const ecf = eci2ecf(this.sat.position, 0);
-      const rae = ecf2rae(lla, ecf);
+      const rae = ecf2rae(lla, ecf, ORIENTATION_PLACEHOLDER);
       const el = rae.el;
 
       if (el > settingsManager.lineScanMinEl) {

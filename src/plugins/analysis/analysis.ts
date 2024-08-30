@@ -13,6 +13,7 @@ import { CatalogSearch } from '@app/static/catalog-search';
 import analysisPng from '@public/img/icons/analysis.png';
 import { DetailedSatellite, DetailedSensor, eci2rae, EciVec3, Kilometers, MINUTES_PER_DAY, SatelliteRecord, TAU } from 'ootk';
 import { KeepTrackPlugin } from '../KeepTrackPlugin';
+import { ORIENTATION_PLACEHOLDER } from '../sensor/sensorManager';
 
 /**
  * /*! /////////////////////////////////////////////////////////////////////////////
@@ -524,7 +525,7 @@ export class AnalysisMenu extends KeepTrackPlugin {
               x: scene.sun.position[0] as Kilometers,
               y: scene.sun.position[1] as Kilometers,
               z: scene.sun.position[2] as Kilometers,
-            }, sensor);
+            }, sensor.lla(), ORIENTATION_PLACEHOLDER);
 
             // Last Line of Coverage
             return {
