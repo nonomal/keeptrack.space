@@ -719,13 +719,11 @@ export const updateSatellite = (now: Date, i: number, gmst: GreenwichMeanSiderea
     } else if (isSensor) {
       rae = ecf2rae(sensors[0], eci2ecf(pv.position, gmst), sensors[0].orientation);
 
-      /*
-       * If we have an orientation then rae is relative to that orientation - lets convert it
-       * if (sensors[0].orientation.azimuth !== 0 || sensors[0].orientation.elevation !== 0) {
-       *   rae.az = (rae.az + sensors[0].orientation.azimuth + 360) % 360 as Degrees;
-       *   rae.el = (rae.el + sensors[0].orientation.elevation) as Degrees;
-       * }
-       */
+      // If we have an orientation then rae is relative to that orientation - lets convert it
+      if (sensors[0].orientation.azimuth !== 0 || sensors[0].orientation.elevation !== 0) {
+        rae.az = (rae.az + sensors[0].orientation.azimuth + 360) % 360 as Degrees;
+        rae.el = (rae.el + sensors[0].orientation.elevation) as Degrees;
+      }
 
       // If it is an optical sensor and the satellite is in the dark, skip it
       if (!(sensors[0].type === SpaceObjectType.OPTICAL && satInSun[i] === SunStatus.UMBRAL)) {
