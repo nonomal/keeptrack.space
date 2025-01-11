@@ -243,7 +243,7 @@ export class InputManager {
       <div id="right-btn-menu" class="right-btn-menu">
         <ul id="right-btn-menu-ul" class='dropdown-contents'>
           <li class="rmb-menu-item" id="view-rmb"><a href="#">View &#x27A4;</a></li>
-          <li class="rmb-menu-item" id="draw-rmb"><a href="#">Draw &#x27A4;</a></li>
+          <!-- <li class="rmb-menu-item" id="draw-rmb"><a href="#">Draw &#x27A4;</a></li> -->
           <li class="rmb-menu-item" id="earth-rmb"><a href="#">Earth &#x27A4;</a></li>
         </ul>
       </div>

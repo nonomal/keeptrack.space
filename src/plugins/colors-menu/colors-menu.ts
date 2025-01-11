@@ -3,12 +3,12 @@ import { keepTrackApi } from '@app/keepTrackApi';
 import { getEl } from '@app/lib/get-el';
 import { showLoading } from '@app/lib/showLoading';
 import { waitForCruncher } from '@app/lib/waitForCruncher';
+import { errorManagerInstance } from '@app/singletons/errorManager';
 import { LegendManager } from '@app/static/legend-manager';
 import { CruncerMessageTypes } from '@app/webworker/positionCruncher';
 import colorsPng from '@public/img/icons/colors.png';
 import { clickDragOptions, KeepTrackPlugin } from '../KeepTrackPlugin';
 import { SelectSatManager } from '../select-sat-manager/select-sat-manager';
-import { errorManagerInstance } from '@app/singletons/errorManager';
 
 export class ColorMenu extends KeepTrackPlugin {
   readonly id = 'ColorMenu';
@@ -42,8 +42,8 @@ export class ColorMenu extends KeepTrackPlugin {
   rmbL1ElementName = 'colors-rmb';
   rmbL1Html = keepTrackApi.html`<li class="rmb-menu-item" id="${this.rmbL1ElementName}"><a href="#">Color Scheme &#x27A4;</a></li>`;
 
-  isRmbOnEarth = true;
-  isRmbOffEarth = true;
+  isRmbOnEarth = false;
+  isRmbOffEarth = false;
   rmbMenuOrder = 50;
 
   rmbL2ElementName = 'colors-rmb-menu';

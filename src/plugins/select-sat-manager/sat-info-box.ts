@@ -977,10 +977,10 @@ export class SatInfoBox extends KeepTrackPlugin {
             <div class="sat-info-key">Source</div>
             <div class="sat-info-value" id="sat-source">USSF</div>
           </div>
-          <div class="sat-info-row sat-only-info">
+          <!-- <div class="sat-info-row sat-only-info">
             <div class="sat-info-key">Confidence</div>
             <div class="sat-info-value" id="sat-confidence">High</div>
-          </div>
+          </div> -->
         </div>
         <div id="orbital-section">
           <div class="sat-info-section-header">

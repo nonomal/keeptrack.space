@@ -130,7 +130,7 @@ export class CustomSensorPlugin extends KeepTrackPlugin {
   rmbL1Html = keepTrackApi.html`
   <li class="rmb-menu-item" id=${this.rmbL1ElementName}><a href="#">Create &#x27A4;</a></li>`;
 
-  isRmbOnEarth = true;
+  isRmbOnEarth = false;
   isRmbOffEarth = false;
   isRmbOnSat = false;
   rmbMenuOrder = 10;

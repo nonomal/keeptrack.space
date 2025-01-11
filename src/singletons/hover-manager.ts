@@ -201,17 +201,14 @@ export class HoverManager {
         color = 'red';
       }
 
-      let confidenceScoreString = confidenceScore.toString();
-
       if (settingsManager.externalTLEsOnly) {
-        confidenceScoreString = 'External';
         color = 'gray';
       }
 
       this.satHoverBoxNode1.innerHTML = keepTrackApi.html`
         <span id="hoverbox-fi"></span>
         <span>${sat.name}</span>
-        <span style='color:${color};'> (${confidenceScoreString.toString()})</span>
+        <span style='color:${color};'></span>
       `;
 
       getEl('hoverbox-fi').classList.value = `fi ${country2flagIcon(sat.country)}`;
