@@ -1205,7 +1205,7 @@ input:focus {
   width: 4%;
   z-index: 0;
   max-width: 150px;
-  min-width: 60px;
+  min-width: 85px;
 }
 
 #demo-logo img {
