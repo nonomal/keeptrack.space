@@ -994,7 +994,7 @@ export class SettingsManager {
   /*
    * Enables the new JSC Vimpel catalog
    */
-  isEnableJscCatalog = true;
+  isEnableJscCatalog = false;
   /**
    * Size of the dot for picking purposes
    */
