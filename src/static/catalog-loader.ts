@@ -805,7 +805,12 @@ export class CatalogLoader {
     tempSatData[i].tle2 = element.TLE2;
     tempSatData[i].name = element.ON || tempSatData[i].name || 'Unknown';
     tempSatData[i].source = settingsManager.externalTLEs ? settingsManager.externalTLEs.split('/')[2] : CatalogSource.TLE_TXT;
+    if (settingsManager.externalTLEs === 'https://storage.keeptrack.space/data/celestrak.txt') {
+      tempSatData[i].source = CatalogSource.CELESTRAK;
+    }
+
     tempSatData[i].altId = 'EXTERNAL_SAT'; // TODO: This is a hack to make sure the satellite is not removed by the filter
+
 
     const satellite = new DetailedSatellite(tempSatData[i]);
 
@@ -839,6 +844,10 @@ export class CatalogLoader {
       id: tempSatData.length,
     };
 
+    if (settingsManager.externalTLEs === 'https://storage.keeptrack.space/data/celestrak.txt') {
+      asciiSatInfo.source = CatalogSource.CELESTRAK;
+    }
+
     catalogManagerInstance.sccIndex[`${sccNum.toString()}`] = tempSatData.length;
     catalogManagerInstance.cosparIndex[`${intlDes}`] = tempSatData.length;
 
@@ -856,7 +865,9 @@ export class CatalogLoader {
 
   private static processAsciiCatalog_(asciiCatalog: AsciiTleSat[], catalogManagerInstance: CatalogManager, tempSatData: any[]) {
     if (settingsManager.externalTLEs) {
-      errorManagerInstance.info(`Processing ${settingsManager.externalTLEs}`);
+      if (settingsManager.externalTLEs !== 'https://storage.keeptrack.space/data/celestrak.txt') {
+        errorManagerInstance.info(`Processing ${settingsManager.externalTLEs}`);
+      }
     } else {
       errorManagerInstance.log('Processing ASCII Catalog');
     }
@@ -879,7 +890,8 @@ export class CatalogLoader {
       if (settingsManager.externalTLEsOnly) {
         tempSatData = tempSatData.filter((sat) => {
           if (sat.altId === 'EXTERNAL_SAT') {
-            console.log(sat);
+            // console.log(sat);
+            sat.altId = ''; // Reset the altId
 
             return true;
           }

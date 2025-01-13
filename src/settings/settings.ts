@@ -805,7 +805,7 @@ export class SettingsManager {
   /**
    * url for an external TLE source
    */
-  externalTLEs: string;
+  externalTLEs: string = 'https://storage.keeptrack.space/data/celestrak.txt';
   pTime = [];
   /**
    * Global flag for determining if a screenshot is queued
@@ -1036,7 +1036,7 @@ export class SettingsManager {
    * When set to `true`, the system will exclusively utilize external TLE data.
    * When set to `false`, the system may use internal or other sources of TLE data.
    */
-  externalTLEsOnly = false;
+  externalTLEsOnly = true;
   positionCruncher: Worker = null;
   orbitCruncher: Worker = null;
   /** Disables the camera widget by default */
