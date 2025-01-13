@@ -55,7 +55,7 @@ const settingsOverride = {
     sensorSurv: false,
     satelliteFov: true,
     satelliteView: false,
-    planetarium: false,
+    planetarium: true,
     astronomy: false,
     screenshot: true,
     watchlist: false,
