@@ -1260,9 +1260,9 @@ export class SettingsManager {
       // eslint-disable-next-line no-console
       console.warn('Settings Manager: Unable to get color settings - localStorage issue!');
     }
-    if (!this.colors || Object.keys(this.colors).length === 0 || this.colors.version !== '1.3.3') {
+    if (!this.colors || Object.keys(this.colors).length === 0 || this.colors.version !== '1.4.0') {
       this.colors = {
-        version: '1.3.3',
+        version: '1.4.0',
         length: 0,
         facility: [0.64, 0.0, 0.64, 1.0],
         sunlight100: [1.0, 1.0, 1.0, 0.7],
@@ -1339,6 +1339,13 @@ export class SettingsManager {
         age5: [0, 1.0, 0, 0.9],
         age6: [0, 1.0, 0, 0.9],
         age7: [0, 1.0, 0, 0.9],
+        celestrakDefaultActivePayload: [0.0, 1.0, 0.0, 0.85],
+        celestrakDefaultInactivePayload: [1.0, 0.5, 0.0, 0.85],
+        celestrakDefaultRocketBody: [0.2, 0.4, 1.0, 1],
+        celestrakDefaultDebris: [0.5, 0.5, 0.5, 1],
+        celestrakDefaultSensor: [0.0, 0.0, 1.0, 0.85],
+        celestrakDefaultFov: [0.0, 0.0, 1.0, 0.85],
+        celestrakDefaultUnknown: [1, 1, 1, 0.85],
         satLEO: [0.2, 1.0, 0.0, 0.65],
         satGEO: [0.2, 1.0, 0.0, 0.65],
         inGroup: [1.0, 0.0, 0.0, 1.0],
@@ -1352,6 +1359,7 @@ export class SettingsManager {
         densityLow: [1, 1, 0, 0.9],
         densityOther: [0.8, 0.8, 0.8, 0.3],
         notional: [1, 0, 0, 0.8],
+        lostobjects: [1, 0, 0, 0.8],
         starlink: [0.0, 0.8, 0.0, 0.8],
         starlinkNot: [0.8, 0.0, 0.0, 0.8],
       };

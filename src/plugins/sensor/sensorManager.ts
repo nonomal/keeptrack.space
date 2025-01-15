@@ -252,7 +252,7 @@ export class SensorManager {
     // Return to default settings with nothing 'inview'
     SensorManager.updateSensorUiStyling(null);
     this.setSensor(null); // Pass sensorId to identify which sensor the user clicked
-    if (settingsManager.currentColorScheme == colorSchemeManagerInstance.default) {
+    if (settingsManager.currentColorScheme == colorSchemeManagerInstance.celestrakDefault) {
       LegendManager.change('default');
     }
     const catalogManagerInstance = keepTrackApi.getCatalogManager();

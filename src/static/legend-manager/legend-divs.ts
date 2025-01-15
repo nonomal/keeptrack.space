@@ -59,6 +59,30 @@ export const defaultDiv = keepTrackApi.html`
   </li> -->
 </ul>
 `.trim();
+export const celestrakDefaultDiv = keepTrackApi.html`
+<ul id="legend-list-celestrakDefault">
+  <li>
+    <div class="Square-Box legend-celestrakDefaultActivePayload-box"></div>
+    Active Payload
+  </li>
+  <li>
+    <div class="Square-Box legend-celestrakDefaultInactivePayload-box"></div>
+    Inactive Payload
+  </li>
+  <li>
+    <div class="Square-Box legend-celestrakDefaultRocketBody-box"></div>
+    Rocket Body
+  </li>
+  <li>
+    <div class="Square-Box legend-celestrakDefaultDebris-box"></div>
+    Debris
+  </li>
+  <li>
+    <div class="Square-Box legend-celestrakDefaultUnknown-box"></div>
+    Unknown
+  </li>
+</ul>
+`.trim();
 export const planetariumDiv = keepTrackApi.html`
 <ul id="legend-list-planetarium">
   <li>
@@ -152,6 +176,38 @@ export const defaultSensorDiv = keepTrackApi.html`
   <li>
     <div class="Square-Box legend-facility-box"></div>
     Launch Site
+  </li>
+</ul>
+`.trim();
+export const celestrakDefaultSensorDiv = keepTrackApi.html`
+<ul id="legend-list-celestrakDefault-sensor">
+<li>
+    <div class="Square-Box legend-celestrakDefaultActivePayload-box"></div>
+    Active Payload
+  </li>
+  <li>
+    <div class="Square-Box legend-celestrakDefaultInactivePayload-box"></div>
+    Inactive Payload
+  </li>
+  <li>
+    <div class="Square-Box legend-celestrakDefaultRocketBody-box"></div>
+    Rocket Body
+  </li>
+  <li>
+    <div class="Square-Box legend-celestrakDefaultDebris-box"></div>
+    Debris
+  </li>
+  <li>
+    <div class="Square-Box legend-celestrakDefaultUnknown-box"></div>
+    Unknown
+  </li>
+  <li>
+    <div class="Square-Box legend-celestrakDefaultFov-box"></div>
+    In Field of View
+  </li>
+  <li>
+    <div class="Square-Box legend-celestrakDefaultSensor-box"></div>
+    Sensor
   </li>
 </ul>
 `.trim();

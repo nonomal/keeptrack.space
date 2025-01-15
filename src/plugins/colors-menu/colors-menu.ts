@@ -42,21 +42,21 @@ export class ColorMenu extends KeepTrackPlugin {
   rmbL1ElementName = 'colors-rmb';
   rmbL1Html = keepTrackApi.html`<li class="rmb-menu-item" id="${this.rmbL1ElementName}"><a href="#">Color Scheme &#x27A4;</a></li>`;
 
-  isRmbOnEarth = false;
-  isRmbOffEarth = false;
+  isRmbOnEarth = true;
+  isRmbOffEarth = true;
   rmbMenuOrder = 50;
 
   rmbL2ElementName = 'colors-rmb-menu';
   rmbL2Html = keepTrackApi.html`
   <ul class='dropdown-contents'>
     <li id="colors-default-rmb"><a href="#">Object Types</a></li>
-    <li id="colors-rcs-rmb"><a href="#">Radar Cross Section</a></li>
+    <!-- <li id="colors-rcs-rmb"><a href="#">Radar Cross Section</a></li>
     <li id="colors-density-rmb"><a href="#">Orbit Density</a></li>
     <li id="colors-starlink-rmb"><a href="#">Starlink</a></li>
     <li id="colors-sunlight-rmb"><a href="#">Sunlight Status</a></li>
     <li id="colors-country-rmb"><a href="#">Country</a></li>
     <li id="colors-confidence-rmb"><a href="#">Confidence Level</a></li>
-    <li id="colors-velocity-rmb"><a href="#">Velocity</a></li>
+    <li id="colors-velocity-rmb"><a href="#">Velocity</a></li> -->
     <li id="colors-ageOfElset-rmb"><a href="#">Age of GP</a></li>
   </ul>`;
 
@@ -88,7 +88,7 @@ export class ColorMenu extends KeepTrackPlugin {
         ColorMenu.colorsMenuClick('elset-age');
         break;
       case 'colors-default-rmb':
-        ColorMenu.colorsMenuClick('default');
+        ColorMenu.colorsMenuClick('celestrakDefault');
         break;
       default:
         if (targetId.includes('colors-')) {
@@ -216,6 +216,16 @@ export class ColorMenu extends KeepTrackPlugin {
         } else {
           colorSchemeManagerInstance.setColorScheme(colorSchemeManagerInstance.countries, true);
         }
+        uiManagerInstance.colorSchemeChangeAlert(colorSchemeManagerInstance.currentColorScheme);
+        break;
+      case 'celestrakDefault':
+        // if a sensor is set
+        if (keepTrackApi.getSensorManager().currentSensors.length > 0) {
+          LegendManager.change('celestrakDefaultSensor');
+        } else {
+          LegendManager.change('celestrakDefault');
+        }
+        colorSchemeManagerInstance.setColorScheme(colorSchemeManagerInstance.celestrakDefault, true);
         uiManagerInstance.colorSchemeChangeAlert(colorSchemeManagerInstance.currentColorScheme);
         break;
       case 'default':

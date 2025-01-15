@@ -588,7 +588,7 @@ export class MouseInput {
         // Revert any group color scheme back to a non group scheme
         if (colorSchemeManagerInstance.currentColorScheme === colorSchemeManagerInstance.group) {
           colorSchemeManagerInstance.setColorScheme(colorSchemeManagerInstance.default, true);
-          LegendManager.change('default');
+          LegendManager.change('celestrakDefault');
         }
         if (colorSchemeManagerInstance.currentColorScheme === colorSchemeManagerInstance.groupCountries) {
           colorSchemeManagerInstance.setColorScheme(colorSchemeManagerInstance.countries, true);

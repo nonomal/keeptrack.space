@@ -5,11 +5,11 @@ import { rgbCss } from '../lib/rgbCss';
 import {
   ageOfElsetDiv,
   astronomyDiv,
+  celestrakDefaultDiv,
+  celestrakDefaultSensorDiv,
   confidenceDiv,
   countriesDiv,
   deepDiv,
-  defaultDiv,
-  defaultSensorDiv,
   nearDiv,
   neighborsDiv,
   planetariumDiv,
@@ -67,6 +67,13 @@ export abstract class LegendManager {
     '.legend-densityMed-box',
     '.legend-densityLow-box',
     '.legend-densityOther-box',
+    '.legend-celestrakDefaultActivePayload-box',
+    '.legend-celestrakDefaultInactivePayload-box',
+    '.legend-celestrakDefaultOpRocketBody-box',
+    '.legend-celestrakDefaultOpDebris-box',
+    '.legend-celestrakDefaultSensor-box',
+    '.legend-celestrakDefaultFov-box',
+    '.legend-celestrakDefaultUnknown-box',
   ];
 
   private static readonly menuOptions = {
@@ -83,6 +90,8 @@ export abstract class LegendManager {
     planetarium: planetariumDiv,
     astronomy: astronomyDiv,
     timeMachine: timeMachineMenuDiv,
+    celestrakDefault: celestrakDefaultDiv,
+    celestrakDefaultSensor: celestrakDefaultSensorDiv,
     clear: '',
     default: '',
   };
@@ -95,7 +104,7 @@ export abstract class LegendManager {
     }
 
     const selectedOption =
-      LegendManager.menuOptions[menu] || (keepTrackApi.getSensorManager().currentSensors.length > 0 ? defaultSensorDiv : defaultDiv);
+      LegendManager.menuOptions[menu] || (keepTrackApi.getSensorManager().currentSensors.length > 0 ? celestrakDefaultSensorDiv : celestrakDefaultDiv);
 
     legendHoverDom.innerHTML = selectedOption;
     if (menu === 'clear') {

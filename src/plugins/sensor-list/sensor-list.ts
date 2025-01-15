@@ -268,8 +268,8 @@ export class SensorListPlugin extends KeepTrackPlugin {
         // Multi-sensors break this
       }
     }
-    if (settingsManager.currentColorScheme === keepTrackApi.getColorSchemeManager().default) {
-      LegendManager.change('default');
+    if (settingsManager.currentColorScheme === keepTrackApi.getColorSchemeManager().celestrakDefault) {
+      LegendManager.change('celestrakDefaultSensor');
     }
   }
 
@@ -362,15 +362,15 @@ export class SensorListPlugin extends KeepTrackPlugin {
         // If there is a sensorId set use that
         if (typeof currentSensor[0] === 'undefined' || currentSensor[0] == null) {
           sensorManagerInstance.setSensor(null, currentSensor[1]);
-          LegendManager.change('default');
+          LegendManager.change('celestrakDefaultSensor');
           // If the sensor is a string, load that collection of sensors
         } else if (typeof currentSensor[0].objName === 'undefined') {
           sensorManagerInstance.setSensor(currentSensor[0], currentSensor[1]);
-          LegendManager.change('default');
+          LegendManager.change('celestrakDefaultSensor');
         } else {
           // Seems to be a single sensor without a sensorId, load that
           sensorManagerInstance.setSensor(sensors[currentSensor[0].objName], currentSensor[1]);
-          LegendManager.change('default');
+          LegendManager.change('celestrakDefaultSensor');
         }
       } catch {
         PersistenceManager.getInstance().removeItem(StorageKey.CURRENT_SENSOR);

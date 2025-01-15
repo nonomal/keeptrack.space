@@ -1,19 +1,19 @@
-  _  __            _______             _       _____                      
- | |/ /           |__   __|           | |     / ____|                     
- | ' / ___  ___ _ __ | |_ __ __ _  ___| | __ | (___  _ __   __ _  ___ ___ 
+  _  __            _______             _       _____
+ | |/ /           |__   __|           | |     / ____|
+ | ' / ___  ___ _ __ | |_ __ __ _  ___| | __ | (___  _ __   __ _  ___ ___
  |  < / _ \/ _ | '_ \| | '__/ _` |/ __| |/ /  \___ \| '_ \ / _` |/ __/ _ \
  | . |  __|  __| |_) | | | | (_| | (__|   < _ ____) | |_) | (_| | (_|  __/
  |_|\_\___|\___| .__/|_|_|  \__,_|\___|_|\_(_|_____/| .__/ \__,_|\___\___|
-               | |                                  | |                   
-               |_|                                  |_|                   
+               | |                                  | |
+               |_|                                  |_|
 ##########################################################################
 
 Date: 8/18/2021
 
 # Starting KeepTrack #####################################################
 
-To run KeepTrack without a webserver you need to use Chrome and enable 
-loading local files (--allow-file-access-from-files). There is a "Chrome 
+To run KeepTrack without a webserver you need to use Chrome and enable
+loading local files (--allow-file-access-from-files). There is a "Chrome
 With Local Files" shortcut included that should work without modification.
 This will not open the index.html file automatically. You either need to add
 the full path to the index file (ex. C:\KeepTrack\index.html) to the end of
@@ -55,7 +55,7 @@ unclassified website.
 information to augment and/or replace the TLE.json data. This will only
 load if you are launching KeepTrack in the offline mode (with index.html)
 
-3) TLE.txt - this loads the most up-to-date ELSETs when running offline.
+3) TLE.txt - this loads the most up-to-date GPs when running offline.
 Download TLEs in standard format:
 
 1 25544U ..........
@@ -68,6 +68,6 @@ automatically load this file and replace any TLEs in TLE.json or extra.js
 
 # Questions ###############################################################
 
-Please use the issues page on github 
-(https://github.com/thkruz/keeptrack.space) or contact me at 
+Please use the issues page on github
+(https://github.com/thkruz/keeptrack.space) or contact me at
 theodore.kruczek@gmail.com if you have a problem.

@@ -486,20 +486,60 @@ ul {
   background: rgb(200, 200, 200);
 }
 
-.legend-ageNew-box {
+.legend-age1-box {
   background: rgb(100, 100, 100);
 }
 
-.legend-ageMed-box {
+.legend-age2-box {
   background: rgb(150, 150, 150);
 }
 
-.legend-ageOld-box {
+.legend-age3-box {
   background: rgb(200, 200, 200);
 }
 
-.legend-ageLost-box {
+.legend-age4-box {
   background: rgb(200, 200, 200);
+}
+
+.legend-age5-box {
+  background: rgb(200, 200, 200);
+}
+
+.legend-age6-box {
+  background: rgb(200, 200, 200);
+}
+
+.legend-age7-box {
+  background: rgb(200, 200, 200);
+}
+
+.legend-celestrakDefaultActivePayload-box {
+  background: rgb(0, 128, 0);
+}
+
+.legend-celestrakDefaultInactivePayload-box {
+  background: rgb(255, 128, 0);
+}
+
+.legend-celestrakDefaultRocketBody-box {
+  background: rgb(255, 0, 0);
+}
+
+.legend-celestrakDefaultDebris-box {
+  background: rgb(128, 128, 128);
+}
+
+.legend-celestrakDefaultSensor-box {
+  background: rgb(255, 0, 0);
+}
+
+.legend-celestrakDefaultFov-box {
+  background: rgb(0, 13, 255);
+}
+
+.legend-celestrakDefaultUnknown-box {
+  background: rgb(128, 0, 128);
 }
 
 .legend-velocitySlow-box {

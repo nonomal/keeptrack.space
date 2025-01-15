@@ -165,7 +165,7 @@ export class SearchManager {
       dotsManagerInstance.updateSizeBuffer(catalogManagerInstance.objectCache.length);
 
       if (colorSchemeManagerInstance.currentColorScheme === colorSchemeManagerInstance.group) {
-        colorSchemeManagerInstance.setColorScheme(colorSchemeManagerInstance.default, true);
+        colorSchemeManagerInstance.setColorScheme(colorSchemeManagerInstance.celestrakDefault, true);
       } else if (colorSchemeManagerInstance.currentColorScheme === colorSchemeManagerInstance.groupCountries) {
         colorSchemeManagerInstance.setColorScheme(colorSchemeManagerInstance.countries, true);
       } else {

@@ -172,6 +172,13 @@ const settingsOverride = {
     notional: [1, 0, 0, 0.8],
     starlink: [0.0, 0.8, 0.0, 0.8],
     starlinkNot: [0.8, 0.0, 0.0, 0.8],
+    celestrakDefaultActivePayload: [0.0, 1.0, 0.0, 0.85],
+    celestrakDefaultInactivePayload: [1.0, 0.5, 0.0, 0.85],
+    celestrakDefaultRocketBody: [1.0, 0.0, 0.0, 0.85],
+    celestrakDefaultDebris: [0.5, 0.5, 0.5, 0.9],
+    celestrakDefaultSensor: [0.0, 0.0, 1.0, 0.85],
+    celestrakDefaultFov: [0.0, 0.0, 1.0, 0.85],
+    celestrakDefaultUnknown: [1, 1, 1, 0.85],
   },
 };
 
