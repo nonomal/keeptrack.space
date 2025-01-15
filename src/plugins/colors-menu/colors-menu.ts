@@ -220,7 +220,12 @@ export class ColorMenu extends KeepTrackPlugin {
         break;
       case 'default':
       default:
-        LegendManager.change('default');
+        // if a sensor is set
+        if (keepTrackApi.getSensorManager().currentSensors.length > 0) {
+          LegendManager.change('defaultSensor');
+        } else {
+          LegendManager.change('default');
+        }
         colorSchemeManagerInstance.setColorScheme(colorSchemeManagerInstance.default, true);
         uiManagerInstance.colorSchemeChangeAlert(colorSchemeManagerInstance.currentColorScheme);
         break;
