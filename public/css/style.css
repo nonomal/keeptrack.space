@@ -1242,10 +1242,10 @@ input:focus {
   top: calc(var(--top-menu-height) + 10px);
   left: 10px;
   height: auto;
-  width: 4%;
+  width: 4vw;
   z-index: 0;
   max-width: 150px;
-  min-width: 85px;
+  min-width: 70px;
 }
 
 #kt-logo img {
@@ -1256,12 +1256,12 @@ input:focus {
 #ct-logo {
   position: absolute;
   top: calc(var(--top-menu-height) + 10px);
-  left: 10px;
+  left: calc(20px + max(4vw,70px));
   height: auto;
-  width: 4%;
+  width: 4vw;
   z-index: 0;
   max-width: 150px;
-  min-width: 85px;
+  min-width: 70px;
 }
 
 #ct-logo img {
