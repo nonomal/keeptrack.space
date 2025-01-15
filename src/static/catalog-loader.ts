@@ -823,7 +823,7 @@ export class CatalogLoader {
       element.ON = 'Unknown';
     }
     if (typeof element.OT === 'undefined') {
-      element.OT = SpaceObjectType.SPECIAL;
+      element.OT = SpaceObjectType.UNKNOWN;
     }
     const intlDes = this.parseIntlDes_(element.TLE1);
     const sccNum = Tle.convertA5to6Digit(element.SCC.toString());
@@ -935,7 +935,7 @@ export class CatalogLoader {
           missile: false,
           active: true,
           name: element.ON || 'Unknown',
-          type: element.OT || SpaceObjectType.SPECIAL,
+          type: element.OT || SpaceObjectType.UNKNOWN,
           country: 'Unknown',
           rocket: 'Unknown',
           site: 'Unknown',
