@@ -28,7 +28,8 @@
 
 /* eslint-disable no-unreachable */
 
-import logoPng from '@public/img/kts-text-logo.png';
+import logoCtPng from '@public/img/ct-text-logo.png';
+import logoKtPng from '@public/img/kts-text-logo.png';
 import cubesatJpg from '@public/img/wallpaper/cubesat.jpg';
 import issJpg from '@public/img/wallpaper/iss.jpg';
 import observatoryJpg from '@public/img/wallpaper/observatory.jpg';
@@ -224,9 +225,14 @@ export class KeepTrack {
       <main>
         <div id="rmb-wrapper"></div>
         <div id="canvas-holder">
-          <div id="demo-logo">
+          <div id="kt-logo">
             <a href="https://keeptrack.space" target="_blank">
-              <img src="${logoPng}" alt="Keep Track">
+              <img src="${logoKtPng}" alt="KeepTrack">
+            </a>
+          </div>
+          <div id="ct-logo">
+            <a href="https://celestrak.org" target="_blank">
+              <img src="${logoCtPng}" alt="Celestrak">
             </a>
           </div>
           <canvas id="keeptrack-canvas"></canvas>
