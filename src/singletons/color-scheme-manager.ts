@@ -255,7 +255,7 @@ export class ColorSchemeManager {
 
     if (obj.isSensor()) {
       return {
-        color: this.colorTheme.sensor,
+        color: this.colorTheme.celestrakDefaultSensor,
         pickable: Pickable.Yes,
       };
     }
