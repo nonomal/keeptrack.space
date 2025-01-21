@@ -23,7 +23,7 @@ export class ColorMenu extends KeepTrackPlugin {
         <h5 class="center-align">Color Schemes</h5>
         <li class="divider"></li>
         <li class="menu-selectable" data-color="default">Object Type</li>
-        <li class="menu-selectable" data-color="sunlight">Sunlight</li>
+        <!-- <li class="menu-selectable" data-color="sunlight">Sunlight</li>
         <li class="menu-selectable" data-color="velocity">Velocity</li>
         <li class="menu-selectable" data-color="neighbors">Orbit Density</li>
         <li class="menu-selectable" data-color="confidence">Confidence Level</li>
@@ -32,9 +32,9 @@ export class ColorMenu extends KeepTrackPlugin {
         <li class="menu-selectable" data-color="smallsats">Small Satellites</li>
         <li class="menu-selectable" data-color="countries">Countries</li>
         <li class="menu-selectable" data-color="near-earth">Near Earth</li>
-        <li class="menu-selectable" data-color="deep-space">Deep Space</li>
+        <li class="menu-selectable" data-color="deep-space">Deep Space</li> -->
         <li class="menu-selectable" data-color="elset-age">GP Age</li>
-        <li class="menu-selectable" data-color="lost-objects">Lost Objects</li>
+        <!-- <li class="menu-selectable" data-color="lost-objects">Lost Objects</li> -->
       </ul>
     </div>
   </div>`;
