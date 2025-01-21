@@ -540,7 +540,7 @@ export class SettingsManager {
      *
      * It can be loaded from a local file or a remote source
      */
-    tle: 'https://storage.keeptrack.space/data/tle.json',
+    tle: 'https://storage.keeptrack.space/data/celestrak.json',
     tleDebris: 'https://app.keeptrack.space/tle/TLEdebris.json',
     vimpel: 'https://storage.keeptrack.space/data/vimpel.json',
   };
@@ -805,7 +805,7 @@ export class SettingsManager {
   /**
    * url for an external TLE source
    */
-  externalTLEs: string = 'https://storage.keeptrack.space/data/celestrak.txt';
+  externalTLEs: string;
   pTime = [];
   /**
    * Global flag for determining if a screenshot is queued
