@@ -866,11 +866,11 @@ export class SettingsManager {
     /**
      * The blur radius factor used for satellites.
      */
-    blurFactor1: '0.53',
+    blurFactor1: '0.76',
     /**
      * The blur alpha factor used for satellites.
      */
-    blurFactor2: '0.5',
+    blurFactor2: '0.4',
     /**
      * The blur radius factor used for stars.
      */
