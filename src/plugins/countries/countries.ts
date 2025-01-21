@@ -7,6 +7,7 @@ import { GroupType } from '@app/singletons/object-group';
 import { StringExtractor } from '@app/static/string-extractor';
 import flagPng from '@public/img/icons/flag.png';
 
+import { countryMapList } from '@app/catalogs/countries';
 import { Localization } from '@app/locales/locales';
 import { SearchResult } from '@app/singletons/search-manager';
 import { KeepTrackPlugin } from '../KeepTrackPlugin';
@@ -82,7 +83,12 @@ export class CountriesMenu extends KeepTrackPlugin {
       const countryCode = StringExtractor.getCountryCode(country);
 
       if (countryCode === '') {
-        return acc;
+        // Check if countryMapList has the country, because it might already be a code
+        if (!countryMapList[country]) {
+          return acc;
+        }
+
+        country = countryMapList[country];
       }
 
       return `${acc}<li class="menu-selectable country-option" data-group="${country}">${country}</li>`;

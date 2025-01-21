@@ -227,6 +227,7 @@ export const countryFlagIconMap = {
   'PY': 'PY',
   'QA': 'QA',
   'RO': 'RO',
+  'CIS': 'RU', // CIS is set to Russia TODO: Find CIS flag
   'RU': 'RU',
   'RW': 'RW',
   'S': 'SE', // Sweden
@@ -280,7 +281,6 @@ export const countryFlagIconMap = {
   'BRAZ': 'BR',
   'CHBZ': 'CHBZ', // No matching code, kept original
   'CHLE': 'CL', // Chile
-  'CIS': 'CIS', // No matching code, kept original
   'COL': 'CO',
   'CZCH': 'CZ', // Czech Republic (formerly Czechoslovakia)
   'DEN': 'DK',
