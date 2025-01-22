@@ -63,13 +63,13 @@ export class SettingsMenuPlugin extends KeepTrackPlugin {
               <button id="settings-reset" class="btn btn-ui waves-effect waves-light" type="button" name="action">Reset to Defaults &#9658;</button>
             </div>
             <h5 class="center-align">General Settings</h5>
-            <div class="switch row">
+            <!-- <div class="switch row">
               <label data-position="top" data-delay="50" data-tooltip="Disable to hide notional satellites">
                 <input id="settings-notionalSats" type="checkbox" checked/>
                 <span class="lever"></span>
                 Show Notional Satellites
               </label>
-            </div>
+            </div> -->
             <div class="switch row">
               <label data-position="top" data-delay="50" data-tooltip="Disable to hide LEO satellites">
                 <input id="settings-leoSats" type="checkbox" checked/>
@@ -126,20 +126,20 @@ export class SettingsMenuPlugin extends KeepTrackPlugin {
                 Show Debris
               </label>
             </div>
-            <div class="switch row">
+            <!-- <div class="switch row">
               <label data-position="top" data-delay="50" data-tooltip="Planned feature - This will show agencies on the globe.">
                 <input id="settings-showAgencies" type="checkbox" disabled/>
                 <span class="lever"></span>
                 Show Agencies
               </label>
-            </div>
-            <div class="switch row">
+            </div> -->
+            <!-- <div class="switch row">
               <label data-position="top" data-delay="50" data-tooltip="Disable this to hide the camera widget">
                 <input id="settings-drawCameraWidget" type="checkbox" checked/>
                 <span class="lever"></span>
                 Show Camera Widget
               </label>
-            </div>
+            </div> -->
             <div class="switch row">
               <label data-position="top" data-delay="50" data-tooltip="Disable this to hide orbit lines">
                 <input id="settings-drawOrbits" type="checkbox" checked/>
@@ -224,14 +224,14 @@ export class SettingsMenuPlugin extends KeepTrackPlugin {
                 Hide Other Satellites
               </label>
             </div>
-            <div class="switch row">
+            <!-- <div class="switch row">
               <label data-position="top" data-delay="50" data-tooltip="Show confidence levels for satellite's element sets.">
                 <input id="settings-confidence-levels" type="checkbox" />
                 <span class="lever"></span>
                 Show Confidence Levels
               </label>
-            </div>
-            <div class="switch row">
+            </div> -->
+            <!-- <div class="switch row">
               <label data-position="top" data-delay="50" data-tooltip="Every 3 seconds a new satellite will be selected from FOV">
                 <input id="settings-demo-mode" type="checkbox" />
                 <span class="lever"></span>
@@ -244,7 +244,7 @@ export class SettingsMenuPlugin extends KeepTrackPlugin {
                 <span class="lever"></span>
                 Enable Satellite Label Mode
               </label>
-            </div>
+            </div> -->
             <div class="switch row">
               <label data-position="top" data-delay="50" data-tooltip="Time will freeze as you rotate the camera.">
                 <input id="settings-freeze-drag" type="checkbox" />
@@ -252,13 +252,13 @@ export class SettingsMenuPlugin extends KeepTrackPlugin {
                 Enable Freeze Time on Click
               </label>
             </div>
-            <div class="switch row">
+            <!-- <div class="switch row">
               <label data-position="top" data-delay="50" data-tooltip="Time Machine stop showing toast messages.">
                 <input id="settings-time-machine-toasts" type="checkbox" />
                 <span class="lever"></span>
                 Disable Time Machine Toasts
               </label>
-            </div>
+            </div> -->
           </div>
           <div class="row light-blue darken-3" style="height:4px; display:block;"></div>
           <div id="settings-colors" class="row">
@@ -266,32 +266,33 @@ export class SettingsMenuPlugin extends KeepTrackPlugin {
             <div class="row">
               <div class="input-field col s6">
                 <center>
-                  <p>Payload</p>
-                  <button id="settings-color-payload" class="btn waves-effect waves-light"></button>
+                  <p>Active Payload</p>
+                  <button id="settings-color-payloadActive" class="btn waves-effect waves-light"></button>
                 </center>
               </div>
               <div class="input-field col s6">
+                <center>
+                  <p>Inactive Payload</p>
+                  <button id="settings-color-payloadInactive" class="btn waves-effect waves-light"></button>
+                </center>
+              </div>
+            </div>
+            <div class="row">
+            <div class="input-field col s6">
                 <center>
                   <p>Rocket Body</p>
                   <button id="settings-color-rocketBody" class="btn waves-effect waves-light"></button>
                 </center>
               </div>
-            </div>
-            <div class="row">
               <div class="input-field col s6">
                 <center>
                   <p>Debris</p>
                   <button id="settings-color-debris" class="btn waves-effect waves-light"></button>
                 </center>
               </div>
-              <div class="input-field col s6">
-                <center>
-                  <p>In View</p>
-                  <button id="settings-color-inview" class="btn waves-effect waves-light"></button>
-                </center>
-              </div>
+
             </div>
-            <div class="row">
+            <!-- <div class="row">
               <div class="input-field col s6">
                 <center>
                   <p>Missile</p>
@@ -304,12 +305,18 @@ export class SettingsMenuPlugin extends KeepTrackPlugin {
                   <button id="settings-color-missileInview" class="btn waves-effect waves-light"></button>
                 </center>
               </div>
-            </div>
+            </div> -->
             <div class="row">
+            <div class="input-field col s6">
+                <center>
+                  <p>In View</p>
+                  <button id="settings-color-inview" class="btn waves-effect waves-light"></button>
+                </center>
+              </div>
               <div class="input-field col s6">
                 <center>
-                  <p>Special Sats</p>
-                  <button id="settings-color-special" class="btn waves-effect waves-light"></button>
+                  <p>Unknown</p>
+                  <button id="settings-color-unknown" class="btn waves-effect waves-light"></button>
                 </center>
               </div>
             </div>
@@ -324,14 +331,14 @@ export class SettingsMenuPlugin extends KeepTrackPlugin {
                 <label for="maxSearchSats" class="active">Maximum Satellites in Search</label>
               </div>
             </div>
-            <div class="row">
+            <!-- <div class="row">
               <div class="input-field col s12">
                 <input value="30" id="satFieldOfView" type="text" data-position="top" data-delay="50" data-tooltip="What is the satellite's field of view in degrees" />
                 <label for="satFieldOfView" class="active">Satellite Field of View</label>
               </div>
-            </div>
+            </div> -->
           </div>
-          <div id="fastCompSettings" class="row">
+          <!-- <div id="fastCompSettings" class="row">
             <h5 class="center-align">Fast CPU Required</h5>
             <div class="switch row">
               <label>
@@ -340,12 +347,18 @@ export class SettingsMenuPlugin extends KeepTrackPlugin {
                 Show Next Pass on Hover
               </label>
             </div>
-          </div>
+          </div> -->
         </form>
       </div>
     </div>
   </div>`;
 
+
+  dragOptions = {
+    minWidth: 300,
+    maxWidth: 500,
+    isDraggable: true,
+  };
   isNotColorPickerInitialSetup = false;
 
   addHtml(): void {
@@ -367,6 +380,7 @@ export class SettingsMenuPlugin extends KeepTrackPlugin {
           rgbCss([1.0, 0.0, 1.0, 1.0]), // Magenta
 
           // Oranges
+          rgbCss([1.0, 0.5, 0.0, 1.0]), // Bright Orange
           rgbCss([1.0, 0.65, 0.0, 1.0]), // Orange
           rgbCss([0.85, 0.5, 0.0, 1.0]), // Dark Orange
           rgbCss([1.0, 0.8, 0.6, 1.0]), // Peach
@@ -389,6 +403,7 @@ export class SettingsMenuPlugin extends KeepTrackPlugin {
           rgbCss([0.0, 0.2, 0.4, 1.0]), // Dark Teal
 
           // Blues
+          rgbCss([0.0, 0.0, 1.0, 0.85]), // Blue
           rgbCss([0.2, 0.4, 1.0, 1.0]), // Dark Blue
           rgbCss([0.0, 0.0, 0.5, 1.0]), // Navy Blue
 
@@ -403,45 +418,54 @@ export class SettingsMenuPlugin extends KeepTrackPlugin {
           rgbCss([0.9, 0.9, 0.5, 1.0]), // Beige
 
           // Grays
+          rgbCss([0.5, 0.5, 0.5, 0.9]), // White
+          rgbCss([1, 1, 1, 0.85]), // White2
           rgbCss([0.9, 0.9, 0.9, 1.0]), // Light Gray
           rgbCss([0.5, 0.5, 0.5, 1.0]), // Gray
           rgbCss([0.1, 0.1, 0.1, 1.0]), // Dark Gray
         ];
 
-        ColorPick.initColorPick('#settings-color-payload', {
-          initialColor: rgbCss(settingsManager.colors?.payload || [0.2, 1.0, 0.0, 0.5]),
+        ColorPick.initColorPick('#settings-color-payloadActive', {
+          initialColor: rgbCss(settingsManager.colors?.celestrakDefaultActivePayload || [0.0, 1.0, 0.0, 0.85]),
           palette: colorPalette,
-          onColorSelected: (colorpick: ColorPick) => this.onColorSelected_(colorpick, 'payload'),
+          onColorSelected: (colorpick: ColorPick) => this.onColorSelected_(colorpick, 'celestrakDefaultActivePayload'),
+        });
+        ColorPick.initColorPick('#settings-color-payloadInactive', {
+          initialColor: rgbCss(settingsManager.colors?.celestrakDefaultInactivePayload || [1.0, 0.5, 0.0, 1.0]),
+          palette: colorPalette,
+          onColorSelected: (colorpick: ColorPick) => this.onColorSelected_(colorpick, 'celestrakDefaultInactivePayload'),
         });
         ColorPick.initColorPick('#settings-color-rocketBody', {
-          initialColor: rgbCss(settingsManager.colors?.rocketBody || [0.2, 0.4, 1.0, 1]),
+          initialColor: rgbCss(settingsManager.colors?.celestrakDefaultRocketBody || [1.0, 0.0, 0.0, 1.0]),
           palette: colorPalette,
-          onColorSelected: (colorpick: ColorPick) => this.onColorSelected_(colorpick, 'rocketBody'),
+          onColorSelected: (colorpick: ColorPick) => this.onColorSelected_(colorpick, 'celestrakDefaultRocketBody'),
         });
         ColorPick.initColorPick('#settings-color-debris', {
-          initialColor: rgbCss(settingsManager.colors?.debris || [0.5, 0.5, 0.5, 1]),
+          initialColor: rgbCss(settingsManager.colors?.celestrakDefaultDebris || [0.5, 0.5, 0.5, 0.9]),
           palette: colorPalette,
-          onColorSelected: (colorpick: ColorPick) => this.onColorSelected_(colorpick, 'debris'),
+          onColorSelected: (colorpick: ColorPick) => this.onColorSelected_(colorpick, 'celestrakDefaultDebris'),
         });
         ColorPick.initColorPick('#settings-color-inview', {
-          initialColor: rgbCss(settingsManager.colors?.inFOV || [0.85, 0.5, 0.0, 1.0]),
+          initialColor: rgbCss(settingsManager.colors?.celestrakDefaultFov || [0.0, 0.0, 1.0, 0.85]),
           palette: colorPalette,
-          onColorSelected: (colorpick: ColorPick) => this.onColorSelected_(colorpick, 'inview'),
+          onColorSelected: (colorpick: ColorPick) => this.onColorSelected_(colorpick, 'celestrakDefaultFov'),
         });
-        ColorPick.initColorPick('#settings-color-missile', {
-          initialColor: rgbCss(settingsManager.colors?.missile || [1.0, 1.0, 0.0, 1.0]),
+        /*
+         * ColorPick.initColorPick('#settings-color-missile', {
+         *   initialColor: rgbCss(settingsManager.colors?.missile || [1.0, 1.0, 0.0, 1.0]),
+         *   palette: colorPalette,
+         *   onColorSelected: (colorpick: ColorPick) => this.onColorSelected_(colorpick, 'missile'),
+         * });
+         * ColorPick.initColorPick('#settings-color-missileInview', {
+         *   initialColor: rgbCss(settingsManager.colors?.missileInview || [1.0, 0.0, 0.0, 1.0]),
+         *   palette: colorPalette,
+         *   onColorSelected: (colorpick: ColorPick) => this.onColorSelected_(colorpick, 'missileInview'),
+         * });
+         */
+        ColorPick.initColorPick('#settings-color-unknown', {
+          initialColor: rgbCss(settingsManager.colors?.celestrakDefaultUnknown || [1, 1, 1, 0.85]),
           palette: colorPalette,
-          onColorSelected: (colorpick: ColorPick) => this.onColorSelected_(colorpick, 'missile'),
-        });
-        ColorPick.initColorPick('#settings-color-missileInview', {
-          initialColor: rgbCss(settingsManager.colors?.missileInview || [1.0, 0.0, 0.0, 1.0]),
-          palette: colorPalette,
-          onColorSelected: (colorpick: ColorPick) => this.onColorSelected_(colorpick, 'missileInview'),
-        });
-        ColorPick.initColorPick('#settings-color-special', {
-          initialColor: rgbCss(settingsManager.colors?.pink || [1.0, 0.0, 0.6, 1.0]),
-          palette: colorPalette,
-          onColorSelected: (colorpick: ColorPick) => this.onColorSelected_(colorpick, 'pink'),
+          onColorSelected: (colorpick: ColorPick) => this.onColorSelected_(colorpick, 'celestrakDefaultUnknown'),
         });
         this.isNotColorPickerInitialSetup = true;
       },
@@ -469,6 +493,8 @@ export class SettingsMenuPlugin extends KeepTrackPlugin {
       if (cameraControlWidgetEl) {
         cameraControlWidgetEl.style.display = settingsManager.drawCameraWidget ? 'block' : 'none';
       }
+    } else {
+      settingsManager.drawCameraWidget = false;
     }
 
     const settingsElements = [
@@ -571,6 +597,7 @@ export class SettingsMenuPlugin extends KeepTrackPlugin {
     }
   }
 
+  // eslint-disable-next-line complexity
   private static onFormChange_(e: any, isDMChecked?: boolean, isSLMChecked?: boolean) {
     if (typeof e === 'undefined' || e === null) {
       throw new Error('e is undefined');
@@ -606,7 +633,7 @@ export class SettingsMenuPlugin extends KeepTrackPlugin {
       case 'settings-freeze-drag':
       case 'settings-time-machine-toasts':
       case 'settings-snp':
-        if ((<HTMLInputElement>getEl(e.target.id)).checked) {
+        if ((<HTMLInputElement>getEl(e.target.id))?.checked) {
           // Play sound for enabling option
           keepTrackApi.getSoundManager()?.play(SoundNames.TOGGLE_ON);
         } else {
@@ -618,8 +645,8 @@ export class SettingsMenuPlugin extends KeepTrackPlugin {
         break;
     }
 
-    isDMChecked ??= (<HTMLInputElement>getEl('settings-demo-mode')).checked;
-    isSLMChecked ??= (<HTMLInputElement>getEl('settings-sat-label-mode')).checked;
+    isDMChecked ??= (<HTMLInputElement>getEl('settings-demo-mode'))?.checked ?? false;
+    isSLMChecked ??= (<HTMLInputElement>getEl('settings-sat-label-mode'))?.checked ?? false;
 
     if (isSLMChecked && (<HTMLElement>e.target).id === 'settings-demo-mode') {
       (<HTMLInputElement>getEl('settings-sat-label-mode')).checked = false;
@@ -643,7 +670,7 @@ export class SettingsMenuPlugin extends KeepTrackPlugin {
     settingsManager.isShowDebris = true;
     settingsManager.isShowAgencies = false;
     settingsManager.isDrawOrbits = true;
-    settingsManager.drawCameraWidget = true;
+    settingsManager.drawCameraWidget = false;
     settingsManager.isDrawTrailingOrbits = false;
     settingsManager.isOrbitCruncherInEcf = false;
     settingsManager.isDrawInCoverageLines = true;
@@ -666,6 +693,7 @@ export class SettingsMenuPlugin extends KeepTrackPlugin {
     SettingsMenuPlugin.syncOnLoad();
   }
 
+  // eslint-disable-next-line complexity
   private static onSubmit_(e: any) {
     if (typeof e === 'undefined' || e === null) {
       throw new Error('e is undefined');
@@ -677,27 +705,27 @@ export class SettingsMenuPlugin extends KeepTrackPlugin {
 
     keepTrackApi.getSoundManager()?.play(SoundNames.BUTTON_CLICK);
 
-    settingsManager.isShowNotionalSats = (<HTMLInputElement>getEl('settings-notionalSats')).checked;
-    settingsManager.isShowLeoSats = (<HTMLInputElement>getEl('settings-leoSats')).checked;
-    settingsManager.isShowStarlinkSats = (<HTMLInputElement>getEl('settings-starlinkSats')).checked;
-    settingsManager.isShowHeoSats = (<HTMLInputElement>getEl('settings-heoSats')).checked;
-    settingsManager.isShowMeoSats = (<HTMLInputElement>getEl('settings-meoSats')).checked;
-    settingsManager.isShowGeoSats = (<HTMLInputElement>getEl('settings-geoSats')).checked;
-    settingsManager.isShowPayloads = (<HTMLInputElement>getEl('settings-showPayloads')).checked;
-    settingsManager.isShowRocketBodies = (<HTMLInputElement>getEl('settings-showRocketBodies')).checked;
-    settingsManager.isShowDebris = (<HTMLInputElement>getEl('settings-showDebris')).checked;
-    settingsManager.isShowAgencies = (<HTMLInputElement>getEl('settings-showAgencies')).checked;
-    settingsManager.isOrbitCruncherInEcf = (<HTMLInputElement>getEl('settings-drawEcf')).checked;
-    settingsManager.isDrawInCoverageLines = (<HTMLInputElement>getEl('settings-isDrawInCoverageLines')).checked;
-    settingsManager.isDrawSun = (<HTMLInputElement>getEl('settings-drawSun')).checked;
+    settingsManager.isShowNotionalSats = (<HTMLInputElement>getEl('settings-notionalSats'))?.checked ?? false;
+    settingsManager.isShowLeoSats = (<HTMLInputElement>getEl('settings-leoSats'))?.checked ?? false;
+    settingsManager.isShowStarlinkSats = (<HTMLInputElement>getEl('settings-starlinkSats'))?.checked ?? false;
+    settingsManager.isShowHeoSats = (<HTMLInputElement>getEl('settings-heoSats'))?.checked ?? false;
+    settingsManager.isShowMeoSats = (<HTMLInputElement>getEl('settings-meoSats'))?.checked ?? false;
+    settingsManager.isShowGeoSats = (<HTMLInputElement>getEl('settings-geoSats'))?.checked ?? false;
+    settingsManager.isShowPayloads = (<HTMLInputElement>getEl('settings-showPayloads'))?.checked ?? false;
+    settingsManager.isShowRocketBodies = (<HTMLInputElement>getEl('settings-showRocketBodies'))?.checked ?? false;
+    settingsManager.isShowDebris = (<HTMLInputElement>getEl('settings-showDebris'))?.checked ?? false;
+    settingsManager.isShowAgencies = (<HTMLInputElement>getEl('settings-showAgencies'))?.checked ?? false;
+    settingsManager.isOrbitCruncherInEcf = (<HTMLInputElement>getEl('settings-drawEcf'))?.checked ?? false;
+    settingsManager.isDrawInCoverageLines = (<HTMLInputElement>getEl('settings-isDrawInCoverageLines'))?.checked ?? false;
+    settingsManager.isDrawSun = (<HTMLInputElement>getEl('settings-drawSun'))?.checked ?? false;
     if (settingsManager.isDrawSun) {
       keepTrackApi.getScene().drawTimeArray = Array(150).fill(16);
     }
-    const isBlackEarthChanged = settingsManager.isBlackEarth !== (<HTMLInputElement>getEl('settings-drawBlackEarth')).checked;
-    const isDrawAtmosphereChanged = settingsManager.isDrawAtmosphere !== (<HTMLInputElement>getEl('settings-drawAtmosphere')).checked;
-    const isDrawAuroraChanged = settingsManager.isDrawAurora !== (<HTMLInputElement>getEl('settings-drawAurora')).checked;
+    const isBlackEarthChanged = settingsManager.isBlackEarth !== (<HTMLInputElement>getEl('settings-drawBlackEarth'))?.checked;
+    const isDrawAtmosphereChanged = settingsManager.isDrawAtmosphere !== (<HTMLInputElement>getEl('settings-drawAtmosphere'))?.checked;
+    const isDrawAuroraChanged = settingsManager.isDrawAurora !== (<HTMLInputElement>getEl('settings-drawAurora'))?.checked;
 
-    settingsManager.drawCameraWidget = (<HTMLInputElement>getEl('settings-drawCameraWidget')).checked;
+    settingsManager.drawCameraWidget = (<HTMLInputElement>getEl('settings-drawCameraWidget'))?.checked ?? false;
     const ccWidgetCanvas = getEl('camera-control-widget');
 
     if (ccWidgetCanvas) {
@@ -708,20 +736,20 @@ export class SettingsMenuPlugin extends KeepTrackPlugin {
       }
     }
 
-    settingsManager.isBlackEarth = (<HTMLInputElement>getEl('settings-drawBlackEarth')).checked;
-    settingsManager.isDrawAtmosphere = (<HTMLInputElement>getEl('settings-drawAtmosphere')).checked;
-    settingsManager.isDrawAurora = (<HTMLInputElement>getEl('settings-drawAurora')).checked;
+    settingsManager.isBlackEarth = (<HTMLInputElement>getEl('settings-drawBlackEarth'))?.checked ?? false;
+    settingsManager.isDrawAtmosphere = (<HTMLInputElement>getEl('settings-drawAtmosphere'))?.checked ?? false;
+    settingsManager.isDrawAurora = (<HTMLInputElement>getEl('settings-drawAurora'))?.checked ?? false;
     if (isBlackEarthChanged || isDrawAtmosphereChanged || isDrawAuroraChanged) {
       keepTrackApi.getScene().earth.reloadEarthHiResTextures();
     }
 
-    const isDrawOrbitsChanged = settingsManager.isDrawOrbits !== (<HTMLInputElement>getEl('settings-drawOrbits')).checked;
+    const isDrawOrbitsChanged = settingsManager.isDrawOrbits !== (<HTMLInputElement>getEl('settings-drawOrbits'))?.checked;
 
-    settingsManager.isDrawOrbits = (<HTMLInputElement>getEl('settings-drawOrbits')).checked;
+    settingsManager.isDrawOrbits = (<HTMLInputElement>getEl('settings-drawOrbits'))?.checked ?? false;
     if (isDrawOrbitsChanged) {
       keepTrackApi.getOrbitManager().drawOrbitsSettingChanged();
     }
-    settingsManager.isDrawTrailingOrbits = (<HTMLInputElement>getEl('settings-drawTrailingOrbits')).checked;
+    settingsManager.isDrawTrailingOrbits = (<HTMLInputElement>getEl('settings-drawTrailingOrbits'))?.checked ?? false;
 
     if (keepTrackApi.getOrbitManager().orbitWorker) {
       if (settingsManager.isDrawTrailingOrbits) {
@@ -738,27 +766,27 @@ export class SettingsMenuPlugin extends KeepTrackPlugin {
     }
     // Must come after the above checks
 
-    const isDrawMilkyWayChanged = settingsManager.isDrawMilkyWay !== (<HTMLInputElement>getEl('settings-drawMilkyWay')).checked;
-    const isGraySkyboxChanged = settingsManager.isGraySkybox !== (<HTMLInputElement>getEl('settings-graySkybox')).checked;
+    const isDrawMilkyWayChanged = settingsManager.isDrawMilkyWay !== (<HTMLInputElement>getEl('settings-drawMilkyWay'))?.checked;
+    const isGraySkyboxChanged = settingsManager.isGraySkybox !== (<HTMLInputElement>getEl('settings-graySkybox'))?.checked;
 
-    settingsManager.isDrawMilkyWay = (<HTMLInputElement>getEl('settings-drawMilkyWay')).checked;
-    settingsManager.isGraySkybox = (<HTMLInputElement>getEl('settings-graySkybox')).checked;
+    settingsManager.isDrawMilkyWay = (<HTMLInputElement>getEl('settings-drawMilkyWay'))?.checked ?? false;
+    settingsManager.isGraySkybox = (<HTMLInputElement>getEl('settings-graySkybox'))?.checked ?? false;
 
     if (isDrawMilkyWayChanged || isGraySkyboxChanged) {
       keepTrackApi.getScene().skybox.init(settingsManager, keepTrackApi.getRenderer().gl);
     }
 
-    settingsManager.isEciOnHover = (<HTMLInputElement>getEl('settings-eciOnHover')).checked;
-    const isHOSChecked = (<HTMLInputElement>getEl('settings-hos')).checked;
+    settingsManager.isEciOnHover = (<HTMLInputElement>getEl('settings-eciOnHover'))?.checked ?? false;
+    const isHOSChecked = (<HTMLInputElement>getEl('settings-hos'))?.checked ?? false;
 
     settingsManager.colors.transparent = isHOSChecked ? [1.0, 1.0, 1.0, 0] : [1.0, 1.0, 1.0, 0.1];
-    settingsManager.isShowConfidenceLevels = (<HTMLInputElement>getEl('settings-confidence-levels')).checked;
-    settingsManager.isDemoModeOn = (<HTMLInputElement>getEl('settings-demo-mode')).checked;
-    settingsManager.isSatLabelModeOn = (<HTMLInputElement>getEl('settings-sat-label-mode')).checked;
-    settingsManager.isShowNextPass = (<HTMLInputElement>getEl('settings-snp')).checked;
-    settingsManager.isFreezePropRateOnDrag = (<HTMLInputElement>getEl('settings-freeze-drag')).checked;
+    settingsManager.isShowConfidenceLevels = (<HTMLInputElement>getEl('settings-confidence-levels'))?.checked ?? false;
+    settingsManager.isDemoModeOn = (<HTMLInputElement>getEl('settings-demo-mode'))?.checked ?? false;
+    settingsManager.isSatLabelModeOn = (<HTMLInputElement>getEl('settings-sat-label-mode'))?.checked ?? false;
+    settingsManager.isShowNextPass = (<HTMLInputElement>getEl('settings-snp'))?.checked ?? false;
+    settingsManager.isFreezePropRateOnDrag = (<HTMLInputElement>getEl('settings-freeze-drag'))?.checked ?? false;
 
-    settingsManager.isDisableTimeMachineToasts = (<HTMLInputElement>getEl('settings-time-machine-toasts')).checked;
+    settingsManager.isDisableTimeMachineToasts = (<HTMLInputElement>getEl('settings-time-machine-toasts'))?.checked ?? false;
     /*
      * TODO: These settings buttons should be inside the plugins themselves
      * Stop Time Machine
@@ -779,16 +807,16 @@ export class SettingsMenuPlugin extends KeepTrackPlugin {
 
     colorSchemeManagerInstance.reloadColors();
 
-    const newFieldOfView = parseInt((<HTMLInputElement>getEl('satFieldOfView')).value);
+    const newFieldOfView = parseInt((<HTMLInputElement>getEl('satFieldOfView'))?.value);
 
-    if (isNaN(newFieldOfView)) {
+    if (isNaN(newFieldOfView) && getEl('satFieldOfView')) {
       (<HTMLInputElement>getEl('satFieldOfView')).value = '30';
       uiManagerInstance.toast('Invalid field of view value!', ToastMsgType.critical);
     }
 
     const maxSearchSats = parseInt((<HTMLInputElement>getEl('maxSearchSats')).value);
 
-    if (isNaN(maxSearchSats)) {
+    if (isNaN(maxSearchSats) && getEl('maxSearchSats')) {
       (<HTMLInputElement>getEl('maxSearchSats')).value = settingsManager.searchLimit.toString();
       uiManagerInstance.toast('Invalid max search sats value!', ToastMsgType.critical);
     } else {

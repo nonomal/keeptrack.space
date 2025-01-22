@@ -1103,6 +1103,8 @@ export class SettingsManager {
 
     if (drawCameraWidgetString !== null) {
       this.drawCameraWidget = drawCameraWidgetString === 'true';
+    } else {
+      this.drawCameraWidget = false;
     }
     const drawTrailingOrbitsString = PersistenceManager.getInstance().getItem(StorageKey.SETTINGS_DRAW_TRAILING_ORBITS);
 

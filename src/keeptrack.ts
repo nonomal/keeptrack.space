@@ -55,7 +55,6 @@ import { settingsManager, SettingsManagerOverride } from './settings/settings';
 import { VERSION } from './settings/version.js';
 import { VERSION_DATE } from './settings/versionDate.js';
 import { Camera } from './singletons/camera';
-import { CameraControlWidget } from './singletons/camera-control-widget';
 import { CatalogManager } from './singletons/catalog-manager';
 import { ColorSchemeManager } from './singletons/color-scheme-manager';
 import { DemoManager } from './singletons/demo-mode';
@@ -169,9 +168,9 @@ export class KeepTrack {
     keepTrackContainer.registerSingleton(Singletons.SensorMath, sensorMathInstance);
     const mainCameraInstance = new Camera();
 
-    const cameraControlWidget = new CameraControlWidget();
+    // const cameraControlWidget = new CameraControlWidget();
 
-    console.log(cameraControlWidget);
+    // console.log(cameraControlWidget);
 
     keepTrackContainer.registerSingleton(Singletons.MainCamera, mainCameraInstance);
     const hoverManagerInstance = new HoverManager();
