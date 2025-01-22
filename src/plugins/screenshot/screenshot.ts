@@ -26,8 +26,9 @@
 import { KeepTrackApiEvents } from '@app/interfaces';
 import { keepTrackApi } from '@app/keepTrackApi';
 import { Classification } from '@app/static/classification';
+import logoCTPng from '@public/img/ct-text-logo.png';
 import cameraPng from '@public/img/icons/camera.png';
-import logoPng from '@public/img/kts-text-logo.png';
+import logoKTPng from '@public/img/kts-text-logo.png';
 import { KeepTrackPlugin } from '../KeepTrackPlugin';
 
 export class Screenshot extends KeepTrackPlugin {
@@ -37,11 +38,14 @@ export class Screenshot extends KeepTrackPlugin {
     this.saveHiResPhoto('4k');
   };
 
-  logo: HTMLImageElement;
+  logoKT: HTMLImageElement;
+  logoCT: CanvasImageSource;
   constructor() {
     super();
-    this.logo = new Image();
-    this.logo.src = logoPng;
+    this.logoKT = new Image();
+    this.logoKT.src = logoKTPng;
+    this.logoCT = new Image();
+    this.logoCT.src = logoCTPng;
   }
 
   // This is 'disabled' since it does not turn green after being clicked like other buttons.
@@ -133,7 +137,7 @@ export class Screenshot extends KeepTrackPlugin {
   takeScreenShot() {
     const link = document.createElement('a');
 
-    link.download = 'keeptrack.png';
+    link.download = 'celestrak.png';
 
     link.href = this.watermarkedDataUrl_();
     link.click();
@@ -156,7 +160,8 @@ export class Screenshot extends KeepTrackPlugin {
     tempCanvas.height = canvas.height;
 
     tempCtx.drawImage(canvas, 0, 0);
-    tempCtx.drawImage(this.logo, logoX, logoY, logoWidth, logoHeight);
+    tempCtx.drawImage(this.logoCT, logoX, logoY, logoWidth, logoHeight);
+    tempCtx.drawImage(this.logoKT, logoX - 250, logoY, logoWidth, logoHeight);
 
     const { classificationstr, classificationColor } = Screenshot.calculateClassificationText_();
 
