@@ -540,7 +540,7 @@ export class SettingsManager {
      *
      * It can be loaded from a local file or a remote source
      */
-    tle: 'https://storage.keeptrack.space/data/celestrak.json',
+    tle: 'https://api.keeptrack.space/v2/sats/celestrak',
     tleDebris: 'https://app.keeptrack.space/tle/TLEdebris.json',
     vimpel: 'https://storage.keeptrack.space/data/vimpel.json',
   };
