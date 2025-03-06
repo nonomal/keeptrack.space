@@ -1455,6 +1455,7 @@ export class SettingsManager {
    * This is an initial parse of the GET variables to determine
    * critical settings. Other variables are checked later during catalogManagerInstance.init
    */
+  // eslint-disable-next-line complexity
   private initParseFromGETVariables_(params: string[]) {
     if (!this.disableUI) {
       for (const param of params) {
@@ -1615,6 +1616,26 @@ export class SettingsManager {
             break;
           case 'noPropRate':
             this.isAlwaysHidePropRate = true;
+            break;
+          case 'CATNR':
+            this.externalTLEs = `https://celestrak.org/NORAD/elements/gp.php?CATNR=${val}&FORMAT=3LE`;
+            this.externalTLEsOnly = true;
+            break;
+          case 'NAME':
+            this.externalTLEs = `https://celestrak.org/NORAD/elements/gp.php?NAME=${val}&FORMAT=3LE`;
+            this.externalTLEsOnly = true;
+            break;
+          case 'INTDES':
+            this.externalTLEs = `https://celestrak.org/NORAD/elements/gp.php?INTDES=${val}&FORMAT=3LE`;
+            this.externalTLEsOnly = true;
+            break;
+          case 'GROUP':
+            this.externalTLEs = `https://celestrak.org/NORAD/elements/gp.php?GROUP=${val}&FORMAT=3LE`;
+            this.externalTLEsOnly = true;
+            break;
+          case 'SPECIAL':
+            this.externalTLEs = `https://celestrak.org/NORAD/elements/gp.php?SPECIAL=${val}&FORMAT=3LE`;
+            this.externalTLEsOnly = true;
             break;
           default:
         }
