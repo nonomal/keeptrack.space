@@ -113,6 +113,10 @@ export const sunlightDiv = keepTrackApi.html`
     <div class="Square-Box legend-inFOV-box"></div>
     Satellite FOV
   </li>
+  <li>
+    <div class="Square-Box legend-sensorCanObserve-box"></div>
+    Satellite Is Observable
+  </li>
 </ul>
 `.trim();
 export const defaultSensorDiv = keepTrackApi.html`
@@ -136,6 +140,10 @@ export const defaultSensorDiv = keepTrackApi.html`
   <li>
     <div class="Square-Box legend-inFOV-box"></div>
     Satellite In FOV
+  </li>
+  <li>
+    <div class="Square-Box legend-sensorCanObserve-box"></div>
+    Satellite Is Observable
   </li>
   <li>
     <div class="Square-Box legend-missile-box"></div>

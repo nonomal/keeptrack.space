@@ -40,7 +40,6 @@ import {
   Radians,
   RaeVec3,
   Sgp4,
-  SpaceObjectType,
   Sun,
   TAU,
   Vector3D,
@@ -348,7 +347,7 @@ export const onmessageProcessing = (m: PositionCruncherIncomingMsg) => {
       break;
     case CruncerMessageTypes.SUNLIGHT_VIEW:
       if (m.data.isSunlightView) {
-        isSunlightView = m.data.isSunlightView;
+        isSunlightView = true; // m.data.isSunlightView;
       }
       break;
     default:
@@ -381,7 +380,7 @@ export const propagationLoop = (mockSatCache?: PosCruncherCachedObject[]) => {
   }
 
   if (satInSun.length !== objCache.length) {
-    satInSun = isSunlightView && (!satInSun || satInSun === EMPTY_INT8_ARRAY) ? new Int8Array(objCache.length) : EMPTY_INT8_ARRAY;
+    satInSun = isSensor && (!satInSun || satInSun === EMPTY_INT8_ARRAY) ? new Int8Array(objCache.length) : EMPTY_INT8_ARRAY;
   }
 
   updateSatCache(now, j, gmst, gmstNext, isSunExclusion);
@@ -671,7 +670,7 @@ export const updateSatellite = (now: Date, i: number, gmst: GreenwichMeanSiderea
     rae = null;
   }
 
-  if (isSunlightView) {
+  if (isSensor && !isSunExclusion) {
     const sunPos = Sun.position(EpochUTC.fromDateTime(now));
     const lighting = Sun.lightingRatio(new Vector3D(pv.position.x, pv.position.y, pv.position.z), sunPos);
 
@@ -688,28 +687,32 @@ export const updateSatellite = (now: Date, i: number, gmst: GreenwichMeanSiderea
     satInView[i] = 0; // 0 = FALSE - Default in case no sensor selected
     if (isSensors) {
       for (const sensor of sensors) {
-        // Skip satellites in the dark if you are an optical sensor
-        if (!(sensor.type === SpaceObjectType.OPTICAL && satInSun[i] === SunStatus.UMBRAL)) {
-          if (satInView[i] === 1) {
-            // If the satellite is already in view, skip the rest of the sensors
-            break;
-          }
-          try {
-            positionEcf = eci2ecf(pv.position, gmst); // pv.position is called positionEci originally
-            rae = ecfRad2rae(sensor.llaRad(), positionEcf);
-          } catch (e) {
-            continue;
-          }
-          satInView[i] = sensor.isRaeInFov(rae) ? 1 : 0;
+        /*
+         * Skip satellites in the dark if you are an optical sensor
+         * if (!(sensor.type === SpaceObjectType.OPTICAL && satInSun[i] === SunStatus.UMBRAL)) {
+         */
+        if (satInView[i] === 1) {
+          // If the satellite is already in view, skip the rest of the sensors
+          break;
         }
+        try {
+          positionEcf = eci2ecf(pv.position, gmst); // pv.position is called positionEci originally
+          rae = ecfRad2rae(sensor.llaRad(), positionEcf);
+        } catch (e) {
+          continue;
+        }
+        satInView[i] = sensor.isRaeInFov(rae) ? 1 : 0;
+        // }
       }
       // Skip Calculating Lookangles if No Sensor is Selected
     } else if (isSensor) {
       rae = ecfRad2rae(sensors[0].llaRad(), eci2ecf(pv.position, gmst));
-      // If it is an optical sensor and the satellite is in the dark, skip it
-      if (!(sensors[0].type === SpaceObjectType.OPTICAL && satInSun[i] === SunStatus.UMBRAL)) {
-        satInView[i] = sensors[0].isRaeInFov(rae) ? 1 : 0;
-      }
+      /*
+       * If it is an optical sensor and the satellite is in the dark, skip it
+       * if (!(sensors[0].type === SpaceObjectType.OPTICAL && satInSun[i] === SunStatus.UMBRAL)) {
+       */
+      satInView[i] = sensors[0].isRaeInFov(rae) ? 1 : 0;
+      // }
     }
   }
 
@@ -744,7 +747,7 @@ export const sendDataToSatSet = () => {
     postMessageArray.satInView = EMPTY_INT8_ARRAY;
   }
   // Add Sun View Data if Enabled
-  if (isSunlightView) {
+  if (isSensor) {
     postMessageArray.satInSun = satInSun;
   } else {
     postMessageArray.satInSun = EMPTY_INT8_ARRAY;

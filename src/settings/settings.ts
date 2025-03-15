@@ -1360,9 +1360,9 @@ export class SettingsManager {
       // eslint-disable-next-line no-console
       console.warn('Settings Manager: Unable to get color settings - localStorage issue!');
     }
-    if (!this.colors || Object.keys(this.colors).length === 0 || this.colors.version !== '1.4.1') {
+    if (!this.colors || Object.keys(this.colors).length === 0 || this.colors.version !== '1.4.2') {
       this.colors = {
-        version: '1.4.1',
+        version: '1.4.2',
         length: 0,
         facility: [0.64, 0.0, 0.64, 1.0],
         sunlight100: [1.0, 1.0, 1.0, 0.7],
@@ -1393,8 +1393,9 @@ export class SettingsManager {
           [0.6, 0.5, 1.0, 1.0],
         ],
         deselected: [1.0, 1.0, 1.0, 0],
-        inFOV: [0.85, 0.5, 0.0, 1.0],
+        inFOV: [0.8, 0.45, 0.0, 1.0],
         inFOVAlt: [0.2, 0.4, 1.0, 1],
+        sensorCanObserve: [1.0, 0.1, 0.05, 1.0],
         payload: [0.2, 1.0, 0.0, 0.5],
         rocketBody: [0.2, 0.4, 1.0, 1],
         debris: [0.5, 0.5, 0.5, 1],
@@ -1407,7 +1408,7 @@ export class SettingsManager {
         satHi: [1.0, 1.0, 1.0, 1.0],
         satMed: [1.0, 1.0, 1.0, 0.8],
         satLow: [1.0, 1.0, 1.0, 0.6],
-        sunlightInview: [0.85, 0.5, 0.0, 1.0],
+        sunlightInview: [0.85, 0.5, 0.5, 1.0],
         penumbral: [1.0, 1.0, 1.0, 0.3],
         umbral: [1.0, 1.0, 1.0, 0.1],
         /*

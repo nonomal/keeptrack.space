@@ -27,6 +27,7 @@ export abstract class LegendManager {
     '.legend-rocketBody-box',
     '.legend-debris-box',
     '.legend-inFOV-box',
+    '.legend-sensorCanObserve-box',
     '.legend-facility-box',
     '.legend-sensor-box',
     '.legend-facility-box',

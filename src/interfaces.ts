@@ -79,6 +79,7 @@ export interface Colors {
   gradientAmt: number;
   inFOV: rgbaArray;
   inFOVAlt: rgbaArray;
+  sensorCanObserve: rgbaArray;
   inGroup: rgbaArray;
   length: number;
   lostobjects: rgbaArray;

@@ -32,6 +32,7 @@ import { errorManagerInstance } from './errorManager';
 
 import { waitForCruncher } from '@app/lib/waitForCruncher';
 import { SelectSatManager } from '@app/plugins/select-sat-manager/select-sat-manager';
+import { SunStatus } from '@app/static/sat-math';
 import { PositionCruncherOutgoingMsg } from '@app/webworker/constants';
 import { CruncerMessageTypes } from '@app/webworker/positionCruncher';
 import { BaseObject, Days, DetailedSatellite, SpaceObjectType, Star } from 'ootk';
@@ -68,6 +69,7 @@ export class ColorSchemeManager {
     pink: true,
     inFOV: true,
     inViewAlt: true,
+    sensorCanObserve: true,
     starLow: true,
     starMed: true,
     starHi: true,
@@ -650,7 +652,7 @@ export class ColorSchemeManager {
         this.objectTypeFlags.payload === false) ||
       (keepTrackApi.getMainCamera().cameraType === CameraType.PLANETARIUM && sat.type === SpaceObjectType.PAYLOAD && this.objectTypeFlags.payload === false) ||
       (catalogManagerInstance.isSensorManagerLoaded &&
-        sensorManagerInstance.currentSensors[0].type == SpaceObjectType.OBSERVER &&
+        sensorManagerInstance.currentSensors[0].type === SpaceObjectType.OBSERVER &&
         typeof sat.vmag === 'undefined' &&
         sat.type === SpaceObjectType.PAYLOAD &&
         this.objectTypeFlags.payload === false)
@@ -666,7 +668,7 @@ export class ColorSchemeManager {
         this.objectTypeFlags.rocketBody === false) ||
       (keepTrackApi.getMainCamera().cameraType === CameraType.PLANETARIUM && sat.type === SpaceObjectType.ROCKET_BODY && this.objectTypeFlags.rocketBody === false) ||
       (catalogManagerInstance.isSensorManagerLoaded &&
-        sensorManagerInstance.currentSensors[0].type == SpaceObjectType.OBSERVER &&
+        sensorManagerInstance.currentSensors[0].type === SpaceObjectType.OBSERVER &&
         typeof sat.vmag === 'undefined' &&
         sat.type === SpaceObjectType.ROCKET_BODY &&
         this.objectTypeFlags.rocketBody === false)
@@ -682,7 +684,7 @@ export class ColorSchemeManager {
         this.objectTypeFlags.debris === false) ||
       (keepTrackApi.getMainCamera().cameraType === CameraType.PLANETARIUM && sat.type === SpaceObjectType.DEBRIS && this.objectTypeFlags.debris === false) ||
       (catalogManagerInstance.isSensorManagerLoaded &&
-        sensorManagerInstance.currentSensors[0].type == SpaceObjectType.OBSERVER &&
+        sensorManagerInstance.currentSensors[0].type === SpaceObjectType.OBSERVER &&
         typeof sat.vmag === 'undefined' &&
         sat.type === SpaceObjectType.DEBRIS &&
         this.objectTypeFlags.debris === false)
@@ -702,7 +704,7 @@ export class ColorSchemeManager {
         (sat.type === SpaceObjectType.SPECIAL || sat.type === SpaceObjectType.UNKNOWN || sat.type === SpaceObjectType.NOTIONAL) &&
         this.objectTypeFlags.pink === false) ||
       (catalogManagerInstance.isSensorManagerLoaded &&
-        sensorManagerInstance.currentSensors[0].type == SpaceObjectType.OBSERVER &&
+        sensorManagerInstance.currentSensors[0].type === SpaceObjectType.OBSERVER &&
         typeof sat.vmag === 'undefined' &&
         (sat.type === SpaceObjectType.SPECIAL || sat.type === SpaceObjectType.UNKNOWN || sat.type === SpaceObjectType.NOTIONAL) &&
         this.objectTypeFlags.pink === false)
@@ -713,17 +715,28 @@ export class ColorSchemeManager {
       };
     }
 
-    if (dotsManagerInstance.inViewData?.[sat.id] === 1 && this.objectTypeFlags.inFOV === false && keepTrackApi.getMainCamera().cameraType !== CameraType.PLANETARIUM) {
-      return {
-        color: this.colorTheme.deselected,
-        pickable: Pickable.No,
-      };
-    }
-
     if (dotsManagerInstance.inViewData?.[sat.id] === 1 && keepTrackApi.getMainCamera().cameraType !== CameraType.PLANETARIUM) {
-      if (catalogManagerInstance.isSensorManagerLoaded && sensorManagerInstance.currentSensors[0].type == SpaceObjectType.OBSERVER && typeof sat.vmag === 'undefined') {
+      if (catalogManagerInstance.isSensorManagerLoaded && sensorManagerInstance.currentSensors[0].type === SpaceObjectType.OBSERVER && typeof sat.vmag === 'undefined') {
         // Intentional
-      } else {
+      } else if (dotsManagerInstance.inSunData?.[sat.id] === SunStatus.SUN || dotsManagerInstance.inSunData?.[sat.id] === SunStatus.PENUMBRAL) {
+        // Is Observable
+        if (this.objectTypeFlags.sensorCanObserve === true) {
+          return {
+            color: this.colorTheme.sensorCanObserve,
+            pickable: Pickable.Yes,
+          };
+        }
+        return {
+          color: this.colorTheme.deselected,
+          pickable: Pickable.No,
+        };
+      } else if (dotsManagerInstance.inSunData?.[sat.id] !== SunStatus.SUN && dotsManagerInstance.inSunData?.[sat.id] !== SunStatus.PENUMBRAL) {
+        if (dotsManagerInstance.inViewData?.[sat.id] === 1 && this.objectTypeFlags.inFOV === false && keepTrackApi.getMainCamera().cameraType !== CameraType.PLANETARIUM) {
+          return {
+            color: this.colorTheme.deselected,
+            pickable: Pickable.No,
+          };
+        }
         return {
           color: this.colorTheme.inFOV,
           pickable: Pickable.Yes,
@@ -798,6 +811,13 @@ export class ColorSchemeManager {
     if (keepTrackApi.getDotsManager().inViewData?.[sat.id] === 1 && this.objectTypeFlags.inFOV === true) {
       return {
         color: this.colorTheme.inFOV,
+        pickable: Pickable.Yes,
+      };
+    }
+
+    if (keepTrackApi.getDotsManager().inViewData?.[sat.id] === 1 && this.objectTypeFlags.sensorCanObserve === true) {
+      return {
+        color: this.colorTheme.sensorCanObserve,
         pickable: Pickable.Yes,
       };
     }
@@ -899,7 +919,8 @@ export class ColorSchemeManager {
     this.gl_ = renderer.gl;
     this.colorTheme = settingsManager.colors || {
       transparent: [0, 0, 0, 0] as rgbaArray,
-      inFOV: [0.0, 1.0, 0.0, 1.0] as rgbaArray,
+      inFOV: [0.0, 1.0, 0.0, 0.8] as rgbaArray,
+      sensorCanObserve: [0.0, 1.0, 0.0, 1.0] as rgbaArray,
       deselected: [0.0, 0.0, 0.0, 0.0] as rgbaArray,
       sensor: [0.0, 0.0, 0.0, 1.0] as rgbaArray,
       payload: [0.0, 0.0, 1.0, 1.0] as rgbaArray,
@@ -1067,6 +1088,17 @@ export class ColorSchemeManager {
     }
 
     if (this.isInView(sat)) {
+      /*
+       * TODO: adding sensor visibility
+       * const sensorManagerInstance = keepTrackApi.getSensorManager();
+       * let canStationObserve = sensorManagerInstance.canStationsObserve(new Date(), sensorManagerInstance.currentSensors);
+       * if (canStationObserve) {
+       *   return {
+       *     color: this.colorTheme.sensorCanObserve,
+       *     pickable: Pickable.Yes,
+       *   };
+       * }
+       */
       return {
         color: this.colorTheme.inFOV,
         pickable: Pickable.Yes,
@@ -1375,6 +1407,7 @@ export class ColorSchemeManager {
     this.objectTypeFlags.pink = true;
     this.objectTypeFlags.inFOV = true;
     this.objectTypeFlags.inViewAlt = true;
+    this.objectTypeFlags.sensorCanObserve = true;
     this.objectTypeFlags.starLow = true;
     this.objectTypeFlags.starMed = true;
     this.objectTypeFlags.starHi = true;
@@ -1522,6 +1555,17 @@ export class ColorSchemeManager {
 
       }
       // TODO: Work out a system for vmag filtering
+
+      const sensorManagerInstance = keepTrackApi.getSensorManager();
+      const canStationObserve = sensorManagerInstance.canStationsObserve(keepTrackApi.getTimeManager().simulationTimeObj, sensorManagerInstance.currentSensors);
+
+      if (canStationObserve) {
+        return {
+          color: this.colorTheme.sensorCanObserve,
+          pickable: Pickable.Yes,
+        };
+      }
+
       return {
         color: this.colorTheme.sunlightInview,
         pickable: Pickable.Yes,
@@ -2117,6 +2161,7 @@ export interface ColorSchemeColorMap {
   missileInview: [number, number, number, number];
   pink: [number, number, number, number];
   inFOV: [number, number, number, number];
+  sensorCanObserve: [number, number, number, number];
   starLow: [number, number, number, number];
   starMed: [number, number, number, number];
   starHi: [number, number, number, number];
