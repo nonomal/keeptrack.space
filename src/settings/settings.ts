@@ -46,41 +46,41 @@ export class SettingsManager {
   menuMode: MenuMode = MenuMode.BASIC;
   // This controls which of the built-in plugins are loaded
   plugins = <KeepTrackPlugins>{
-    debug: true,
+    debug: false,
     satInfoboxCore: true,
     aboutManager: false,
     collisions: true,
     trackingImpactPredict: true,
-    dops: true,
+    dops: false,
     findSat: true,
-    launchCalendar: true,
-    newLaunch: true,
-    nextLaunch: true,
+    launchCalendar: false,
+    newLaunch: false,
+    nextLaunch: false,
     nightToggle: true,
     photoManager: true,
-    screenRecorder: true,
+    screenRecorder: false,
     satChanges: false,
     stereoMap: true,
-    timeMachine: true,
-    initialOrbit: true,
-    missile: true,
-    breakup: true,
+    timeMachine: false,
+    initialOrbit: false,
+    missile: false,
+    breakup: false,
     editSat: true,
     constellations: true,
     countries: true,
     colorsMenu: true,
-    shortTermFences: true,
-    orbitReferences: true,
-    analysis: true,
-    plotAnalysis: true,
+    shortTermFences: false,
+    orbitReferences: false,
+    analysis: false,
+    plotAnalysis: false,
     sensorFov: true,
-    sensorSurv: true,
-    satelliteFov: true,
-    satelliteView: true,
+    sensorSurv: false,
+    satelliteFov: false,
+    satelliteView: false,
     planetarium: true,
-    astronomy: true,
+    astronomy: false,
     screenshot: true,
-    watchlist: true,
+    watchlist: false,
     sensor: true,
     settingsMenu: true,
     graphicsMenu: true,
@@ -90,14 +90,14 @@ export class SettingsManager {
     classificationBar: true,
     soundManager: true,
     gamepad: true,
-    debrisScreening: true,
-    videoDirector: true,
-    reports: true,
-    polarPlot: true,
-    timeline: true,
-    timelineAlt: true,
-    transponderChannelData: true,
-    calculator: true,
+    debrisScreening: false,
+    videoDirector: false,
+    reports: false,
+    polarPlot: false,
+    timeline: false,
+    timelineAlt: false,
+    transponderChannelData: false,
+    calculator: false,
     createSat: true,
     filterMenu: true,
   };
@@ -109,7 +109,7 @@ export class SettingsManager {
   /**
    * This enables/disable the mission data section of the sat-info-box. There is no value if your data set contains no mission data.
    */
-  isMissionDataEnabled = true;
+  isMissionDataEnabled = false;
 
 
   static preserveSettings() {
@@ -150,7 +150,7 @@ export class SettingsManager {
    * The default color scheme to use when the application is loaded. This must be a string that matches a class name of one of the available color schemes.
    * Ex. DefaultColorScheme, CelestrakColorScheme, etc.
    */
-  defaultColorScheme: 'DefaultColorScheme';
+  defaultColorScheme: 'CelestrakColorScheme';
 
   /** Ensures no html is injected into the page */
   isPreventDefaultHtml = false;
@@ -666,7 +666,7 @@ export class SettingsManager {
      *
      * It can be loaded from a local file or a remote source
      */
-    tle: 'https://api.keeptrack.space/v3/sats',
+    tle: 'https://api.keeptrack.space/v2/sats/celestrak',
     /** url for an external TLE source */
     externalTLEs: '',
     /**
@@ -750,7 +750,7 @@ export class SettingsManager {
   /**
    * Flag for showing the secondary logo for partnerships
    */
-  isShowSecondaryLogo = false;
+  isShowSecondaryLogo = true;
   /**
    * Flag for using the debris catalog instead of the full catalog
    *
@@ -997,11 +997,11 @@ export class SettingsManager {
     /**
      * The blur radius factor used for satellites.
      */
-    blurFactor1: '0.53',
+    blurFactor1: '0.76',
     /**
      * The blur alpha factor used for satellites.
      */
-    blurFactor2: '0.5',
+    blurFactor2: '0.4',
     /**
      * The blur radius factor used for stars.
      */
@@ -1128,7 +1128,7 @@ export class SettingsManager {
   /*
    * Enables the new JSC Vimpel catalog
    */
-  isEnableJscCatalog = true;
+  isEnableJscCatalog = false;
   /**
    * Size of the dot for picking purposes
    */
