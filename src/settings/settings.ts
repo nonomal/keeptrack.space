@@ -92,7 +92,7 @@ export class SettingsManager {
     gamepad: true,
     debrisScreening: false,
     videoDirector: false,
-    reports: false,
+    reports: true,
     polarPlot: false,
     timeline: false,
     timelineAlt: false,
