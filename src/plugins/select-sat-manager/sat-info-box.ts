@@ -47,7 +47,7 @@ export class SatInfoBox extends KeepTrackPlugin {
 
   private isorbitalDataLoaded_ = false;
   private issecondaryDataLoaded_ = false;
-  private issensorInfoLoaded_ = false;
+  // private issensorInfoLoaded_ = false;
   private islaunchDataLoaded_ = false;
   private issatMissionDataLoaded_ = false;
   private isTopLinkEventListenersAdded_ = false;
@@ -1866,75 +1866,77 @@ export class SatInfoBox extends KeepTrackPlugin {
     }
   }
 
-  private static createSensorInfo() {
-    getEl(SatInfoBox.containerId_)?.insertAdjacentHTML(
-      'beforeend',
-      keepTrackApi.html`
-      <div id="sensor-sat-info">
-        <div class="sat-info-section-header">
-          Sensor Data
-          <span id="sensor-data-section-collapse" class="section-collapse material-icons" style="position: absolute; right: 0;">expand_less</span>
-        </div>
-        <div class="sat-info-row">
-          <div class="sat-info-key" data-position="top" data-delay="50"
-            data-tooltip="Distance from the Sensor">
-            Range
-          </div>
-          <div class="sat-info-value" id="sat-range">xxxx km</div>
-        </div>
-        <div class="sat-info-row">
-          <div class="sat-info-key" data-position="top" data-delay="50"
-            data-tooltip="Angle (Left/Right) from the Sensor">
-            Azimuth
-          </div>
-          <div class="sat-info-value" id="sat-azimuth">XX deg</div>
-        </div>
-        <div class="sat-info-row">
-          <div class="sat-info-key" data-position="top" data-delay="50"
-            data-tooltip="Angle (Up/Down) from the Sensor">
-            Elevation
-          </div>
-          <div class="sat-info-value" id="sat-elevation">XX deg</div>
-        </div>
-        <div class="sat-info-row">
-          <div class="sat-info-key" data-position="top" data-delay="50"
-            data-tooltip="Linear Width at Target's Range">
-            Beam Width
-          </div>
-          <div class="sat-info-value" id="sat-beamwidth">xxxx km</div>
-        </div>
-        <div class="sat-info-row">
-          <div class="sat-info-key" data-position="top" data-delay="50"
-            data-tooltip="Time for RF/Light to Reach Target and Back">
-            Max Tmx Time
-          </div>
-          <div class="sat-info-value" id="sat-maxTmx">xxxx ms</div>
-        </div>
-        <div class="sat-info-row sat-only-info">
-          <div class="sat-info-key" data-position="top" data-delay="50"
-            data-tooltip="Does the Sun Impact the Sensor">
-            Sun
-          </div>
-          <div class="sat-info-value" id="sat-sun">Sun Stuff</div>
-        </div>
-        <div class="sat-info-row sat-only-info">
-            <div class="sat-info-key" data-position="top" data-delay="50"
-              data-tooltip="Visual Magnitude (Lower numbers are brighter)">
-              Vis Mag
-            </div>
-            <div class="sat-info-value" id="sat-vmag">xx.x</div>
-          </div>
-        <div id="sat-info-nextpass-row" class="sat-info-row sat-only-info">
-          <div id="sat-info-nextpass" class="sat-info-key" data-position="top" data-delay="50"
-            data-tooltip="Next Time in Coverage">
-            Next Pass
-          </div>
-          <div id="sat-nextpass" class="sat-info-value">00:00:00z</div>
-        </div>
-      </div>
-      `,
-    );
-  }
+  /*
+   * private static createSensorInfo() {
+   *   getEl(SatInfoBox.containerId_)?.insertAdjacentHTML(
+   *     'beforeend',
+   *     keepTrackApi.html`
+   *     <div id="sensor-sat-info">
+   *       <div class="sat-info-section-header">
+   *         Sensor Data
+   *         <span id="sensor-data-section-collapse" class="section-collapse material-icons" style="position: absolute; right: 0;">expand_less</span>
+   *       </div>
+   *       <div class="sat-info-row">
+   *         <div class="sat-info-key" data-position="top" data-delay="50"
+   *           data-tooltip="Distance from the Sensor">
+   *           Range
+   *         </div>
+   *         <div class="sat-info-value" id="sat-range">xxxx km</div>
+   *       </div>
+   *       <div class="sat-info-row">
+   *         <div class="sat-info-key" data-position="top" data-delay="50"
+   *           data-tooltip="Angle (Left/Right) from the Sensor">
+   *           Azimuth
+   *         </div>
+   *         <div class="sat-info-value" id="sat-azimuth">XX deg</div>
+   *       </div>
+   *       <div class="sat-info-row">
+   *         <div class="sat-info-key" data-position="top" data-delay="50"
+   *           data-tooltip="Angle (Up/Down) from the Sensor">
+   *           Elevation
+   *         </div>
+   *         <div class="sat-info-value" id="sat-elevation">XX deg</div>
+   *       </div>
+   *       <div class="sat-info-row">
+   *         <div class="sat-info-key" data-position="top" data-delay="50"
+   *           data-tooltip="Linear Width at Target's Range">
+   *           Beam Width
+   *         </div>
+   *         <div class="sat-info-value" id="sat-beamwidth">xxxx km</div>
+   *       </div>
+   *       <div class="sat-info-row">
+   *         <div class="sat-info-key" data-position="top" data-delay="50"
+   *           data-tooltip="Time for RF/Light to Reach Target and Back">
+   *           Max Tmx Time
+   *         </div>
+   *         <div class="sat-info-value" id="sat-maxTmx">xxxx ms</div>
+   *       </div>
+   *       <div class="sat-info-row sat-only-info">
+   *         <div class="sat-info-key" data-position="top" data-delay="50"
+   *           data-tooltip="Does the Sun Impact the Sensor">
+   *           Sun
+   *         </div>
+   *         <div class="sat-info-value" id="sat-sun">Sun Stuff</div>
+   *       </div>
+   *       <div class="sat-info-row sat-only-info">
+   *           <div class="sat-info-key" data-position="top" data-delay="50"
+   *             data-tooltip="Visual Magnitude (Lower numbers are brighter)">
+   *             Vis Mag
+   *           </div>
+   *           <div class="sat-info-value" id="sat-vmag">xx.x</div>
+   *         </div>
+   *       <div id="sat-info-nextpass-row" class="sat-info-row sat-only-info">
+   *         <div id="sat-info-nextpass" class="sat-info-key" data-position="top" data-delay="50"
+   *           data-tooltip="Next Time in Coverage">
+   *           Next Pass
+   *         </div>
+   *         <div id="sat-nextpass" class="sat-info-value">00:00:00z</div>
+   *       </div>
+   *     </div>
+   *     `,
+   *   );
+   * }
+   */
 
   /**
    * Selects a satellite, missile, or sensor object and updates the satellite info box accordingly.
