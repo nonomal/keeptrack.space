@@ -6,8 +6,7 @@
  *
  * https://keeptrack.space
  *
- * @Copyright (C) 2016-2025 Theodore Kruczek
- * @Copyright (C) 2020-2025 Heather Kruczek
+ * @Copyright (C) 2025 Kruczek Labs LLC
  *
  * KeepTrack is free software: you can redistribute it and/or modify it under the
  * terms of the GNU Affero General Public License as published by the Free Software
@@ -30,7 +29,7 @@ import { errorManagerInstance } from '@app/singletons/errorManager';
 import analysisPng from '@public/img/icons/reports.png';
 
 
-import i18next from 'i18next';
+import { t7e } from '@app/locales/keys';
 import { BaseObject, DetailedSatellite, DetailedSensor, MILLISECONDS_PER_SECOND } from 'ootk';
 import { ClickDragOptions, KeepTrackPlugin } from '../KeepTrackPlugin';
 import { SelectSatManager } from '../select-sat-manager/select-sat-manager';
@@ -326,7 +325,7 @@ export class ReportsPlugin extends KeepTrackPlugin {
       win.history.replaceState(null, filename, `/${filename}.txt`);
     } else {
       // eslint-disable-next-line no-alert
-      alert(i18next.t('errorMsgs.Reports.popupBlocker'));
+      alert(t7e('errorMsgs.Reports.popupBlocker'));
     }
   }
 
@@ -343,13 +342,13 @@ export class ReportsPlugin extends KeepTrackPlugin {
     const sat = this.selectSatManager_.primarySatObj as DetailedSatellite;
 
     if (!sat) {
-      errorManagerInstance.warn(i18next.t('errorMsgs.SelectSatelliteFirst'));
+      errorManagerInstance.warn(t7e('errorMsgs.SelectSatelliteFirst'));
 
       return null;
     }
 
     if (!(sat instanceof DetailedSatellite)) {
-      errorManagerInstance.warn(i18next.t('errorMsgs.SatelliteNotDetailedSatellite'));
+      errorManagerInstance.warn(t7e('errorMsgs.SatelliteNotDetailedSatellite'));
 
       return null;
     }
@@ -361,7 +360,7 @@ export class ReportsPlugin extends KeepTrackPlugin {
     const sensorManager = keepTrackApi.getSensorManager();
 
     if (!sensorManager.isSensorSelected()) {
-      errorManagerInstance.warn(i18next.t('errorMsgs.SelectSensorFirst'));
+      errorManagerInstance.warn(t7e('errorMsgs.SelectSensorFirst'));
 
       return null;
     }

@@ -1,10 +1,9 @@
 /**
- * /*! /////////////////////////////////////////////////////////////////////////////
+ * /////////////////////////////////////////////////////////////////////////////
  *
  * https://keeptrack.space
  *
- * @Copyright (C) 2016-2025 Theodore Kruczek
- * @Copyright (C) 2020-2025 Heather Kruczek
+ * @Copyright (C) 2025 Kruczek Labs LLC
  *
  * KeepTrack is free software: you can redistribute it and/or modify it under the
  * terms of the GNU Affero General Public License as published by the Free Software
@@ -100,11 +99,11 @@ export class Sun {
     const texture = await GlUtils.initTexture(gl, `${settingsManager.installDirectory}textures/sun-1024.jpg`);
     const material = new ShaderMaterial(this.gl_, {
       uniforms: {
-        u_sampler: <WebGLUniformLocation | null>null,
-        u_lightDirection: <WebGLUniformLocation | null>null,
-        u_sizeOfSun: <WebGLUniformLocation | null>null,
-        u_sunDistance: <WebGLUniformLocation | null>null,
-        u_isTexture: <WebGLUniformLocation | null>null,
+        u_sampler: null as unknown as WebGLUniformLocation,
+        u_lightDirection: null as unknown as WebGLUniformLocation,
+        u_sizeOfSun: null as unknown as WebGLUniformLocation,
+        u_sunDistance: null as unknown as WebGLUniformLocation,
+        u_isTexture: null as unknown as WebGLUniformLocation,
       },
       map: texture,
       vertexShader: this.shaders_.vert,

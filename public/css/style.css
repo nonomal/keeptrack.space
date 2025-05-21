@@ -1154,6 +1154,7 @@ input:focus {
 #github-share1 img,
 #legend-icon img,
 #tutorial-icon img,
+#fullscreen-icon img,
 #search-icon img,
 .bmenu-item:not(.bmenu-item-disabled, .bmenu-item-selected, .bmenu-item-help) .bmenu-item-inner *,
 .bmenu-filter-item:not(.bmenu-item-disabled, .bmenu-item-selected, .bmenu-item-help) .bmenu-filter-item-inner * {
@@ -1300,6 +1301,36 @@ input:focus {
 #logo-primary img {
   width: 100%;
   height: 100%;
+}
+
+#version-text {
+  font-family: var(--font-family);
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  width: 100%;
+  text-align: left;
+  font-size: 14px;
+  color: white;
+  pointer-events: none;
+  background: none;
+  z-index: 1000;
+  text-shadow: 0 0px 2px rgba(0, 0, 0, 1), 0 0px 2px #000;
+}
+
+#copyright-notice {
+  font-family: var(--font-family);
+  position: absolute;
+  left: 0;
+  bottom: 12px;
+  width: 100%;
+  text-align: center;
+  font-size: 12px;
+  color: white;
+  pointer-events: none;
+  background: none;
+  z-index: 1000;
+  text-shadow: 0 0px 2px rgba(0, 0, 0, 1), 0 0px 2px #000;
 }
 
 #logo-secondary {

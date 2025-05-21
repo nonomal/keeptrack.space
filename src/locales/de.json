@@ -38,7 +38,9 @@
       "minute": "Minute",
       "second": "Sekunde",
       "now": "Jetzt",
-      "done": "Fertig"
+      "done": "Fertig",
+      "pause": "Pause",
+      "propagation": "Ausbreitung"
     }
   },
   "errorMsgs": {
@@ -62,14 +64,19 @@
       "CannotCalcDirectionOfSatellite": "Die Richtung des Satelliten kann nicht berechnet werden. Versuchen Sie es später erneut.",
       "ErrorCreatingBreakup": "Fehler beim Erstellen des Zerfalls!",
       "InvalidStartNum": "Ungültige Satellitenstartnummer! Standardmäßig auf 90000 gesetzt!",
-      "BreakupGeneratorFailed": "Zerfallsgenerator fehlgeschlagen!"
+      "BreakupGeneratorFailed": "Zerfallsgenerator fehlgeschlagen!",
+      "SatelliteNotFound": "Satellit nicht gefunden!"
     },
-    "Collissions": {
+    "Collisions": {
       "noCollisionsData": "Keine Kollisionsdaten gefunden!",
       "errorProcessingCollisions": "Fehler bei der Verarbeitung der SOCRATES-Daten!"
     },
     "EditSat": {
-      "errorReadingFile": "Fehler beim Lesen der Datei!"
+      "errorReadingFile": "Fehler beim Lesen der Datei!",
+      "satelliteNotFound": "Satellit nicht gefunden!"
+    },
+    "CreateSat": {
+      "errorCreatingSat": "Fehler beim Erstellen des Satelliten!"
     },
     "Reports": {
       "popupBlocker": "Bitte erlauben Sie Popups für diese Seite, um Berichte anzuzeigen."
@@ -92,7 +99,8 @@
     "painting": "Male die Erde...",
     "coloring": "Färbe innerhalb der Linien...",
     "elsets": "Lokalisiere GPs...",
-    "models": "Erstelle 3D-Modelle..."
+    "models": "Erstelle 3D-Modelle...",
+    "cunningPlan": "Erstelle einen hinterhältigen Plan..."
   },
   "splashScreens": {
     "1": "Satellitenmodelle erscheinen größer als sie in Wirklichkeit sind. Alles andere ist maßstabsgetreu.",
@@ -156,6 +164,25 @@
       "title": "Sensor-Zeitachsen-Menü",
       "helpBody": "Das Sensor-Zeitachsen-Menü zeigt, wann eine Liste von Sensoren Sichtbarkeit zu einem Satelliten hat. Die Zeitachse ist farbcodiert, um die Qualität des Durchgangs anzuzeigen. Rot ist ein schlechter Durchgang, Gelb ist ein durchschnittlicher Durchgang und Grün ist ein guter Durchgang. Klicken Sie auf einen Durchgang, um den Sensor und die Zeit für diesen Durchgang zu ändern. <br><br> Die Zeitachse kann durch Ändern der Start- und Endzeit der Simulation modifiziert werden. Zusätzlich kann die Zeitachse durch Ändern der Längen- und Intervalloptionen modifiziert werden."
     },
+    "ProximityOps": {
+      "bottomIconLabel": "Rendezvous- und Annäherungsoperationen",
+      "title": "Rendezvous- und Annäherungsoperationen (RPO)",
+      "titleSecondary": "RPO-Liste",
+      "helpBody": "Finde bevorstehende Annäherungen zwischen Satelliten",
+      "noradId": "NORAD-ID",
+      "maxDistThreshold": "Maximaler Abstandsschwellenwert (km)",
+      "maxRelativeVelocity": "Maximale Relativgeschwindigkeit (km/s)",
+      "searchDuration": "Suchdauer (Stunden)",
+      "geoText": "Geostationär",
+      "leoText": "Niedrige Erdumlaufbahn",
+      "orbitType": "Orbittyp",
+      "geoAllVsAll": "Geostationär Alle gegen Alle",
+      "geoAllVsAllTooltip": "Suche nach RPOs zwischen allen geostationären Satelliten",
+      "comparePayloadsOnly": "Nur Nutzlasten vergleichen",
+      "comparePayloadsOnlyTooltip": "Nur nach RPOs zwischen Nutzlasten suchen",
+      "ignoreVimpelRso": "Vimpel-RSO ignorieren",
+      "ignoreVimpelRsoTooltip": "RSOs aus dem Vimpel-Katalog ignorieren"
+    },
     "SatelliteTimeline": {
       "bottomIconLabel": "Satelliten-Zeitachse",
       "title": "Satelliten-Zeitachsen-Menü",
@@ -196,7 +223,7 @@
       "title": "Kurzzeit-Zäune (STF) Menü",
       "helpBody": "Das Kurzzeit-Zäune (STF) Menü wird verwendet, um Sensor-Suchboxen zu visualisieren. <br><br> Dies ist wahrscheinlich nicht sehr hilfreich, es sei denn, Sie besitzen/betreiben einen Sensor mit einer Suchbox-Funktionalität."
     },
-    "Collissions": {
+    "Collisions": {
       "bottomIconLabel": "Kollisionen",
       "title": "Kollisionen-Menü",
       "helpBody": "Das Kollisionen-Menü zeigt Satelliten mit einer hohen Kollisionswahrscheinlichkeit. <br><br> Durch Klicken auf eine Zeile werden die beiden an der Kollision beteiligten Satelliten ausgewählt und die Zeit auf den Zeitpunkt der Kollision geändert."
@@ -241,8 +268,11 @@
       "title": "Stereografisches Karten-Menü",
       "helpBody": "Das Stereografische Karten-Menü wird verwendet, um Satellitenbodenspuren in einer stereografischen Projektion zu visualisieren. <br/><br/> Sie können auf einen Punkt entlang der Bodenspur klicken, um die Zeit der Simulation zu ändern, wenn der Satellit diesen Punkt erreicht. <br/><br/> Die gelben Punkte zeigen an, wann der Satellit im Sichtfeld des Sensors ist. Die roten Punkte zeigen an, wann der Satellit nicht im Sichtfeld des Sensors ist. Der Punkt, der dem Satelliten am nächsten ist, ist die aktuelle Zeit."
     },
-    "SensorSurvFence": {
+    "SensorFov": {
       "bottomIconLabel": "Sensor-Sichtfeld"
+    },
+    "SensorSurvFence": {
+      "bottomIconLabel": "Sensor-Überwachungszaun"
     },
     "SensorFence": {
       "bottomIconLabel": "Sensor-Zaun"
@@ -292,6 +322,9 @@
     },
     "ScreenRecorder": {
       "bottomIconLabel": "Video aufnehmen"
+    },
+    "Astronomy": {
+      "bottomIconLabel": "Sternenhimmel"
     },
     "AnalysisMenu": {
       "bottomIconLabel": "Analyse",

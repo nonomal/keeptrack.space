@@ -1,14 +1,15 @@
 import { KeepTrackApiEvents, ToastMsgType } from '@app/interfaces';
 import { KeepTrack } from '@app/keeptrack';
+import { t7e } from '@app/locales/keys';
 import { SelectSatManager } from '@app/plugins/select-sat-manager/select-sat-manager';
 import { SettingsMenuPlugin } from '@app/plugins/settings-menu/settings-menu';
-import i18next from 'i18next';
 import { GreenwichMeanSiderealTime, Milliseconds } from 'ootk';
 import { keepTrackApi } from '../keepTrackApi';
 import { Camera } from './camera';
 import { ConeMeshFactory } from './draw-manager/cone-mesh-factory';
 import { Box } from './draw-manager/cube';
 import { Earth } from './draw-manager/earth';
+import { Ellipsoid } from './draw-manager/ellipsoid';
 import { Godrays } from './draw-manager/godrays';
 import { Moon } from './draw-manager/moon';
 import { SensorFovMeshFactory } from './draw-manager/sensor-fov-mesh-factory';
@@ -40,6 +41,8 @@ export class Scene {
     godrays: null as WebGLFramebuffer,
   };
   updateVisualsBasedOnPerformanceTime_ = 0;
+  primaryCovBubble: Ellipsoid;
+  secondaryCovBubble: Ellipsoid;
 
   constructor(params: SceneParams) {
     this.gl_ = params.gl;
@@ -51,6 +54,9 @@ export class Scene {
     this.sun = new Sun();
     this.godrays = new Godrays();
     this.searchBox = new Box();
+    this.searchBox.setColor([1, 0, 0, 0.3]);
+    this.primaryCovBubble = new Ellipsoid(([0, 0, 0]));
+    this.secondaryCovBubble = new Ellipsoid(([0, 0, 0]));
     this.sensorFovFactory = new SensorFovMeshFactory();
     this.coneFactory = new ConeMeshFactory();
   }
@@ -147,32 +153,32 @@ export class Scene {
           settingsManager.isDisableGodrays = true;
           settingsManager.sizeOfSun = 1.65;
           settingsManager.isUseSunTexture = true;
-          keepTrackApi.getUiManager().toast(i18next.t('errorMsgs.Scene.disablingGodrays'), ToastMsgType.caution);
+          keepTrackApi.getUiManager().toast(t7e('errorMsgs.Scene.disablingGodrays'), ToastMsgType.caution);
           break;
         }
         if (settingsManager.isDrawAurora) {
           settingsManager.isDrawAurora = false;
-          keepTrackApi.getUiManager().toast(i18next.t('errorMsgs.Scene.disablingAurora'), ToastMsgType.caution);
+          keepTrackApi.getUiManager().toast(t7e('errorMsgs.Scene.disablingAurora'), ToastMsgType.caution);
           break;
         }
         if (settingsManager.isDrawAtmosphere) {
           settingsManager.isDrawAtmosphere = false;
-          keepTrackApi.getUiManager().toast(i18next.t('errorMsgs.Scene.disablingAtmosphere'), ToastMsgType.caution);
+          keepTrackApi.getUiManager().toast(t7e('errorMsgs.Scene.disablingAtmosphere'), ToastMsgType.caution);
           break;
         }
         if (!settingsManager.isDisableMoon) {
           settingsManager.isDisableMoon = true;
-          keepTrackApi.getUiManager().toast(i18next.t('errorMsgs.Scene.disablingMoon'), ToastMsgType.caution);
+          keepTrackApi.getUiManager().toast(t7e('errorMsgs.Scene.disablingMoon'), ToastMsgType.caution);
           break;
         }
         if (settingsManager.isDrawMilkyWay) {
           settingsManager.isDrawMilkyWay = false;
-          keepTrackApi.getUiManager().toast(i18next.t('errorMsgs.Scene.disablingMilkyWay'), ToastMsgType.caution);
+          keepTrackApi.getUiManager().toast(t7e('errorMsgs.Scene.disablingMilkyWay'), ToastMsgType.caution);
           break;
         }
         if (settingsManager.isDrawSun) {
           settingsManager.isDrawSun = false;
-          keepTrackApi.getUiManager().toast(i18next.t('errorMsgs.Scene.disablingSun'), ToastMsgType.caution);
+          keepTrackApi.getUiManager().toast(t7e('errorMsgs.Scene.disablingSun'), ToastMsgType.caution);
           break;
         }
         isSettingsLeftToDisable = false;
@@ -207,7 +213,7 @@ export class Scene {
     keepTrackApi.getLineManager().draw(null);
 
     // Draw Satellite Model if a satellite is selected and meshManager is loaded
-    if (keepTrackApi.getPlugin(SelectSatManager)?.selectedSat > -1) {
+    if ((keepTrackApi.getPlugin(SelectSatManager)?.selectedSat ?? -1) > -1) {
       if (!settingsManager.modelsOnSatelliteViewOverride && camera.camDistBuffer <= settingsManager.nearZoomLevel) {
         renderer.meshManager.draw(renderer.projectionMatrix, camera.camMatrix, renderer.postProcessingManager.curBuffer);
       }
@@ -216,8 +222,18 @@ export class Scene {
 
   // eslint-disable-next-line class-methods-use-this
   renderTransparent(renderer: WebGLRenderer, camera: Camera): void {
-    if (keepTrackApi.getPlugin(SelectSatManager)?.selectedSat > -1) {
+    const selectedSatelliteManager = keepTrackApi.getPlugin(SelectSatManager);
+
+    if (!selectedSatelliteManager) {
+      return;
+    }
+
+    if (selectedSatelliteManager.selectedSat > -1) {
       this.searchBox.draw(renderer.projectionMatrix, camera.camMatrix, renderer.postProcessingManager.curBuffer);
+      this.primaryCovBubble.draw(renderer.projectionMatrix, camera.camMatrix, renderer.postProcessingManager.curBuffer);
+    }
+    if (selectedSatelliteManager.secondarySat > -1) {
+      this.secondaryCovBubble.draw(renderer.projectionMatrix, camera.camMatrix, renderer.postProcessingManager.curBuffer);
     }
   }
 

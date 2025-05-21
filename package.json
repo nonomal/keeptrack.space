@@ -1,10 +1,14 @@
 {
   "name": "keeptrack.space",
-  "version": "10.3.1",
+  "version": "10.5.2",
   "type": "module",
   "description": "Complex astrodynamics tools designed for non-engineers to make learning about orbital mechanics and satellite operations more accessible.",
   "author": "Theodore Kruczek",
   "contributors": [
+    {
+      "name": "Theo Warsmann",
+      "url": "https://github.com/Koroviev-and-Begemot"
+    },
     {
       "name": "Le-Roi Claassen",
       "url": "https://www.linkedin.com/in/leroiclaassen-webdev/"
@@ -35,6 +39,7 @@
     "build:watch": "node --max-old-space-size=8192 ./scripts/build.mjs development --watch",
     "changelog": "auto-changelog --tag-prefix v --commit-limit false -t ./changelog.hbs -o ./docs/CHANGELOG.md",
     "cypress:open": "cypress open",
+    "generate-t7e-keys": "npx tsx ./scripts/generate-translation-keys.ts && npx eslint --fix ./scripts/generate-translation-keys.ts",
     "lcov": "node ./scripts/openLcov.mjs",
     "lint": "eslint . --ignore-path .gitignore --ext js,ts,tsx",
     "createtest": "npx tsx ./scripts/create-test-file.ts",
@@ -133,6 +138,7 @@
     "style-loader": "^3.3.4",
     "ts-jest": "^29.1.1",
     "ts-loader": "^9.4.4",
+    "ts-node": "^10.9.2",
     "tsx": "^4.19.0",
     "typescript": "^5.3.3",
     "webgl-lint": "^1.11.3",
@@ -160,7 +166,8 @@
     "material-icons": "^1.13.12",
     "new-github-issue-url": "^1.0.0",
     "numeric": "^1.2.6",
-    "ootk": "^4.0.9",
+    "ootk": "^5.1.0",
+    "openmeteo": "^1.2.0",
     "resizable": "^1.2.1",
     "uuid": "^11.1.0",
     "webgl-obj-loader": "^2.0.8"

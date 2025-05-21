@@ -38,7 +38,9 @@
       "minute": "分钟",
       "second": "秒",
       "now": "现在",
-      "done": "完成"
+      "done": "完成",
+      "pause": "暂停",
+      "propagation": "传播"
     }
   },
   "errorMsgs": {
@@ -62,14 +64,19 @@
       "CannotCalcDirectionOfSatellite": "无法计算卫星方向。请稍后再试。",
       "ErrorCreatingBreakup": "创建解体时出错！",
       "InvalidStartNum": "无效的卫星起始编号！默认为90000！",
-      "BreakupGeneratorFailed": "解体生成器失败！"
+      "BreakupGeneratorFailed": "解体生成器失败！",
+      "SatelliteNotFound": "未找到卫星！"
     },
-    "Collissions": {
+    "Collisions": {
       "noCollisionsData": "未找到碰撞数据！",
       "errorProcessingCollisions": "处理SOCRATES数据时出错！"
     },
     "EditSat": {
-      "errorReadingFile": "读取文件时出错！"
+      "errorReadingFile": "读取文件时出错！",
+      "satelliteNotFound": "未找到卫星！"
+    },
+    "CreateSat": {
+      "errorCreatingSat": "创建卫星时出错！"
     },
     "Reports": {
       "popupBlocker": "请允许此网站的弹出窗口以查看报告。"
@@ -92,7 +99,8 @@
     "painting": "正在绘制地球...",
     "coloring": "正在线内着色...",
     "elsets": "正在定位轨道参数...",
-    "models": "正在构建3D模型..."
+    "models": "正在构建3D模型...",
+    "cunningPlan": "正在制定狡猾的计划..."
   },
   "splashScreens": {
     "1": "卫星模型看起来比实际大小要大。其他一切都是按比例显示的。",
@@ -156,6 +164,25 @@
       "title": "Sensor Timeline Menu",
       "helpBody": "The Sensor Timeline menu shows when a list of sensors have visibility of one satellite. The timeline is color-coded to show the quality of the pass. Red is a bad pass, yellow is an average pass, and green is a good pass. Click on a pass to change the sensor and time to that pass. <br><br> The timeline can be modified by changing the start and end time of the simulation. Additionally, the timeline can be modified by changing the length and interval options."
     },
+    "ProximityOps": {
+      "bottomIconLabel": "交会与近距离操作",
+      "title": "交会与近距离操作（RPO）",
+      "titleSecondary": "交会与近距离操作列表",
+      "helpBody": "查找卫星之间即将发生的接近事件",
+      "noradId": "NORAD编号",
+      "maxDistThreshold": "最大距离阈值（公里）",
+      "maxRelativeVelocity": "最大相对速度（公里/秒）",
+      "searchDuration": "搜索时长（小时）",
+      "geoText": "地球同步轨道",
+      "leoText": "近地轨道",
+      "orbitType": "轨道类型",
+      "geoAllVsAll": "地球同步轨道全部对全部",
+      "geoAllVsAllTooltip": "搜索所有地球同步轨道卫星之间的RPO",
+      "comparePayloadsOnly": "仅比较有效载荷",
+      "comparePayloadsOnlyTooltip": "仅搜索有效载荷之间的RPO",
+      "ignoreVimpelRso": "忽略Vimpel RSO",
+      "ignoreVimpelRsoTooltip": "忽略来自Vimpel目录的RSO"
+    },
     "SatelliteTimeline": {
       "bottomIconLabel": "Satellite Timeline",
       "title": "Satellite Timeline Menu",
@@ -196,7 +223,7 @@
       "title": "Short Term Fences (STF) Menu",
       "helpBody": "The Short Term Fences (STF) Menu is used for visualizing sensor search boxes. <br><br> This is unlikely to be very helpful unless you own/operate a sensor with a search box functionality."
     },
-    "Collissions": {
+    "Collisions": {
       "bottomIconLabel": "Collisions",
       "title": "Collisions Menu",
       "helpBody": "The Collisions Menu shows satellites with a high probability of collision. <br><br> Clicking on a row will select the two satellites involved in the collision and change the time to the time of the collision."

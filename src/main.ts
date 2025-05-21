@@ -1,16 +1,10 @@
 /**
- * /*! /////////////////////////////////////////////////////////////////////////////
+ *!
+ * /////////////////////////////////////////////////////////////////////////////
  *
- * main.ts is a TypeScript implementation of the KeepTrack class. This is responsible for
- * initializing the website.
  * https://keeptrack.space
  *
- * @Copyright (C) 2016-2025 Theodore Kruczek
- * @Copyright (C) 2020-2025 Heather Kruczek
- * @Copyright (C) 2015-2016, James Yoder
- *
- * Original source code released by James Yoder at https://github.com/jeyoder/ThingsInSpace/
- * under the MIT License. Please reference https://keeptrack.space/license/thingsinspace.txt
+ * @Copyright (C) 2025 Kruczek Labs LLC
  *
  * KeepTrack is free software: you can redistribute it and/or modify it under the
  * terms of the GNU Affero General Public License as published by the Free Software
@@ -27,6 +21,20 @@
  */
 
 import { KeepTrack } from './keeptrack';
+
+// Check if the browser is safari
+const isSafari = (/^(?:(?!chrome|android).)*safari/iu).test(navigator.userAgent);
+
+if (isSafari) {
+  // Safari is not supported
+  // eslint-disable-next-line no-alert
+  alert(
+    'KeepTrack\'s 3D Application is not supported on Safari.\n\n' +
+    'Please use a different browser. You will be redirected to the homepage.',
+  );
+  // Redirect to the homepage
+  window.location.href = 'https://keeptrack.space';
+}
 
 // Load the main website class
 const keepTrack = new KeepTrack(window.settingsOverride);

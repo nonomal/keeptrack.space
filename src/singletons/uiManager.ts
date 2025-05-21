@@ -1,11 +1,10 @@
 /* eslint-disable max-classes-per-file */
 /**
- * /*! /////////////////////////////////////////////////////////////////////////////
+ * /////////////////////////////////////////////////////////////////////////////
  *
  * https://keeptrack.space
  *
- * @Copyright (C) 2016-2025 Theodore Kruczek
- * @Copyright (C) 2020-2025 Heather Kruczek
+ * @Copyright (C) 2025 Kruczek Labs LLC
  * @Copyright (C) 2015-2016, James Yoder
  *
  * Original source code released by James Yoder at https://github.com/jeyoder/ThingsInSpace/
@@ -68,10 +67,15 @@ export class UiManager {
 
   static fullscreenToggle() {
     if (!document.fullscreenElement) {
-      document.documentElement?.requestFullscreen().catch((err) => {
+      try {
+        document.documentElement?.requestFullscreen().catch((err) => {
+          // Might fail on some browsers
+          errorManagerInstance.debug(err);
+        });
+      } catch (e) {
         // Might fail on some browsers
-        errorManagerInstance.debug(err);
-      });
+        errorManagerInstance.debug(e);
+      }
     } else {
       document.exitFullscreen();
     }
@@ -318,7 +322,7 @@ export class UiManager {
     const navFooterDom = getEl('nav-footer');
 
     if (navFooterDom && parseInt(window.getComputedStyle(navFooterDom).bottom.replace('px', '')) < 0) {
-      keepTrackApi.getSoundManager().play(SoundNames.TOGGLE_ON);
+      keepTrackApi.getSoundManager()?.play(SoundNames.TOGGLE_ON);
       setTimeout(() => {
         const bottomHeight = getEl('bottom-icons-container')?.offsetHeight;
 
@@ -327,7 +331,7 @@ export class UiManager {
     } else {
       // If the footer is open, then it will be hidden shortly but we don't want to wait for it to be hidden
       document.documentElement.style.setProperty('--bottom-menu-top', '0px');
-      keepTrackApi.getSoundManager().play(SoundNames.TOGGLE_OFF);
+      keepTrackApi.getSoundManager()?.play(SoundNames.TOGGLE_OFF);
     }
   }
 
@@ -468,7 +472,7 @@ export class UiManager {
    * Checks if enough time has elapsed and then calls all queued updateSelectBox callbacks
    */
   updateSelectBox(realTime: Milliseconds, lastBoxUpdateTime: Milliseconds, obj: BaseObject): void {
-    if (!obj || obj.isStatic()) {
+    if (!obj || obj.id === -1 || obj.isStatic()) {
       return;
     }
 

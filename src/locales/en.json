@@ -38,7 +38,9 @@
       "minute": "Minute",
       "second": "Second",
       "now": "Now",
-      "done": "Done"
+      "done": "Done",
+      "pause": "Pause",
+      "propagation": "Propagation"
     }
   },
   "errorMsgs": {
@@ -65,13 +67,16 @@
       "InvalidStartNum": "Invalid satellite starting number! Defaulting to 90000!",
       "BreakupGeneratorFailed": "Breakup Generator Failed!"
     },
-    "Collissions": {
+    "Collisions": {
       "noCollisionsData": "No collision data found!",
       "errorProcessingCollisions": "Error processing SOCRATES data!"
     },
     "EditSat": {
       "errorReadingFile": "Error while reading file!",
       "satelliteNotFound": "Satellite {{sccNum}} not found!"
+    },
+    "CreateSat": {
+      "errorCreatingSat": "Error creating satellite!"
     },
     "Reports": {
       "popupBlocker": "Please allow popups for this site to view reports."
@@ -94,7 +99,8 @@
     "painting": "Painting the Earth...",
     "coloring": "Coloring Inside the Lines..",
     "elsets": "Locating GPs...",
-    "models": "Building 3D Models..."
+    "models": "Building 3D Models...",
+    "cunningPlan": "Crafting a Cunning Plan..."
   },
   "splashScreens": {
     "1": "Satellite models appear bigger than they really are. Everything else is to scale.",
@@ -158,6 +164,25 @@
       "title": "Sensor Timeline Menu",
       "helpBody": "The Sensor Timeline menu shows when a list of sensors have visibility of one satellite. The timeline is color-coded to show the quality of the pass. Red is a bad pass, yellow is an average pass, and green is a good pass. Click on a pass to change the sensor and time to that pass. <br><br> The timeline can be modified by changing the start and end time of the simulation. Additionally, the timeline can be modified by changing the length and interval options."
     },
+    "ProximityOps": {
+      "bottomIconLabel": "Rendezvous and Proximity Operations",
+      "title": "Rendezvous and Proximity Operations (RPO)",
+      "titleSecondary": "Rendezvous and Proximity Operations List",
+      "helpBody": "Find coming approachs between satellites",
+      "noradId": "NORAD ID",
+      "maxDistThreshold": "Max Distance Threshold (km)",
+      "maxRelativeVelocity": "Max Relative Velocity (km/s)",
+      "searchDuration": "Search Duration (hours)",
+      "geoText": "Geostationary",
+      "leoText": "Low Earth Orbit",
+      "orbitType": "Orbit Type",
+      "geoAllVsAll": "Geostationary All vs All",
+      "geoAllVsAllTooltip": "Search for RPOs between all geostationary satellites",
+      "comparePayloadsOnly": "Compare Payloads Only",
+      "comparePayloadsOnlyTooltip": "Only search for RPOs between payloads",
+      "ignoreVimpelRso": "Ignore Vimpel RSO",
+      "ignoreVimpelRsoTooltip": "Ignore RSOs sourced from Vimpel Catalog"
+    },
     "SatelliteTimeline": {
       "bottomIconLabel": "Satellite Timeline",
       "title": "Satellite Timeline Menu",
@@ -198,7 +223,7 @@
       "title": "Short Term Fences (STF) Menu",
       "helpBody": "The Short Term Fences (STF) Menu is used for visualizing sensor search boxes. <br><br> This is unlikely to be very helpful unless you own/operate a sensor with a search box functionality."
     },
-    "Collissions": {
+    "Collisions": {
       "bottomIconLabel": "Collisions",
       "title": "Collisions Menu",
       "helpBody": "The Collisions Menu shows satellites with a high probability of collision. <br><br> Clicking on a row will select the two satellites involved in the collision and change the time to the time of the collision."

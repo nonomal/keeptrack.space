@@ -17,7 +17,7 @@ import { Astronomy } from './astronomy/astronomy';
 import { Breakup } from './breakup/breakup';
 import { Calculator } from './calculator/calculator';
 import { ClassificationBar } from './classification-bar/classification-bar';
-import { Collissions } from './collisions/collisions';
+import { Collisions } from './collisions/collisions';
 import { ColorMenu } from './colors-menu/colors-menu';
 import { CreateSat } from './create-sat/create-sat';
 import { DateTimeManager } from './date-time-manager/date-time-manager';
@@ -44,6 +44,7 @@ import { Lat2LonPlots } from './plot-analysis/lat2lon';
 import { RicPlot } from './plot-analysis/ric-plots';
 import { Time2LonPlots } from './plot-analysis/time2lon';
 import { PolarPlotPlugin } from './polar-plot/polar-plot';
+import { ProximityOps } from './proximity-ops/proximity-ops';
 import { ReportsPlugin } from './reports/reports';
 import { SatConstellations } from './sat-constellations/sat-constellations';
 import { SatelliteFov } from './satellite-fov/satellite-fov';
@@ -93,7 +94,7 @@ export type KeepTrackPlugins = {
   breakup?: boolean;
   catalogLoader?: boolean;
   classificationBar?: boolean;
-  collissions?: boolean;
+  Collisions?: boolean;
   trackingImpactPredict?: boolean;
   colorsMenu?: boolean;
   constellations?: boolean;
@@ -133,6 +134,7 @@ export type KeepTrackPlugins = {
   timelineAlt?: boolean;
   calculator?: boolean;
   createSat?: boolean;
+  RPOCalculator?: boolean;
 };
 
 // Register all core modules
@@ -141,12 +143,13 @@ export const loadPlugins = (keepTrackApi: KeepTrackApi, plugins: KeepTrackPlugin
   try {
     const pluginList = [
       { init: () => new SelectSatManager().init(), enabled: true },
-      { init: () => new DebugMenuPlugin().init(), enabled: plugins.debug },
       { init: () => new TopMenu().init(), enabled: plugins.topMenu },
+      { init: () => new DebugMenuPlugin().init(), enabled: plugins.debug },
       { init: () => new SatInfoBox().init(), enabled: plugins.satInfoboxCore },
       { init: () => new DateTimeManager().init(), enabled: plugins.datetime },
       { init: () => new SocialMedia().init(), enabled: plugins.social },
       { init: () => new ClassificationBar().init(), enabled: plugins.classificationBar },
+      { init: () => new SoundManager().init(), enabled: plugins.soundManager },
       { init: () => new SensorListPlugin().init(), enabled: plugins.sensor },
       { init: () => new SensorInfoPlugin().init(), enabled: plugins.sensor },
       { init: () => new CustomSensorPlugin().init(), enabled: plugins.sensor },
@@ -160,9 +163,10 @@ export const loadPlugins = (keepTrackApi: KeepTrackApi, plugins: KeepTrackPlugin
       { init: () => new PolarPlotPlugin().init(), enabled: plugins.polarPlot },
       { init: () => new NextLaunchesPlugin().init(), enabled: plugins.nextLaunch },
       { init: () => new FindSatPlugin().init(), enabled: plugins.findSat },
+      { init: () => new ProximityOps().init(), enabled: plugins.RPOCalculator },
       { init: () => new ShortTermFences().init(), enabled: plugins.shortTermFences },
       { init: () => new OrbitReferences().init(), enabled: plugins.orbitReferences },
-      { init: () => new Collissions().init(), enabled: plugins.collisions },
+      { init: () => new Collisions().init(), enabled: plugins.collisions },
       { init: () => new TrackingImpactPredict().init(), enabled: plugins.trackingImpactPredict },
       { init: () => new Breakup().init(), enabled: plugins.breakup },
       { init: () => new DebrisScreening().init(), enabled: plugins.debrisScreening },
@@ -200,7 +204,6 @@ export const loadPlugins = (keepTrackApi: KeepTrackApi, plugins: KeepTrackPlugin
       { init: () => new FilterMenuPlugin().init(), enabled: plugins.filterMenu },
       { init: () => new SettingsMenuPlugin().init(), enabled: plugins.settingsMenu },
       { init: () => new GraphicsMenuPlugin().init(), enabled: plugins.graphicsMenu },
-      { init: () => new SoundManager().init(), enabled: plugins.soundManager },
       { init: () => new GamepadPlugin().init(), enabled: plugins.gamepad },
       { init: () => new VideoDirectorPlugin().init(), enabled: plugins.videoDirector },
     ];

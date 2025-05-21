@@ -1,19 +1,21 @@
-import i18next from 'i18next';
+import { t7e, TranslationKey } from '@app/locales/keys';
 import { keepTrackApi } from '../keepTrackApi';
 import { getEl, hideEl, showEl } from '../lib/get-el';
 import { MobileManager } from '../singletons/mobileManager';
 
 export abstract class SplashScreen {
   static readonly msg = {
-    math: i18next.t('loadingScreenMsgs.math'),
-    science: i18next.t('loadingScreenMsgs.science'),
-    science2: i18next.t('loadingScreenMsgs.science2'),
-    dots: i18next.t('loadingScreenMsgs.dots'),
-    satIntel: i18next.t('loadingScreenMsgs.satIntel'),
-    painting: i18next.t('loadingScreenMsgs.painting'),
-    coloring: i18next.t('loadingScreenMsgs.coloring'),
-    elsets: i18next.t('loadingScreenMsgs.elsets'),
-    models: i18next.t('loadingScreenMsgs.models'),
+    math: t7e('loadingScreenMsgs.math'),
+    science: t7e('loadingScreenMsgs.science'),
+    science2: t7e('loadingScreenMsgs.science2'),
+    dots: t7e('loadingScreenMsgs.dots'),
+    satIntel: t7e('loadingScreenMsgs.satIntel'),
+    painting: t7e('loadingScreenMsgs.painting'),
+    coloring: t7e('loadingScreenMsgs.coloring'),
+    elsets: t7e('loadingScreenMsgs.elsets'),
+    models: t7e('loadingScreenMsgs.models'),
+
+    cunningPlan: t7e('loadingScreenMsgs.cunningPlan'),
   };
 
   static readonly textElId = 'loader-text';
@@ -28,20 +30,27 @@ export abstract class SplashScreen {
         <div id="logo-inner-container" class="valign">
           <div style="display: flex;">
             <!-- <span id="logo-text" class="logo-font">KEEP TRACK</span> -->
-            <img src="img/textLogoMd.png" alt="Keep Track" id="logo-text" class="logo-font">
+            <img src="img/logo.png" alt="Keep Track" id="logo-text" class="logo-font">
             <!-- <span id="logo-text-version" class="logo-font">10</span> -->
           </div>
           <span id="loader-text">Downloading Science...</span>
         </div>
         <div id="loading-hint">Hint: ${this.showHint()}</div>
+        <div id="version-text">v10.5.2</div>
+        <div id="copyright-notice">
+KeepTrack™ and KeepTrack.Space™ are trademarks of Kruczek Labs LLC.<br>
+This instance is licensed for the exclusive use of Celestrak® and its users.<br>
+Unauthorized use, rebranding, or removal of attribution may violate trademark and license terms.<br>
+© 2025 Kruczek Labs LLC. All rights reserved.
+        </div>
       </div>`;
   }
 
   static showHint(): string {
-    const messageCount = Object.keys(i18next.t('splashScreens', { returnObjects: true })).length;
+    const messageCount = Object.keys(t7e('splashScreens' as TranslationKey, { returnObjects: true })).length;
     const randomIndex = Math.floor(Math.random() * messageCount) + 1;
 
-    return i18next.t(`splashScreens.${randomIndex}`);
+    return t7e(`splashScreens.${randomIndex}` as TranslationKey);
   }
 
   static hideSplashScreen() {
