@@ -74,6 +74,8 @@ interface InspectSpec {
   catalogWaitMs?: number;
   plugins?: Record<string, { enabled: boolean }>;
   settings?: Record<string, unknown>;
+  /** Seeded before page load (e.g. { i18nextLng: 'cs' } to boot in another language). */
+  localStorage?: Record<string, string>;
   viewport?: { width: number; height: number };
   deviceScale?: number;
   sensor?: string;
@@ -179,6 +181,13 @@ const boot = async (page: Page, spec: InspectSpec): Promise<number> => {
       body: `window.settingsOverride = ${JSON.stringify(override)};`,
     });
   });
+
+  if (spec.localStorage) {
+    await page.addInitScript(`(() => {
+      const entries = ${JSON.stringify(spec.localStorage)};
+      for (const [key, value] of Object.entries(entries)) { localStorage.setItem(key, value); }
+    })()`);
+  }
 
   await page.goto(BASE_URL);
   await page.waitForSelector('#loading-screen', { state: 'hidden', timeout: 60_000 });
