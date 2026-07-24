@@ -134,6 +134,14 @@ export class Earth {
   surfaceMesh: Mesh;
   atmosphereMesh: Mesh | null = null;
   /**
+   * Procedural aurora shell. Auroral emission occurs at roughly 100-300 km with
+   * the bright green band peaking near 110-120 km, so the aurora is drawn on its
+   * own translucent sphere at that altitude (instead of tinting the surface
+   * fragments) to leave a visible gap between the globe and the aurora.
+   */
+  auroraMesh: Mesh | null = null;
+  private static readonly AURORA_ALTITUDE_KM_ = 120;
+  /**
    * Generic equirectangular coverage overlay. This is an inert engine hook: it does
    * nothing until a plugin (e.g. CoverageAnalysis Pro) creates a single-channel
    * coverage texture and feeds it in via {@link setCoverageOverlay}. The texture's
@@ -180,6 +188,7 @@ export class Earth {
       this.drawEarthAtmosphere_(tgtBuffer);
       profiler.endGpu(GpuStage.atmosphere);
     }
+    this.drawAuroraPass(tgtBuffer);
     profiler.beginGpu(GpuStage.earth);
     this.drawBlackGpuPickingEarth_();
     profiler.endGpu(GpuStage.earth);
@@ -227,6 +236,47 @@ export class Earth {
       this.drawEarthAtmosphere_(tgtBuffer);
       profiler.endGpu(GpuStage.atmosphere);
     }
+  }
+
+  /**
+   * Draws the aurora shell over the surface. Called from {@link draw} and — on
+   * the split background/opaque pipeline — from the scene right after
+   * {@link drawAtmospherePass}. Additive blending reproduces the exact look of
+   * the legacy in-surface-shader aurora (`rgb += color * intensity * strength`),
+   * just parallax-shifted onto the shell.
+   */
+  drawAuroraPass(tgtBuffer: WebGLFramebuffer | null) {
+    if (!this.auroraMesh || !settingsManager.isDrawAurora || settingsManager.isEarthGrayScale) {
+      return;
+    }
+
+    const gl = this.gl_;
+
+    this.auroraMesh.program.use();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, tgtBuffer);
+
+    gl.uniformMatrix4fv(this.auroraMesh.material.uniforms.projectionMatrix, false, ServiceLocator.getRenderer().projectionCameraMatrix);
+    gl.uniformMatrix4fv(this.auroraMesh.material.uniforms.modelViewMatrix, false, this.modelViewMatrix_);
+    gl.uniformMatrix3fv(this.auroraMesh.material.uniforms.normalMatrix, false, this.normalMatrix_);
+    gl.uniform1f(this.auroraMesh.material.uniforms.logDepthBufFC, DepthManager.getConfig().logDepthBufFC);
+    gl.uniform1f(this.auroraMesh.material.uniforms.uGlow, this.glowNumber_);
+    gl.uniform3fv(this.auroraMesh.material.uniforms.uLightDirection, this.lightDirection);
+
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+    // Depth test stays on (surface depth occludes the far side of the shell);
+    // no depth writes so dots/orbits drawn later are unaffected.
+    gl.depthMask(false);
+
+    gl.bindVertexArray(this.auroraMesh.geometry.vao);
+    // Re-assert the index buffer — see the Android VAO-clobber note in drawEarthAtmosphere_.
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.auroraMesh.geometry.getIndex());
+    gl.drawElements(gl.TRIANGLES, this.auroraMesh.geometry.indexLength, this.auroraMesh.geometry.indexType, 0);
+    gl.bindVertexArray(null);
+
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    gl.disable(gl.BLEND);
+    gl.depthMask(true);
   }
 
   changeEarthTextureStyle(style: EarthTextureStyle) {
@@ -316,11 +366,9 @@ export class Earth {
         const earthSurfaceMaterial = new ShaderMaterial(this.gl_, {
           uniforms: {
             uIsAmbientLighting: <WebGLUniformLocation>(<unknown>null),
-            uGlow: <WebGLUniformLocation>(<unknown>null),
             uZoomLevel: <WebGLUniformLocation>(<unknown>null),
             uisGrayScale: <WebGLUniformLocation>(<unknown>null),
             uCloudPosition: <WebGLUniformLocation>(<unknown>null),
-            uIsDrawAurora: <WebGLUniformLocation>(<unknown>null),
             uShowGraticule: <WebGLUniformLocation>(<unknown>null),
             uLightDirection: <WebGLUniformLocation>(<unknown>null),
             uDayMap: <WebGLUniformLocation>(<unknown>null),
@@ -372,9 +420,49 @@ export class Earth {
        * produces an atmosphere instead of silently never creating the mesh.
        */
       this.buildAtmosphereMesh();
+      this.buildAuroraMesh_();
     } catch (error) {
       errorManagerInstance.warn(error);
     }
+  }
+
+  /**
+   * Build the aurora shell mesh. Idempotent: no-ops until the GL context exists
+   * and only ever builds the mesh once. Unlike the atmosphere, the shaders are
+   * local to this file, so it can always build on the first init().
+   */
+  private buildAuroraMesh_(): void {
+    if (this.auroraMesh || !this.gl_) {
+      return;
+    }
+
+    const auroraGeometry = new SphereGeometry(this.gl_, {
+      radius: RADIUS_OF_EARTH + Earth.AURORA_ALTITUDE_KM_,
+      widthSegments: settingsManager.earthNumLatSegs,
+      heightSegments: settingsManager.earthNumLonSegs,
+    });
+    const auroraMaterial = new ShaderMaterial(this.gl_, {
+      uniforms: {
+        uGlow: <WebGLUniformLocation>(<unknown>null),
+        uLightDirection: <WebGLUniformLocation>(<unknown>null),
+      },
+      vertexShader: this.shaders.auroraVert,
+      fragmentShader: this.shaders.auroraFrag,
+      glslVersion: GLSL3,
+    });
+
+    this.auroraMesh = new Mesh(this.gl_, auroraGeometry, auroraMaterial, {
+      name: 'earth-aurora',
+      precision: 'highp',
+      disabledUniforms: {
+        modelMatrix: true,
+        viewMatrix: true,
+        worldOffset: true,
+        cameraPosition: true,
+      },
+    });
+
+    this.initVaoAurora_();
   }
 
   /**
@@ -699,7 +787,6 @@ export class Earth {
     gl.uniform1f(this.surfaceMesh.material.uniforms.logDepthBufFC, DepthManager.getConfig().logDepthBufFC);
 
     gl.uniform1f(this.surfaceMesh.material.uniforms.uIsAmbientLighting, settingsManager.isEarthAmbientLighting ? 1.0 : 0.0);
-    gl.uniform1f(this.surfaceMesh.material.uniforms.uGlow, this.glowNumber_);
     const isEarthCenterBody = settingsManager.centerBody === SolarBody.Earth;
 
     gl.uniform1f(this.surfaceMesh.material.uniforms.uZoomLevel, isEarthCenterBody ? (ServiceLocator.getMainCamera().zoomLevel() / 2) ** (1 / 2) : 1.0);
@@ -712,7 +799,6 @@ export class Earth {
     gl.uniform3fv(this.surfaceMesh.material.uniforms.uLightDirection, this.lightDirection);
     gl.uniform1f(this.surfaceMesh.material.uniforms.uisDrawNightAsDay, settingsManager.isDrawNightAsDay ? 1.0 : 0.0);
     gl.uniform1f(this.surfaceMesh.material.uniforms.uNightBrightness, settingsManager.earthNightBrightness ?? 1.0);
-    gl.uniform1f(this.surfaceMesh.material.uniforms.uIsDrawAurora, settingsManager.isDrawAurora ? 1.0 : 0.0);
     gl.uniform1f(this.surfaceMesh.material.uniforms.uShowGraticule, settingsManager.isDrawGraticule ? 1.0 : 0.0);
     gl.uniform1f(this.surfaceMesh.material.uniforms.uCoverageEnabled, this.isDrawCoverageOverlay ? 1.0 : 0.0);
     gl.uniform1f(this.surfaceMesh.material.uniforms.uCoverageOpacity, this.coverageOverlayOpacity);
@@ -904,6 +990,31 @@ export class Earth {
   }
 
   /**
+   * Do not run this unless auroraMesh is defined
+   */
+  private initVaoAurora_() {
+    const gl = this.gl_;
+
+    this.auroraMesh!.geometry.vao = gl.createVertexArray();
+    gl.bindVertexArray(this.auroraMesh!.geometry.vao);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.auroraMesh!.geometry.getCombinedBuffer());
+    gl.enableVertexAttribArray(this.auroraMesh!.geometry.attributes.position.location);
+    this.auroraMesh!.geometry.attributes.position.bindToArrayBuffer(gl);
+
+    gl.enableVertexAttribArray(this.auroraMesh!.geometry.attributes.normal.location);
+    this.auroraMesh!.geometry.attributes.normal.bindToArrayBuffer(gl);
+
+    gl.enableVertexAttribArray(this.auroraMesh!.geometry.attributes.uv.location);
+    this.auroraMesh!.geometry.attributes.uv.bindToArrayBuffer(gl);
+
+    // Select the vertex indicies buffer
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.auroraMesh!.geometry.getIndex());
+
+    gl.bindVertexArray(null);
+  }
+
+  /**
    * This is run once per frame to set the textures for the earth.
    */
   private setTextures_(gl: WebGL2RenderingContext) {
@@ -992,10 +1103,8 @@ export class Earth {
   shaders = {
     surfaceFrag: glsl`
     uniform float uIsAmbientLighting;
-    uniform float uGlow;
     uniform float uCloudPosition;
     uniform vec3 uLightDirection;
-    uniform float uIsDrawAurora;
     uniform float uShowGraticule;
     uniform float uZoomLevel;
     uniform float uRawZoomLevel;
@@ -1020,8 +1129,6 @@ export class Earth {
     uniform float uCoverageEnabled;
     uniform float uCoverageOpacity;
 
-    const float latitudeCenter = 67.5; // The latitude at which the Aurora Borealis appears
-    const float latitudeMargin = 7.0; // The margin around the center latitude where the Aurora Borealis is visible
     const vec3 directionalLightColor = vec3(1.0, 1.0, 1.0);
     const vec3 ambientLightColor = vec3(0.1, 0.1, 0.1);
 
@@ -1038,15 +1145,6 @@ export class Earth {
         return mix(cyan, yellow, (t - 0.33) / 0.33);
       }
       return mix(yellow, red, (t - 0.66) / 0.34);
-    }
-
-    // Function to calculate the intensity of the Aurora Borealis at a given latitude
-    float calculateAuroraIntensity(float latitude, float noise) {
-      // Aurora should be visible mainly between latitudeCenter - latitudeMargin and latitudeCenter + latitudeMargin
-      float intensity = (step(latitudeCenter - (latitudeMargin + noise), latitude) - step(latitudeCenter + (latitudeMargin + noise), latitude)) * 0.5;
-      // Smooth intensity from lattitudeCenter outward
-      intensity = smoothstep(0.0, 1.0, 1.0 - abs(latitude - latitudeCenter) / (latitudeMargin + noise)) * intensity;
-      return intensity;
     }
 
     void main(void) {
@@ -1144,24 +1242,6 @@ export class Earth {
       }
 
       // ...............................................
-      // Aurora
-      if (uIsDrawAurora > 0.5 && uisGrayScale < 0.5) {
-        float latitude = vUv.y * 180.0 - 90.0; // Convert texture coordinate to latitude (-90 to 90)
-        float noise = uGlow;
-
-        // Calculate the intensity of the Aurora Borealis at the current latitude
-        float auroraIntensity = calculateAuroraIntensity(abs(latitude), noise / 2.0);
-
-        // Calculate the strength of the Aurora Borealis based on the Sun direction. It should only be visible on the dark side of the Earth
-        float auroraStrength = max(dot(vNormal, -uLightDirection), 0.0) * (0.75 + (noise / 10.0));
-
-        // Combine the Earth color and the Aurora Borealis color based on the intensity and strength
-        vec3 auroraColor = vec3(0.0, 0.8, 0.55 + noise / 20.0); // Color of the Aurora Borealis
-
-        fragColor.rgb += auroraColor * auroraIntensity * auroraStrength;
-      }
-
-      // ...............................................
       // Graticule (lat/lon grid lines)
       if (uShowGraticule > 0.5) {
         float gLatDeg = (0.5 - vUv.y) * 180.0;
@@ -1207,5 +1287,65 @@ export class Earth {
     `,
     atmosphereVert: '', // Placeholder Only
     atmosphereFrag: '', // Placeholder Only
+    auroraVert: glsl`
+    out vec2 vUv;
+    out vec3 vNormal;
+
+    void main(void) {
+        vUv = uv;
+        vNormal = normalMatrix * normal;
+
+        vec4 worldPosition = modelViewMatrix * vec4(position, 1.0);
+        gl_Position = projectionMatrix * worldPosition;
+
+        ${DepthManager.getLogDepthVertCode()}
+    }
+    `,
+    auroraFrag: glsl`
+    uniform float uGlow;
+    uniform vec3 uLightDirection;
+
+    in vec2 vUv;
+    in vec3 vNormal;
+
+    out vec4 fragColor;
+
+    const float latitudeCenter = 67.5; // The latitude at which the Aurora Borealis appears
+    const float latitudeMargin = 7.0; // The margin around the center latitude where the Aurora Borealis is visible
+
+    // Function to calculate the intensity of the Aurora Borealis at a given latitude
+    float calculateAuroraIntensity(float latitude, float noise) {
+      // Aurora should be visible mainly between latitudeCenter - latitudeMargin and latitudeCenter + latitudeMargin
+      float intensity = (step(latitudeCenter - (latitudeMargin + noise), latitude) - step(latitudeCenter + (latitudeMargin + noise), latitude)) * 0.5;
+      // Smooth intensity from lattitudeCenter outward
+      intensity = smoothstep(0.0, 1.0, 1.0 - abs(latitude - latitudeCenter) / (latitudeMargin + noise)) * intensity;
+      return intensity;
+    }
+
+    void main(void) {
+      float latitude = vUv.y * 180.0 - 90.0; // Convert texture coordinate to latitude (-90 to 90)
+      float noise = uGlow;
+
+      // Calculate the intensity of the Aurora Borealis at the current latitude
+      float auroraIntensity = calculateAuroraIntensity(abs(latitude), noise / 2.0);
+
+      // Only visible on the dark side of the Earth
+      float auroraStrength = max(dot(normalize(vNormal), -uLightDirection), 0.0) * (0.75 + (noise / 10.0));
+      float alpha = auroraIntensity * auroraStrength;
+
+      // Skip the blend entirely outside the auroral ovals / on the day side
+      if (alpha < 0.004) {
+        discard;
+      }
+
+      vec3 auroraColor = vec3(0.0, 0.8, 0.55 + noise / 20.0); // Color of the Aurora Borealis
+
+      // Additive blend (SRC_ALPHA, ONE) reproduces the legacy surface-shader
+      // "rgb += auroraColor * intensity * strength" exactly.
+      fragColor = vec4(auroraColor, alpha);
+
+      ${DepthManager.getLogDepthFragCode()}
+    }
+    `,
   };
 }

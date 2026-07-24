@@ -560,6 +560,7 @@ export class Scene {
          * (once per pass): dst + src + src === dst + 2·src under SRC_ALPHA/ONE.
          */
         this.earth.drawAtmospherePass(renderer.postProcessingManager.curBuffer, 2.0);
+        this.earth.drawAuroraPass(renderer.postProcessingManager.curBuffer);
       } else {
         this.earth.draw(renderer.postProcessingManager.curBuffer);
       }
