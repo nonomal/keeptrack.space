@@ -2,8 +2,14 @@
   "plugins": {
     "PoliticalMapToggle": {
       "bottomIconLabel": "\u653f\u6cbb\u5730\u56fe",
+      "modeOff": "\u653f\u6cbb\u5730\u56fe\u5df2\u5173\u95ed",
+      "modeBorders": "\u4ec5\u663e\u793a\u56fd\u754c",
+      "modeBordersLabels": "\u56fd\u754c + \u56fd\u5bb6\u540d\u79f0",
+      "modeLabels": "\u4ec5\u663e\u793a\u56fd\u5bb6\u540d\u79f0",
       "commandPalette": {
-        "toggle": "\u5207\u6362\u653f\u6cbb\u8fb9\u754c"
+        "cycle": "\u5faa\u73af\u5207\u6362\u653f\u6cbb\u5730\u56fe\u6a21\u5f0f",
+        "toggle": "\u5207\u6362\u653f\u6cbb\u8fb9\u754c",
+        "toggleLabels": "\u5207\u6362\u56fd\u5bb6\u540d\u79f0\u6807\u7b7e"
       }
     }
   }

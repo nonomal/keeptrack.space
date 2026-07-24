@@ -2,8 +2,14 @@
   "plugins": {
     "PoliticalMapToggle": {
       "bottomIconLabel": "Mappa politica",
+      "modeOff": "Mappa politica disattivata",
+      "modeBorders": "Solo confini",
+      "modeBordersLabels": "Confini + nomi dei paesi",
+      "modeLabels": "Solo nomi dei paesi",
       "commandPalette": {
-        "toggle": "Attiva/disattiva confini politici"
+        "cycle": "Cicla modalità mappa politica",
+        "toggle": "Attiva/disattiva confini politici",
+        "toggleLabels": "Attiva/disattiva nomi dei paesi"
       }
     }
   }

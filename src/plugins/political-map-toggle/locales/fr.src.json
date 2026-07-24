@@ -2,8 +2,14 @@
   "plugins": {
     "PoliticalMapToggle": {
       "bottomIconLabel": "Carte politique",
+      "modeOff": "Carte politique désactivée",
+      "modeBorders": "Frontières uniquement",
+      "modeBordersLabels": "Frontières + noms de pays",
+      "modeLabels": "Noms de pays uniquement",
       "commandPalette": {
-        "toggle": "Basculer les frontieres politiques"
+        "cycle": "Changer le mode de carte politique",
+        "toggle": "Basculer les frontieres politiques",
+        "toggleLabels": "Basculer les noms de pays"
       }
     }
   }

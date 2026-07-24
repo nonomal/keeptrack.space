@@ -2,8 +2,14 @@
   "plugins": {
     "PoliticalMapToggle": {
       "bottomIconLabel": "Politická mapa",
+      "modeOff": "Politická mapa vypnuta",
+      "modeBorders": "Pouze hranice",
+      "modeBordersLabels": "Hranice + názvy zemí",
+      "modeLabels": "Pouze názvy zemí",
       "commandPalette": {
-        "toggle": "Přepnout politické hranice"
+        "cycle": "Přepínat režim politické mapy",
+        "toggle": "Přepnout politické hranice",
+        "toggleLabels": "Přepnout názvy zemí"
       }
     }
   }

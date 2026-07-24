@@ -2,8 +2,14 @@
   "plugins": {
     "PoliticalMapToggle": {
       "bottomIconLabel": "Politische Karte",
+      "modeOff": "Politische Karte aus",
+      "modeBorders": "Nur Grenzen",
+      "modeBordersLabels": "Grenzen + Ländernamen",
+      "modeLabels": "Nur Ländernamen",
       "commandPalette": {
-        "toggle": "Politische Grenzen umschalten"
+        "cycle": "Politische Karte durchschalten",
+        "toggle": "Politische Grenzen umschalten",
+        "toggleLabels": "Ländernamen umschalten"
       }
     }
   }
