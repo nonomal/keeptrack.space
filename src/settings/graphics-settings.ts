@@ -40,6 +40,11 @@ export class GraphicsSettings {
   earthSpecTextureQuality: EarthSpecTextureQuality;
   earthBumpTextureQuality: EarthBumpTextureQuality;
   earthCloudTextureQuality: EarthCloudTextureQuality;
+  /**
+   * @deprecated Political borders are now rasterized from GeoJSON with automatic
+   * camera-distance LOD; this quality setting is ignored. Kept so saved
+   * settings/URLs referencing it don't break.
+   */
   earthPoliticalTextureQuality: EarthPoliticalTextureQuality;
 
   // Earth Texture Style
@@ -47,6 +52,8 @@ export class GraphicsSettings {
   isEarthGrayScale = false;
   isEarthAmbientLighting = true;
   isDrawPoliticalMap = true;
+  /** Country name labels at Natural Earth label points (independent of the border overlay). */
+  isDrawPoliticalLabels = false;
   isDrawCloudsMap = true;
 
   // Earth Rendering

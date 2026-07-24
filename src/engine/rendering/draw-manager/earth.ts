@@ -53,10 +53,10 @@ import {
   EarthCloudTextureQuality,
   EarthDayTextureQuality,
   EarthNightTextureQuality,
-  EarthPoliticalTextureQuality,
   EarthSpecTextureQuality,
   EarthTextureStyle,
 } from './earth-quality-enums';
+import { PoliticalMap } from './political-map';
 import { OcclusionProgram } from './post-processing';
 
 export class Earth {
@@ -93,14 +93,10 @@ export class Earth {
     [EarthBumpTextureQuality.MEDIUM]: <WebGLTexture>(<unknown>null),
     [EarthBumpTextureQuality.HIGH]: <WebGLTexture>(<unknown>null),
   };
-  texturePolitical: Record<EarthPoliticalTextureQuality, WebGLTexture> = {
-    [EarthPoliticalTextureQuality.OFF]: <WebGLTexture>(<unknown>null),
-    [EarthPoliticalTextureQuality.POTATO]: <WebGLTexture>(<unknown>null),
-    [EarthPoliticalTextureQuality.LOW]: <WebGLTexture>(<unknown>null),
-    [EarthPoliticalTextureQuality.MEDIUM]: <WebGLTexture>(<unknown>null),
-    [EarthPoliticalTextureQuality.HIGH]: <WebGLTexture>(<unknown>null),
-    [EarthPoliticalTextureQuality.ULTRA]: <WebGLTexture>(<unknown>null),
-  };
+  /** Vector-rasterized country borders (Natural Earth GeoJSON, auto-LOD). Null until first rasterization. */
+  get politicalTexture(): WebGLTexture | null {
+    return PoliticalMap.getInstance().texture;
+  }
   textureClouds: Record<EarthCloudTextureQuality, WebGLTexture> = {
     [EarthCloudTextureQuality.OFF]: <WebGLTexture>(<unknown>null),
     [EarthCloudTextureQuality.POTATO]: <WebGLTexture>(<unknown>null),
@@ -154,7 +150,6 @@ export class Earth {
 
   private readonly BUMP_SRC_BASE = 'earthbump';
   private readonly SPEC_SRC_BASE = 'earthspec';
-  private readonly POLITICAL_SRC_BASE = 'boundaries';
   private readonly CLOUDS_SRC_BASE = 'clouds';
   private readonly DEFAULT_RESOLUTION = '1k';
   orbitalPeriod: Seconds = (365.25 * 24 * 3600) as Seconds;
@@ -305,7 +300,6 @@ export class Earth {
         settingsManager.earthSpecTextureQuality ??= EarthSpecTextureQuality.OFF;
         settingsManager.earthDayTextureQuality ??= EarthDayTextureQuality.MEDIUM;
         settingsManager.earthNightTextureQuality ??= EarthNightTextureQuality.MEDIUM;
-        settingsManager.earthPoliticalTextureQuality ??= EarthPoliticalTextureQuality.OFF;
         settingsManager.earthCloudTextureQuality ??= EarthCloudTextureQuality.OFF;
       }
 
@@ -824,9 +818,6 @@ export class Earth {
     if (!this.textureSpec[sm.earthSpecTextureQuality] && sm.earthSpecTextureQuality && sm.earthSpecTextureQuality !== EarthSpecTextureQuality.OFF) {
       this.loadChannel_('spec', this.textureSpec, sm.earthSpecTextureQuality, `${this.getSrc_(this.SPEC_SRC_BASE, sm.earthSpecTextureQuality)}`);
     }
-    if (!this.texturePolitical[sm.earthPoliticalTextureQuality] && sm.earthPoliticalTextureQuality && sm.earthPoliticalTextureQuality !== EarthPoliticalTextureQuality.OFF) {
-      this.loadChannel_('political', this.texturePolitical, sm.earthPoliticalTextureQuality, `${this.getSrc_(this.POLITICAL_SRC_BASE, sm.earthPoliticalTextureQuality, 'png')}`);
-    }
     if (!this.textureClouds[sm.earthCloudTextureQuality] && sm.earthCloudTextureQuality && sm.earthCloudTextureQuality !== EarthCloudTextureQuality.OFF) {
       this.loadChannel_('clouds', this.textureClouds, sm.earthCloudTextureQuality, `${this.getSrc_(this.CLOUDS_SRC_BASE, sm.earthCloudTextureQuality)}`);
     }
@@ -964,11 +955,11 @@ export class Earth {
       gl.bindTexture(gl.TEXTURE_2D, this.placeholders_.spec);
     }
 
-    // Political Map
+    // Political Map (vector-rasterized from GeoJSON; placeholder until first rasterization)
     gl.uniform1i(this.surfaceMesh.material.uniforms.uPoliticalMap, 4);
     gl.activeTexture(gl.TEXTURE4);
-    if (sm.isDrawPoliticalMap && this.texturePolitical[sm.earthPoliticalTextureQuality]) {
-      gl.bindTexture(gl.TEXTURE_2D, this.texturePolitical[sm.earthPoliticalTextureQuality]);
+    if (sm.isDrawPoliticalMap && this.politicalTexture) {
+      gl.bindTexture(gl.TEXTURE_2D, this.politicalTexture);
     } else {
       gl.bindTexture(gl.TEXTURE_2D, this.placeholders_.political);
     }

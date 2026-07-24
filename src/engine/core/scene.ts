@@ -31,12 +31,14 @@ import { Sedna } from '../rendering/draw-manager/celestial-bodies/sedna';
 import { Uranus } from '../rendering/draw-manager/celestial-bodies/uranus';
 import { Venus } from '../rendering/draw-manager/celestial-bodies/venus';
 import { ConeMeshFactory } from '../rendering/draw-manager/cone-mesh-factory';
+import { CountryLabelManager } from '../rendering/draw-manager/country-label-manager';
 import { Box } from '../rendering/draw-manager/cube';
 import { Earth } from '../rendering/draw-manager/earth';
 import { AtmosphereSettings } from '../rendering/draw-manager/earth-quality-enums';
 import { Ellipsoid } from '../rendering/draw-manager/ellipsoid';
 import { FrustumMeshFactory } from '../rendering/draw-manager/frustum-mesh-factory';
 import { Godrays } from '../rendering/draw-manager/godrays';
+import { PoliticalMap } from '../rendering/draw-manager/political-map';
 import { SensorFovMeshFactory } from '../rendering/draw-manager/sensor-fov-mesh-factory';
 import { SkyBoxSphere } from '../rendering/draw-manager/skybox-sphere';
 import { Sun } from '../rendering/draw-manager/sun';
@@ -97,6 +99,8 @@ export class Scene {
   sun: Sun;
   godrays: Godrays;
   worldMarkers: WorldMarkers;
+  /** Country name labels for the political map (borders live in Earth's political texture). */
+  countryLabels: CountryLabelManager;
   sensorFovFactory: SensorFovMeshFactory;
   coneFactory: ConeMeshFactory;
   frustumFactory: FrustumMeshFactory;
@@ -171,6 +175,7 @@ export class Scene {
     this.sun = new Sun();
     this.godrays = new Godrays();
     this.worldMarkers = new WorldMarkers();
+    this.countryLabels = new CountryLabelManager();
     this.searchBox = new Box();
     this.searchBox.setColor([1, 0, 0, 0.3]);
     this.primaryCovBubble = new Ellipsoid([0, 0, 0]);
@@ -534,6 +539,12 @@ export class Scene {
     const hoverManagerInstance = ServiceLocator.getHoverManager();
     const profiler = FrameProfiler.getInstance();
 
+    // Political borders/labels share Natural Earth data; drive fetch + rasterization
+    // before the Earth binds the political texture this frame.
+    if (settingsManager.isDrawPoliticalMap || settingsManager.isDrawPoliticalLabels) {
+      PoliticalMap.getInstance().update(this.gl_);
+    }
+
     // Draw Earth (skip if plugin handles it; atmosphere-only in ground view modes; full draw otherwise)
     // GPU timing lives inside Earth.draw so surface and atmosphere profile separately
     if (EventBus.getInstance().methods.shouldSkipEarthDraw()) {
@@ -576,6 +587,19 @@ export class Scene {
     // "You are here" + selected-sat glow markers (depth-occluded against the globe).
     // Cheap no-op unless observerMarkerLla / isDrawSelectionGlow are set (both off in OSS).
     this.worldMarkers.draw(renderer.projectionCameraMatrix, this.worldShift as [number, number, number], renderer.postProcessingManager.curBuffer);
+
+    // Country name labels (depth-occluded billboards). Only in 3D globe views —
+    // 2D projections and ground-view modes don't draw the globe surface here.
+    if (
+      settingsManager.isDrawPoliticalLabels &&
+      settingsManager.isDrawEarth !== false &&
+      camera.cameraType !== CameraType.PLANETARIUM &&
+      camera.cameraType !== CameraType.ASTRONOMY &&
+      !EventBus.getInstance().methods.shouldSkipEarthDraw()
+    ) {
+      this.countryLabels.update(camera.getDistFromEarth(), performance.now());
+      this.countryLabels.draw(renderer.projectionCameraMatrix, this.worldShift, ServiceLocator.getTimeManager().gmst, renderer.postProcessingManager.curBuffer);
+    }
 
     // Draw Satellite Model if a satellite is selected (or deep-space satellite is centered) and meshManager is loaded
     const hasSatSelected = Number(PluginRegistry.getPlugin(SelectSatManager)?.selectedSat ?? -1) > -1;
@@ -699,6 +723,7 @@ export class Scene {
     try {
       this.earth.init(this.gl_);
       this.worldMarkers.init(this.gl_);
+      this.countryLabels.init(this.gl_);
       EventBus.getInstance().emit(EventBusEvent.drawManagerLoadScene);
       await this.sun.init(this.gl_);
 

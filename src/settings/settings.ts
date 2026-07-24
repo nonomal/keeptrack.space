@@ -61,6 +61,7 @@ const PROPERTY_CATEGORY_MAP: Record<string, keyof SettingsManager> = {
   isEarthGrayScale: 'graphics',
   isEarthAmbientLighting: 'graphics',
   isDrawPoliticalMap: 'graphics',
+  isDrawPoliticalLabels: 'graphics',
   isDrawCloudsMap: 'graphics',
   isBlackEarth: 'graphics',
   isDrawSpecMap: 'graphics',
