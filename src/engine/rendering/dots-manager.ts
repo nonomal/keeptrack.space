@@ -22,7 +22,7 @@ import { ensureVelocityVec3 } from '../utils/space-object-invariants';
 import { BufferAttribute } from './buffer-attribute';
 import { DepthManager } from './depth-manager';
 import { IDotsShaderProvider } from './dots-shader-provider';
-import { createBaseFragShader, createBaseVertShader } from './dots-shaders-base';
+import { createBaseFragShader, createBaseVertShader, DotStatus } from './dots-shaders-base';
 import { GlUtils } from './gl-utils';
 import { ViewportManager } from './viewport-manager';
 import { WebGlProgramHelper } from './webgl-program';
@@ -136,6 +136,13 @@ export class DotsManager {
         u_ecefToEnu: <WebGLUniformLocation>(<unknown>null),
         u_polarRadius: <WebGLUniformLocation>(<unknown>null),
         u_polarZoom: <WebGLUniformLocation>(<unknown>null),
+        u_dotStyle: <WebGLUniformLocation>(<unknown>null),
+        u_statusMarkers: <WebGLUniformLocation>(<unknown>null),
+        u_camPos: <WebGLUniformLocation>(<unknown>null),
+        u_starIdx1: <WebGLUniformLocation>(<unknown>null),
+        u_starIdx2: <WebGLUniformLocation>(<unknown>null),
+        u_planetIdx1: <WebGLUniformLocation>(<unknown>null),
+        u_planetIdx2: <WebGLUniformLocation>(<unknown>null),
       },
       vao: <WebGLVertexArrayObject>(<unknown>null),
     },
@@ -175,6 +182,11 @@ export class DotsManager {
         u_ecefToEnu: <WebGLUniformLocation>(<unknown>null),
         u_polarRadius: <WebGLUniformLocation>(<unknown>null),
         u_polarZoom: <WebGLUniformLocation>(<unknown>null),
+        u_camPos: <WebGLUniformLocation>(<unknown>null),
+        u_starIdx1: <WebGLUniformLocation>(<unknown>null),
+        u_starIdx2: <WebGLUniformLocation>(<unknown>null),
+        u_planetIdx1: <WebGLUniformLocation>(<unknown>null),
+        u_planetIdx2: <WebGLUniformLocation>(<unknown>null),
       },
       vao: <WebGLVertexArrayObject>(<unknown>null),
     },
@@ -202,6 +214,9 @@ export class DotsManager {
   planetDot1: number;
   // End of the planet dots in the object cache
   planetDot2: number;
+  // Start of the deep-space probe dots (Voyager etc.) inside the planet block;
+  // true planets/dwarf planets occupy [planetDot1, deepSpaceDot1)
+  deepSpaceDot1: number;
   velocityData: Float32Array;
   lastUpdateSimTime = 0;
 
@@ -277,6 +292,13 @@ export class DotsManager {
       gl.uniform1f(this.programs.dots.uniforms.u_starMinSize, this.settings_.satShader.starMinSize);
     }
 
+    gl.uniform1i(this.programs.dots.uniforms.u_dotStyle, this.settings_.satShader.dotStyle);
+    gl.uniform1i(this.programs.dots.uniforms.u_statusMarkers, this.settings_.satShader.isStatusMarkers ? 1 : 0);
+    // Camera position in the render frame (matches eciPos = a_position + worldOffset)
+    gl.uniform3fv(this.programs.dots.uniforms.u_camPos, mainCamera.getCamPos() as Float32Array);
+    this.setStarRangeUniforms_(gl, this.programs.dots.uniforms);
+    this.setPlanetRangeUniforms_(gl, this.programs.dots.uniforms);
+
     // Let shader provider set extra uniforms (e.g., symbology)
     if (this.shaderProvider_) {
       this.shaderProvider_.setExtraUniforms(gl, this.programs.dots.uniforms);
@@ -311,11 +333,12 @@ export class DotsManager {
     }
     profiler.endCpu(CpuStage.dotBuffers);
 
-    /*
-     * DEBUG:
-     * gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-     */
     gl.enable(gl.BLEND);
+    // Standard non-premultiplied alpha blend, set explicitly (not left to prior GL
+    // state): the base/symbology fragment shaders drop their edge fragments to alpha 0
+    // instead of discarding (keeps early-Z on), and that is only a true no-op when the
+    // source factor is SRC_ALPHA.
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
     gl.depthMask(false); // Disable depth writing
 
     // Cap draw count to position buffer capacity to prevent WebGL errors
@@ -419,6 +442,9 @@ export class DotsManager {
     gl.uniform1f(this.programs.picking.uniforms.u_gmst, this.cruncherGmst);
     gl.uniform1f(this.programs.picking.uniforms.u_currentGmst, ServiceLocator.getTimeManager().gmst);
     gl.uniform1f(this.programs.picking.uniforms.u_earthRadius, RADIUS_OF_EARTH);
+    gl.uniform3fv(this.programs.picking.uniforms.u_camPos, mainCam.getCamPos() as Float32Array);
+    this.setStarRangeUniforms_(gl, this.programs.picking.uniforms);
+    this.setPlanetRangeUniforms_(gl, this.programs.picking.uniforms);
     if (isFlatMapPick) {
       gl.uniform1f(this.programs.picking.uniforms.u_flatMapCenterX, mainCam.flatMapPanX);
       gl.uniform1f(this.programs.picking.uniforms.u_flatMapZoom, mainCam.flatMapZoom);
@@ -474,6 +500,9 @@ export class DotsManager {
     gl.uniform1f(this.programs.picking.uniforms.u_gmst, this.cruncherGmst);
     gl.uniform1f(this.programs.picking.uniforms.u_currentGmst, ServiceLocator.getTimeManager().gmst);
     gl.uniform1f(this.programs.picking.uniforms.u_earthRadius, RADIUS_OF_EARTH);
+    gl.uniform3fv(this.programs.picking.uniforms.u_camPos, mainCam.getCamPos() as Float32Array);
+    this.setStarRangeUniforms_(gl, this.programs.picking.uniforms);
+    this.setPlanetRangeUniforms_(gl, this.programs.picking.uniforms);
     if (isFlatMap) {
       gl.uniform1f(this.programs.picking.uniforms.u_flatMapCenterX, mainCam.flatMapPanX);
       gl.uniform1f(this.programs.picking.uniforms.u_flatMapZoom, mainCam.flatMapZoom);
@@ -699,6 +728,11 @@ export class DotsManager {
       'u_earthRadius',
       'u_flatMapCenterX',
       'u_flatMapZoom',
+      'u_camPos',
+      'u_starIdx1',
+      'u_starIdx2',
+      'u_planetIdx1',
+      'u_planetIdx2',
     ]);
 
     // Assign polar view uniforms separately — some ANGLE backends strip these from conditional branches
@@ -1209,10 +1243,22 @@ export class DotsManager {
     }
   }
 
+  /**
+   * Returns the DotStatus code for a dot (stored in the size buffer). Any
+   * status >= DotStatus.Big renders at star size; the fragment shader uses the
+   * exact code to draw identification markers (selected wins over searched).
+   */
   getSize(i: number): number {
+    // Check if the index is the selected satellite
+    const selectedSat = PluginRegistry.getPlugin(SelectSatManager)?.selectedSat ?? -1;
+
+    if (i === selectedSat) {
+      return DotStatus.Selected;
+    }
+
     // Check if the index is part of lastSearchResults
     if (settingsManager.lastSearchResults.includes(i)) {
-      return 1.0; // Return size for search results
+      return DotStatus.Searched;
     }
 
     // Stars use distance-based sizing (size 0) — at 3e10 km they naturally get u_minSize
@@ -1224,18 +1270,11 @@ export class DotsManager {
       // TODO: This is hacky. We need better logic for determining when to show planet dots
       (settingsManager.maxZoomDistance > (2e6 as Kilometers) || (settingsManager.centerBody !== SolarBody.Earth && settingsManager.centerBody !== SolarBody.Moon))
     ) {
-      return 1.0; // Return size for planets
-    }
-
-    // Check if the index is the selected satellite
-    const selectedSat = PluginRegistry.getPlugin(SelectSatManager)?.selectedSat ?? -1;
-
-    if (i === selectedSat) {
-      return 1.0; // Return size for selected satellite
+      return DotStatus.Big; // Big dot for planets, but no marker
     }
 
     // Default size for other satellites
-    return 0.0;
+    return DotStatus.None;
   }
 
   /**
@@ -1252,24 +1291,23 @@ export class DotsManager {
     // Reset everything to 0 (distance-based sizing).
     // Stars stay at 0 — at 3e10 km they naturally get u_minSize in the shader.
     for (let i = 0; i < bufferLen; i++) {
-      this.sizeData[i] = 0.0;
+      this.sizeData[i] = DotStatus.None;
+    }
+
+    /*
+     * Satellites that are currently being searched render at star size (the
+     * vertex shaders treat any status >= 0.5 as "big") and the fragment shader
+     * draws a search ring around them. Selected is written last so it wins if
+     * the selected object is also in the search results.
+     */
+    for (const lastSearchResult of settingsManager.lastSearchResults) {
+      this.sizeData[lastSearchResult] = DotStatus.Searched;
     }
 
     const selectedSat = PluginRegistry.getPlugin(SelectSatManager)?.selectedSat ?? -1;
 
     if (Number(selectedSat) > -1) {
-      this.sizeData[Number(selectedSat)] = 1.0;
-    }
-
-    /*
-     * Pretend Satellites that are currently being searched are stars
-     * The shaders will display these "stars" like close satellites
-     * because the distance from the center of the earth is too close to
-     * be a star. dotsManager method is so there are less buffers needed but as
-     * computers get faster it should be replaced
-     */
-    for (const lastSearchResult of settingsManager.lastSearchResults) {
-      this.sizeData[lastSearchResult] = 1.0;
+      this.sizeData[Number(selectedSat)] = DotStatus.Selected;
     }
 
     gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.size);
@@ -1328,15 +1366,25 @@ export class DotsManager {
                 uniform mat3 u_ecefToEnu;
                 uniform float u_polarRadius;
                 uniform float u_polarZoom;
+                uniform vec3 u_camPos;
+                uniform int u_starIdx1;
+                uniform int u_starIdx2;
+                uniform int u_planetIdx1;
+                uniform int u_planetIdx2;
 
                 out vec3 vColor;
 
                 void main(void) {
+                // Planet dots are exempt from the near-origin cull below: Earth's
+                // own planet dot legitimately sits AT the ECI origin. Must match
+                // the visual dots shaders or Earth becomes unpickable.
+                float isPlanet = (gl_VertexID >= u_planetIdx1 && gl_VertexID <= u_planetIdx2) ? 1.0 : 0.0;
+
                 // Skip objects with invalid positions:
                 // - NaN from failed propagation (NaN comparisons always false)
                 // - Positions inside Earth (< 100 km from center)
                 float posLen = length(a_position);
-                if (posLen < 100.0 || posLen != posLen) {
+                if ((posLen < 100.0 && isPlanet < 0.5) || posLen != posLen) {
                     gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
                     gl_PointSize = 0.0;
                     vColor = vec3(0.0);
@@ -1412,6 +1460,16 @@ export class DotsManager {
                             a_position.z + worldOffset.z
                         );
                     }
+                    // Camera-anchor the star shell exactly like the visual dots
+                    // shader so picking stays consistent with what is rendered
+                    if (gl_VertexID >= u_starIdx1 && gl_VertexID <= u_starIdx2) {
+                        eciPos = a_position + u_camPos;
+                    }
+                    // Same camera pull (capped) as the visual dots shader so
+                    // picking stays consistent with what is rendered on screen
+                    vec3 toCam = u_camPos - eciPos;
+                    float pullDist = min(length(toCam) * ${settingsManager.satShader.depthPullFactor}, float(${settingsManager.satShader.depthPullMaxKm}));
+                    eciPos += normalize(toCam) * pullDist;
                     position = u_pMvCamMatrix * vec4(eciPos, 1.0);
                 }
 
@@ -1428,6 +1486,15 @@ export class DotsManager {
                     float camDist = max(position.w, 1.0);
                     float depthRatio = clamp(${settingsManager.satShader.distanceBeforeGrow} / camDist, 0.5, 1.0);
                     pickSize = ${settingsManager.pickingDotSize} * depthRatio;
+                    /*
+                     * Planets draw a bold ringed glyph at star size (x1.4 in the visual
+                     * shaders), but the distance term above collapses their pick square to
+                     * half the base size at solar-system range - the visible glyph ends up
+                     * wider than the pickable area, so hovering the ring does nothing and
+                     * planet hover feels random. Never let a planet's pick target shrink
+                     * below what is drawn.
+                     */
+                    pickSize = max(pickSize, isPlanet * ${settingsManager.satShader.starSize} * 1.4);
                 }
                 gl_PointSize = pickSize * a_pickable;
                 vColor = a_color * a_pickable;

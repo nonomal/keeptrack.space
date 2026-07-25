@@ -15,8 +15,12 @@ export interface SatShader {
   blurFactor2: string;
   blurFactor3: string;
   blurFactor4: string;
+  depthPullFactor: string;
+  depthPullMaxKm: string;
   distanceBeforeGrow: string;
+  dotStyle: number;
   dynamicSizeScalar: number;
+  isStatusMarkers: boolean;
   isUseDynamicSizing: boolean;
   largeObjectMaxZoom: number;
   largeObjectMinZoom: number;

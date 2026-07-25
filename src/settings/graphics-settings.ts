@@ -291,7 +291,7 @@ export class GraphicsSettings {
     /**
      * The maximum size of objects in the shader.
      */
-    maxSize: 70.0,
+    maxSize: 48.0,
     /**
      * The minimum size of objects in the shader when in planetarium mode.
      */
@@ -317,7 +317,7 @@ export class GraphicsSettings {
     /**
      * The size of stars and searched objects in the shader.
      */
-    starSize: '20.0',
+    starSize: '16.0',
     /**
      * The distance at which objects start to grow in kilometers.
      * Must be a float as a string for the GPU to read.
@@ -340,6 +340,37 @@ export class GraphicsSettings {
      * The blur alpha factor used for stars.
      */
     blurFactor4: '0.25',
+    /**
+     * Fraction of the camera-to-dot range each dot is pulled toward the camera
+     * (along the view ray) before projection. Prevents the Earth sphere from
+     * slicing through the screen-facing point sprite when a dot sits on or
+     * just above the surface. Ray-aligned, so there is no parallax shift.
+     * Must be a float as a string for the GPU to read.
+     */
+    depthPullFactor: '0.02',
+    /**
+     * Hard cap (in km) on the camera-pull distance above. Because the pull is a
+     * fraction of the camera-to-dot range, zooming out makes an uncapped pull
+     * grow without bound and drag back-of-Earth dots forward until they bleed
+     * through the limb. The cap only needs to exceed the Earth sphere's faceting
+     * sagitta (~1.9 km at 128 segments), so 5 km always defeats slicing while
+     * keeping the far-zoom pull far too small to expose the back side.
+     * Must be a float as a string for the GPU to read.
+     */
+    depthPullMaxKm: '5.0',
+    /**
+     * Rendering style for the core satellite dot (DotStyle enum):
+     * 0 soft glow (legacy) | 1 solid disc | 2 ring | 3 diamond | 4 square.
+     * Applied live via the u_dotStyle uniform - no shader rebuild needed.
+     */
+    dotStyle: 0,
+    /**
+     * Draw identification markers around special dots: thin ring for
+     * search/group members, reticle for the selected object, halo for the
+     * hovered object. When false, those dots render as plain big dots
+     * (legacy behavior).
+     */
+    isStatusMarkers: true,
   };
 
   /**

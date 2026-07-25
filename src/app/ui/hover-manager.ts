@@ -7,6 +7,7 @@ import { ServiceLocator } from '@app/engine/core/service-locator';
 import { EventBus } from '@app/engine/events/event-bus';
 import { EventBusEvent } from '@app/engine/events/event-bus-events';
 import { ColorSchemeManager } from '@app/engine/rendering/color-scheme-manager';
+import { DotStatus } from '@app/engine/rendering/dots-shaders-base';
 import { html } from '@app/engine/utils/development/formatter';
 import { t7e } from '@app/locales/keys';
 import { SelectSatManager } from '@app/plugins/select-sat-manager/select-sat-manager';
@@ -474,8 +475,9 @@ export class HoverManager {
     }
 
     if (isNewHHoverNeedsUpdate) {
+      dotsManagerInstance.sizeData[this.hoveringSat] = DotStatus.Hover;
       gl.bindBuffer(gl.ARRAY_BUFFER, dotsManagerInstance.buffers.size);
-      gl.bufferSubData(gl.ARRAY_BUFFER, this.hoveringSat, new Int8Array([1.0]));
+      gl.bufferSubData(gl.ARRAY_BUFFER, this.hoveringSat, new Int8Array([DotStatus.Hover]));
     }
   }
 }

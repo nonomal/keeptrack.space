@@ -14,6 +14,7 @@ import { ServiceLocator } from '@app/engine/core/service-locator';
 import { EventBus } from '@app/engine/events/event-bus';
 import { EventBusEvent } from '@app/engine/events/event-bus-events';
 import { IKeyboardShortcut, ISettingsContribution, ISettingsContributor } from '@app/engine/plugins/core/plugin-capabilities';
+import { DotStatus } from '@app/engine/rendering/dots-shaders-base';
 import { COVARIANCE_RADII_FALLBACK, covarianceDisplayRadii, ricSigmasFromCovarianceMatrix } from '@app/engine/rendering/draw-manager/covariance-radii';
 import { errorManagerInstance } from '@app/engine/utils/errorManager';
 import { getEl, hideEl, showEl } from '@app/engine/utils/get-el';
@@ -634,11 +635,12 @@ export class SelectSatManager extends KeepTrackPlugin implements ISettingsContri
         colorSchemeManagerInstance.colorData[lastSelectedObject * 4 + 3] = newColor[3]; // A
         gl.bufferSubData(gl.ARRAY_BUFFER, lastSelectedObject * 4 * 4, new Float32Array(newColor));
 
-        if (!settingsManager.lastSearchResults.includes(lastSelectedObject)) {
-          dotsManagerInstance.sizeData[lastSelectedObject] = 0.0;
-          gl.bindBuffer(gl.ARRAY_BUFFER, dotsManagerInstance.buffers.size);
-          gl.bufferSubData(gl.ARRAY_BUFFER, 0, dotsManagerInstance.sizeData);
-        }
+        // Restore the search status (not just "big") so the dot keeps its
+        // search ring after deselection; always write since the selected
+        // status code differs from the searched one
+        dotsManagerInstance.sizeData[lastSelectedObject] = settingsManager.lastSearchResults.includes(lastSelectedObject) ? DotStatus.Searched : DotStatus.None;
+        gl.bindBuffer(gl.ARRAY_BUFFER, dotsManagerInstance.buffers.size);
+        gl.bufferSubData(gl.ARRAY_BUFFER, 0, dotsManagerInstance.sizeData);
       }
     }
     // If New Select Sat Picked Color it
@@ -650,7 +652,7 @@ export class SelectSatManager extends KeepTrackPlugin implements ISettingsContri
         throw new RangeError(`bufferSubData: Index out of bounds. Provided index: ${i}, valid range: 0 to ${colorSchemeManagerInstance.colorData.length / 4 - 1}`);
       }
 
-      dotsManagerInstance.sizeData[i] = 1.0;
+      dotsManagerInstance.sizeData[i] = DotStatus.Selected;
       gl.bindBuffer(gl.ARRAY_BUFFER, dotsManagerInstance.buffers.size);
       gl.bufferSubData(gl.ARRAY_BUFFER, 0, dotsManagerInstance.sizeData);
     }
