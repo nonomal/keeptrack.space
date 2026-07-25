@@ -950,8 +950,15 @@ export const resetInactiveMarkers = (i: number) => {
 };
 
 export const sendDataToSatSet = () => {
+  // satPos/satVel are live propagation state reused every tick; transferring
+  // them directly would detach the worker's own buffers. Copy into per-send
+  // buffers so those (and only those) can be transferred instead of cloned.
+  const sendPos = satPos.slice();
+  const sendVel = satVel.slice();
+
   const postMessageArray = <PositionCruncherOutgoingMsg>{
-    satPos,
+    satPos: sendPos,
+    satVel: sendVel,
     gmst: lastGmst,
     seqNum: catalogSeqNum,
   };
@@ -976,12 +983,17 @@ export const sendDataToSatSet = () => {
   }
 
   try {
-    // TODO: Explore SharedArrayBuffer Options
-    postMessage(postMessageArray);
-    // Send Velocity Separate to avoid CPU Overload on Main Thread
-    postMessage(<PositionCruncherOutgoingMsg>{
-      satVel,
-    });
+    /*
+     * One transferred message is strictly cheaper than the two structured
+     * clones this used to send (pos and vel split "to avoid CPU overload"
+     * predates transferables). Transfer ONLY the per-send pos/vel copies —
+     * satInView/satInSun are live worker state and may be the shared
+     * EMPTY_INT8_ARRAY sentinel, so they are cloned, not transferred.
+     * SharedArrayBuffer stays off the table: COOP/COEP would break embeds.
+     * Merging pos+vel into one message also removes the old window where the
+     * main thread could observe a fresh position with a stale velocity.
+     */
+    postMessage(postMessageArray, { transfer: [sendPos.buffer, sendVel.buffer] });
   } catch (e) {
     if (!process) {
       throw e;
