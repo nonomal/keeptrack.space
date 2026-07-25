@@ -119,10 +119,7 @@ export class DeepSpaceSatellite extends ChebyshevBody {
     }
 
     EventBus.getInstance().on(EventBusEvent.onLinesCleared, () => {
-      this.isDrawOrbitPath = false;
-      if (this.fullOrbitPath) {
-        this.fullOrbitPath.isGarbage = true;
-      }
+      this.hideFullOrbitPath();
       if (this.fullOrbitPathEarthCentered) {
         this.fullOrbitPathEarthCentered.isGarbage = true;
       }

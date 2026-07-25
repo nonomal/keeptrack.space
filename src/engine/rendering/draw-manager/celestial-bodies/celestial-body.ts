@@ -134,10 +134,7 @@ export abstract class CelestialBody {
       this.mesh.geometry.initVao(this.mesh.program);
 
       EventBus.getInstance().on(EventBusEvent.onLinesCleared, () => {
-        this.isDrawOrbitPath = false;
-        if (this.fullOrbitPath) {
-          this.fullOrbitPath.isGarbage = true;
-        }
+        this.hideFullOrbitPath();
         if (this.fullOrbitPathEarthCentered) {
           this.fullOrbitPathEarthCentered.isGarbage = true;
         }
@@ -306,15 +303,23 @@ export abstract class CelestialBody {
       return;
     }
     this.updatePosition(simTime);
-    if (this.isDrawOrbitPath && settingsManager.centerBody !== this.getName()) {
-      this.drawFullOrbitPath();
-    }
+    this.updateOrbitPathForProximity_();
     this.modelViewMatrix_ = mat4.clone(this.mesh.geometry.localMvMatrix);
     if (settingsManager.centerBody !== this.getName()) {
-      mat4.translate(this.modelViewMatrix_, this.modelViewMatrix_, this.position);
       const worldShift = Scene.getInstance().worldShift;
 
-      mat4.translate(this.modelViewMatrix_, this.modelViewMatrix_, vec3.fromValues(worldShift[0], worldShift[1], worldShift[2]));
+      /*
+       * Sum in JS doubles, then translate once. Translating by the absolute position and
+       * then by the (nearly opposite) world shift is the same arithmetic, but it pushes
+       * ~2.5e8 km through a float32 matrix first and only resolves the result to ~30 km -
+       * enough to visibly separate a planet from anything drawn against its true position,
+       * such as its moons' orbit rings.
+       */
+      mat4.translate(
+        this.modelViewMatrix_,
+        this.modelViewMatrix_,
+        vec3.fromValues(this.position[0] + worldShift[0], this.position[1] + worldShift[1], this.position[2] + worldShift[2])
+      );
     }
     mat4.rotateX(this.modelViewMatrix_, this.modelViewMatrix_, this.rotation[0]);
     mat4.rotateY(this.modelViewMatrix_, this.modelViewMatrix_, this.rotation[1]);
@@ -371,6 +376,75 @@ export abstract class CelestialBody {
     `,
   };
 
+  /**
+   * Camera distance, in body radii, at which this body's own orbit path is fully faded out
+   * and fully faded in.
+   *
+   * An orbit path is enormous compared to the body on it - Mars's is a 2.3e8 km circle - so
+   * from close up it stops reading as an orbit and becomes a straight line drawn across the
+   * planet you are looking at. Expressed in radii so the same numbers work for a 3389 km
+   * planet and an 11 km moon: both start fading when they are about 5 deg wide on screen.
+   */
+  protected static readonly ORBIT_PATH_FADE_OUT_RADII_ = 50;
+  protected static readonly ORBIT_PATH_FADE_IN_RADII_ = 200;
+
+  /** False for bodies whose own path is meaningless from their surface (planets, seen from themselves). */
+  protected get isOrbitPathDrawnAsCenterBody_(): boolean {
+    return false;
+  }
+
+  /** How opaque this body's orbit path should be right now, 0-1, based on camera proximity. */
+  protected orbitPathProximityOpacity_(): number {
+    const distanceKm = ServiceLocator.getMainCamera().getDistFromEntity(vec3.fromValues(this.position[0], this.position[1], this.position[2]));
+    const radii = distanceKm / Math.max(this.RADIUS, 1);
+    const span = CelestialBody.ORBIT_PATH_FADE_IN_RADII_ - CelestialBody.ORBIT_PATH_FADE_OUT_RADII_;
+
+    return Math.min(Math.max((radii - CelestialBody.ORBIT_PATH_FADE_OUT_RADII_) / span, 0), 1);
+  }
+
+  /**
+   * Keep the orbit path in step with the camera: faded by proximity, dropped entirely once
+   * it reaches zero, and brought back when the camera pulls away again.
+   */
+  protected updateOrbitPathForProximity_(): void {
+    if (!this.isDrawOrbitPath) {
+      return;
+    }
+
+    const opacity = this.orbitPathProximityOpacity_();
+
+    if (opacity <= 0) {
+      this.suspendFullOrbitPath_();
+
+      return;
+    }
+
+    if (settingsManager.centerBody !== this.getName() || this.isOrbitPathDrawnAsCenterBody_) {
+      this.drawFullOrbitPath();
+    } else if (this.fullOrbitPath?.isGarbage) {
+      this.fullOrbitPath.isGarbage = false;
+      ServiceLocator.getLineManager().add(this.fullOrbitPath);
+    }
+
+    if (this.fullOrbitPath) {
+      this.fullOrbitPath.opacity = opacity;
+    }
+  }
+
+  /**
+   * Stop drawing the path without clearing {@link isDrawOrbitPath}, so it returns on its
+   * own once the camera backs off. {@link hideFullOrbitPath} is the deliberate, sticky
+   * version used when the user leaves this body's system entirely.
+   */
+  protected suspendFullOrbitPath_(): void {
+    if (!this.fullOrbitPath || this.fullOrbitPath.isGarbage) {
+      return;
+    }
+
+    this.fullOrbitPath.isGarbage = true;
+    ServiceLocator.getLineManager().removeLine(this.fullOrbitPath);
+  }
+
   drawFullOrbitPath(): void {
     if (this.fullOrbitPath?.isGarbage === false) {
       return;
@@ -413,6 +487,26 @@ export abstract class CelestialBody {
     }
 
     this.fullOrbitPath = lineManager.createOrbitPath(orbitPositions, this.color, SolarBody.Sun);
+  }
+
+  /**
+   * Stops drawing this body's heliocentric orbit path and drops its line, leaving
+   * every other line alone (unlike `LineManager.clear()`). The Earth-centered path
+   * is untouched: it is drawn on its own by the Draw Lines menu and stays valid
+   * with an Earth-centered camera.
+   */
+  hideFullOrbitPath(): void {
+    this.isDrawOrbitPath = false;
+
+    if (!this.fullOrbitPath) {
+      return;
+    }
+
+    this.fullOrbitPath.isGarbage = true;
+    // Pull it out of the manager now instead of waiting for the draw-loop prune:
+    // drawFullOrbitPath re-adds this same instance later, so a line left in the
+    // array would be queued (and drawn) twice.
+    ServiceLocator.getLineManager().removeLine(this.fullOrbitPath);
   }
 
   drawFullOrbitPathRelativeToEarth(): void {

@@ -404,11 +404,7 @@ export class Earth {
         this.initVaoOcclusion_();
 
         EventBus.getInstance().on(EventBusEvent.onLinesCleared, () => {
-          this.isDrawOrbitPath = false;
-          if (this.fullOrbitPath) {
-            this.fullOrbitPath.isGarbage = true;
-            this.fullOrbitPath = null;
-          }
+          this.hideFullOrbitPath();
         });
       }
 
@@ -592,6 +588,24 @@ export class Earth {
     }
 
     return this.getJ2000(simTime, centerBody).toTEME();
+  }
+
+  /**
+   * Stops drawing Earth's heliocentric orbit path and drops its line, leaving every
+   * other line alone (unlike `LineManager.clear()`). Mirrors
+   * {@link CelestialBody.hideFullOrbitPath}, except Earth rebuilds the path from
+   * scratch next time, so the reference is released here.
+   */
+  hideFullOrbitPath(): void {
+    this.isDrawOrbitPath = false;
+
+    if (!this.fullOrbitPath) {
+      return;
+    }
+
+    this.fullOrbitPath.isGarbage = true;
+    ServiceLocator.getLineManager().removeLine(this.fullOrbitPath);
+    this.fullOrbitPath = null;
   }
 
   drawFullOrbitPath(): void {

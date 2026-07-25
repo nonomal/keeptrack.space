@@ -134,6 +134,39 @@ describe('PlanetsMenuPlugin', () => {
     });
   });
 
+  describe('clearHeliocentricOrbits', () => {
+    it('hides every body orbit path (including probes) without clearing unrelated lines', () => {
+      const plugin = new PlanetsMenuPlugin();
+      const bodies = new Map<SolarBody, { hideFullOrbitPath: ReturnType<typeof vi.fn> }>();
+      const probe = { hideFullOrbitPath: vi.fn() };
+      const lineManagerClear = vi.fn();
+
+      vi.spyOn(ServiceLocator, 'getScene').mockReturnValue({
+        getBodyById: (id: SolarBody) => {
+          if (!bodies.has(id)) {
+            bodies.set(id, { hideFullOrbitPath: vi.fn() });
+          }
+
+          return bodies.get(id);
+        },
+        deepSpaceSatellites: { 'Voyager 1': probe },
+      } as unknown as ReturnType<typeof ServiceLocator.getScene>);
+      vi.spyOn(ServiceLocator, 'getLineManager').mockReturnValue({ clear: lineManagerClear } as unknown as ReturnType<typeof ServiceLocator.getLineManager>);
+
+      plugin.clearHeliocentricOrbits();
+
+      expect(bodies.get(SolarBody.Moon)?.hideFullOrbitPath).toHaveBeenCalled();
+      expect(bodies.get(SolarBody.Earth)?.hideFullOrbitPath).toHaveBeenCalled();
+      expect(bodies.get(SolarBody.Jupiter)?.hideFullOrbitPath).toHaveBeenCalled();
+      expect(bodies.get(SolarBody.Pluto)?.hideFullOrbitPath).toHaveBeenCalled();
+      expect(probe.hideFullOrbitPath).toHaveBeenCalled();
+      // The Sun has no orbit path, so it must not be walked.
+      expect(bodies.has(SolarBody.Sun)).toBe(false);
+      // Other lines (sensor FOVs, user-drawn lines) must survive.
+      expect(lineManagerClear).not.toHaveBeenCalled();
+    });
+  });
+
   describe('getCommandPaletteCommands', () => {
     it('exposes a toggle command plus one center command per selectable body', () => {
       const plugin = new PlanetsMenuPlugin();

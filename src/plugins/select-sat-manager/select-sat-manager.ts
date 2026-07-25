@@ -354,6 +354,10 @@ export class SelectSatManager extends KeepTrackPlugin implements ISettingsContri
       // caps it at the GEO belt).
       if (wasOffEarth) {
         settingsManager.maxZoomDistance = 1.2e6 as Kilometers; // 1.2 million km
+        // The heliocentric orbit rings belong to the planet/probe view we just
+        // left; centering back on Earth has to drop them the same way pressing
+        // Home does, or they stay drawn around the selected satellite.
+        PluginRegistry.getPlugin(PlanetsMenuPlugin)?.clearHeliocentricOrbits();
       }
       PluginRegistry.getPlugin(PlanetsMenuPlugin)?.setAllPlanetsDotSize(0);
     }

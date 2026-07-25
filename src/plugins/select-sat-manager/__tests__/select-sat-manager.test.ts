@@ -1,9 +1,11 @@
 import { DetailedSensor } from '@app/app/sensors/DetailedSensor';
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { ToastMsgType } from '@app/engine/core/interfaces';
+import { SolarBody, ToastMsgType } from '@app/engine/core/interfaces';
+import { PluginRegistry } from '@app/engine/core/plugin-registry';
 import { ServiceLocator } from '@app/engine/core/service-locator';
 import { hasSettingsContribution, ISettingToggleControl } from '@app/engine/plugins/core/plugin-capabilities';
 import { PersistenceManager, StorageKey } from '@app/engine/utils/persistence-manager';
+import { PlanetsMenuPlugin } from '@app/plugins/planets-menu/planets-menu';
 import { SatInfoBox } from '@app/plugins/sat-info-box/sat-info-box';
 import { SelectSatManager } from '@app/plugins/select-sat-manager/select-sat-manager';
 import { TopMenu } from '@app/plugins/top-menu/top-menu';
@@ -431,5 +433,53 @@ describe('SelectSatManager settings contribution', () => {
 
     expect(settingsManager.isFocusOnSatelliteWhenSelected).toBe(true);
     expect(saveSpy).toHaveBeenCalledWith(StorageKey.SETTINGS_FOCUS_ON_SAT_WHEN_SELECTED, 'true');
+  });
+});
+
+describe('SelectSatManager_planetViewCleanup', () => {
+  let selectSatManager: SelectSatManager;
+  let planetsMenu: PlanetsMenuPlugin;
+
+  beforeEach(() => {
+    setupStandardEnvironment([TopMenu]);
+    selectSatManager = new SelectSatManager();
+    planetsMenu = new PlanetsMenuPlugin();
+    PluginRegistry.addPlugin(planetsMenu);
+    vi.spyOn(planetsMenu, 'setAllPlanetsDotSize').mockImplementation(() => undefined);
+
+    ServiceLocator.getCatalogManager().objectCache = [new Satellite(defaultSat)];
+    ServiceLocator.getCatalogManager().objectCache.forEach((sat) => {
+      sat.active = true;
+      (sat as unknown as { position: TemeVec3 }).position = {
+        x: 10000 as Kilometers,
+        y: 10000 as Kilometers,
+        z: 10000 as Kilometers,
+      } as TemeVec3;
+    });
+  });
+
+  afterEach(() => {
+    settingsManager.centerBody = SolarBody.Earth;
+  });
+
+  it('drops the heliocentric orbit rings when a satellite is selected from a planet view', () => {
+    const clearSpy = vi.spyOn(planetsMenu, 'clearHeliocentricOrbits').mockImplementation(() => undefined);
+
+    settingsManager.centerBody = SolarBody.Jupiter;
+
+    selectSatManager.selectSat(0);
+
+    expect(settingsManager.centerBody).toBe(SolarBody.Earth);
+    expect(clearSpy).toHaveBeenCalled();
+  });
+
+  it('leaves lines alone when the camera was already Earth-centered', () => {
+    const clearSpy = vi.spyOn(planetsMenu, 'clearHeliocentricOrbits').mockImplementation(() => undefined);
+
+    settingsManager.centerBody = SolarBody.Earth;
+
+    selectSatManager.selectSat(0);
+
+    expect(clearSpy).not.toHaveBeenCalled();
   });
 });

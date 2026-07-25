@@ -382,6 +382,27 @@ export class PlanetsMenuPlugin extends KeepTrackPlugin implements ICommandPalett
     this.drawOrbits_(restoreCenterBody);
   }
 
+  /**
+   * Removes the heliocentric orbit ellipses drawn by {@link drawHeliocentricOrbits}
+   * (and by centering on a planet) without touching any other line. Selecting a
+   * satellite re-centers the camera on Earth, where the interplanetary rings are
+   * meaningless, but the blunt `lineManager.clear()` that changePlanet uses would
+   * take unrelated lines (sensor FOVs, user-drawn lines) with it.
+   */
+  clearHeliocentricOrbits(): void {
+    const scene = ServiceLocator.getScene();
+
+    // Same set drawOrbits_ draws, plus the deep-space probes, whose paths the
+    // pro missions menu can turn on. The Sun is excluded - it has no orbit path.
+    for (const bodyId of [SolarBody.Moon, SolarBody.Phobos, SolarBody.Deimos, ...this.PLANETS, ...this.DWARF_PLANETS]) {
+      scene.getBodyById(bodyId)?.hideFullOrbitPath();
+    }
+
+    for (const deepSpaceSat of Object.values(scene.deepSpaceSatellites ?? {})) {
+      deepSpaceSat.hideFullOrbitPath();
+    }
+  }
+
   private drawOrbits_(planetName: SolarBody) {
     // NOTE: Don't use changePlanet() here to avoid infinite loop
     settingsManager.centerBody = SolarBody.Sun; // Temporarily set to Sun to draw orbits relative to Sun
