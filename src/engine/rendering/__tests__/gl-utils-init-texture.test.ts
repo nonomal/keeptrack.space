@@ -2,7 +2,7 @@
 
 import { GlUtils } from '@app/engine/rendering/gl-utils';
 import { getTextureStatuses, resetTextureLoadRegistry } from '@app/engine/rendering/texture-load-registry';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const fakeGl = {
   createTexture: () => ({}) as WebGLTexture,
@@ -41,6 +41,53 @@ function makeOkResponse(): Response {
   return new Response(blob, { status: 200, headers: { 'Content-Type': 'image/png' } });
 }
 
+/**
+ * Stand-in for HTMLImageElement so the `<img>` fallback can be exercised in jsdom, which
+ * never actually loads an image. Fires asynchronously, the way a real element does.
+ */
+function stubImageElement(behavior: 'load' | 'error'): void {
+  vi.stubGlobal(
+    'Image',
+    class {
+      crossOrigin = '';
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      private src_ = '';
+
+      get src(): string {
+        return this.src_;
+      }
+
+      set src(value: string) {
+        this.src_ = value;
+        if (!value) {
+          return;
+        }
+        setTimeout(() => {
+          if (behavior === 'load') {
+            this.onload?.();
+          } else {
+            this.onerror?.();
+          }
+        }, 0);
+      }
+    }
+  );
+}
+
+/**
+ * A response whose headers are fine but whose body cannot be read - the shape a connection
+ * dropped mid-transfer, or a truncated entry in the HTTP cache, actually takes.
+ */
+function makeBodyFailureResponse(): Response {
+  return {
+    ok: true,
+    status: 200,
+    headers: new Headers(),
+    blob: () => Promise.reject(new TypeError('Failed to fetch')),
+  } as unknown as Response;
+}
+
 describe('GlUtils.initTexture retry policy', () => {
   beforeEach(() => {
     resetTextureLoadRegistry();
@@ -58,6 +105,11 @@ describe('GlUtils.initTexture retry policy', () => {
         } as ImageBitmap)
       )
     );
+  });
+
+  // Image is stubbed by only some tests; restore it so the others keep jsdom's element.
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it('resolves on first attempt when fetch is OK', async () => {
@@ -145,6 +197,91 @@ describe('GlUtils.initTexture retry policy', () => {
     await expect(promise).resolves.toBeDefined();
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('retries when the response body fails to read', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValueOnce(makeBodyFailureResponse()).mockResolvedValueOnce(makeOkResponse());
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    const promise = GlUtils.initTexture(fakeGl, 'http://example.test/textures/truncated.png');
+
+    await vi.runAllTimersAsync();
+    await expect(promise).resolves.toBeDefined();
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const status = getTextureStatuses().find((s) => s.url.endsWith('truncated.png'));
+
+    expect(status?.state).toBe('loaded');
+  });
+
+  it('fails after exhausting retries when the body never reads', async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(makeBodyFailureResponse())
+      .mockResolvedValueOnce(makeBodyFailureResponse())
+      .mockResolvedValueOnce(makeBodyFailureResponse());
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    const promise = GlUtils.initTexture(fakeGl, 'http://example.test/textures/always-truncated.png');
+
+    promise.catch(() => {
+      /* expected */
+    });
+    await vi.runAllTimersAsync();
+    await expect(promise).rejects.toThrow(/Failed to load image.*Failed to fetch/u);
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it('bypasses the HTTP cache on retry so a poisoned cache entry can heal', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValueOnce(makeBodyFailureResponse()).mockResolvedValueOnce(makeOkResponse());
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    const promise = GlUtils.initTexture(fakeGl, 'http://example.test/textures/poisoned.png');
+
+    await vi.runAllTimersAsync();
+    await expect(promise).resolves.toBeDefined();
+
+    // First attempt may use the cache; every retry must go to the network.
+    expect(fetchMock.mock.calls[0][1]).toBeUndefined();
+    expect(fetchMock.mock.calls[1][1]).toEqual({ cache: 'reload' });
+  });
+
+  it('falls back to an <img> element when every fetch attempt fails', async () => {
+    // The measured browser failure: the body is refused on every try, but the element loads.
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(makeBodyFailureResponse());
+
+    vi.stubGlobal('fetch', fetchMock);
+    stubImageElement('load');
+
+    const promise = GlUtils.initTexture(fakeGl, 'http://example.test/textures/huge.png');
+
+    await vi.runAllTimersAsync();
+    await expect(promise).resolves.toBeDefined();
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    const status = getTextureStatuses().find((s) => s.url.endsWith('huge.png'));
+
+    expect(status?.state).toBe('loaded');
+  });
+
+  it('reports the original fetch failure when the <img> fallback also fails', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockRejectedValue(new TypeError('Failed to fetch'));
+
+    vi.stubGlobal('fetch', fetchMock);
+    stubImageElement('error');
+
+    const promise = GlUtils.initTexture(fakeGl, 'http://example.test/textures/hopeless.png');
+
+    promise.catch(() => {
+      /* expected */
+    });
+    await vi.runAllTimersAsync();
+    // The network cause is what's actionable, not "<img> load failed".
+    await expect(promise).rejects.toThrow(/Failed to load image.*Failed to fetch/u);
   });
 
   it('does NOT retry AbortError', async () => {
