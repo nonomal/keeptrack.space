@@ -1171,25 +1171,25 @@ export class Earth {
 
       //.................................................
       // Bump mapping
-      vec3 bumpTexColor = textureLod(uBumpMap, vUv, -1.0).rgb * diffuse * 0.4;
+      vec3 bumpTexColor = texture(uBumpMap, vUv).rgb * diffuse * 0.4;
 
       //................................................
       // Specular lighting
-      vec3 specLightColor = textureLod(uSpecMap, vUv, -1.0).rgb * diffuse * 0.05;
+      vec3 specLightColor = texture(uSpecMap, vUv).rgb * diffuse * 0.05;
 
       //................................................
       // Final color
       vec3 dayColor = (ambientLightColor + directionalLightColor) * diffuse;
-      vec3 dayTexColor = textureLod(uDayMap, vUv, -1.0).rgb * dayColor;
+      vec3 dayTexColor = texture(uDayMap, vUv).rgb * dayColor;
       vec3 nightColor = vec3(0.0);
 
       if (uisDrawNightAsDay < 0.5) {
         // uNightBrightness gains up the night (city-lights) texture on the unlit side
         // so the dark limb is readable on dim mobile screens (1.0 = stock brightness).
-        nightColor = smoothstep(0.0, 2.0, (1.0 - uZoomLevel)) * textureLod(uNightMap, vUv, -1.0).rgb * pow(1.0 - diffuse, 2.0) * uNightBrightness;
+        nightColor = smoothstep(0.0, 2.0, (1.0 - uZoomLevel)) * texture(uNightMap, vUv).rgb * pow(1.0 - diffuse, 2.0) * uNightBrightness;
       } else {
         // If day night toggle is on, the nightColor should be bright like the day texture
-        nightColor = textureLod(uDayMap, vUv, -1.0).rgb * pow(1.0 - diffuse, 2.0);
+        nightColor = texture(uDayMap, vUv).rgb * pow(1.0 - diffuse, 2.0);
       }
 
       vec3 surfaceColor = dayTexColor + nightColor + bumpTexColor + specLightColor;
@@ -1199,7 +1199,7 @@ export class Earth {
       // Cloud texture luminance is used as opacity: white = dense cloud, black = clear sky
       vec2 cloudUv = vUv;
       cloudUv.x -= uCloudPosition;
-      float cloudDensity = textureLod(uCloudsMap, cloudUv, -1.0).r;
+      float cloudDensity = texture(uCloudsMap, cloudUv).r;
 
       // Clouds fade out when camera is near the surface (raw zoom 0 = close, 1 = far)
       float cloudOpacity = cloudDensity * smoothstep(0.2, 0.35, uRawZoomLevel);
@@ -1212,11 +1212,10 @@ export class Earth {
       // This naturally masks specular under clouds without double-counting
       fragColor = vec4(mix(surfaceColor, litCloudColor, cloudOpacity), horizonAlpha);
 
-      // Political map — drawn after clouds so boundaries are always visible
-      // Use full resolution (LOD -1) and don't multiply by diffuse so
-      // boundaries remain visible on the night side and when ambient
-      // lighting is off.
-      vec4 politicalColor = textureLod(uPoliticalMap, vUv, -1.0);
+      // Political map — drawn after clouds so boundaries are always visible.
+      // Don't multiply by diffuse so boundaries remain visible on the night
+      // side and when ambient lighting is off.
+      vec4 politicalColor = texture(uPoliticalMap, vUv);
       fragColor.rgb += politicalColor.rgb * politicalColor.a;
 
       // ...............................................

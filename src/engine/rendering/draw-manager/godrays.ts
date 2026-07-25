@@ -142,6 +142,36 @@ export class Godrays {
     this.isLoaded_ = true;
   }
 
+  /**
+   * CPU mirror of the composite shader's sun-visibility box gate (the
+   * `sunVisible` bounds test in the fragment shader). When the sun projects far
+   * enough outside the viewport that the composite would emit no rays on any
+   * pixel, the caller can skip the entire sun -> occlusion -> composite chain for
+   * the frame. The margin here is deliberately wider than the shader's 0.15, so a
+   * frame we skip is always one the composite would have left untouched (no edge
+   * pop as the sun crosses the border). Returns true (do not skip) when the sun is
+   * behind the camera or the projection is degenerate, preserving existing behavior.
+   */
+  isSunPotentiallyVisible(pMatrix: mat4, camMatrix: mat4): boolean {
+    if (!this.isLoaded_) {
+      return true;
+    }
+    const posVec4 = vec4.fromValues(this.sun_.position[0], this.sun_.position[1], this.sun_.position[2], 1);
+
+    vec4.transformMat4(posVec4, posVec4, camMatrix);
+    vec4.transformMat4(posVec4, posVec4, pMatrix);
+
+    if (posVec4[3] <= 0) {
+      return true; // sun behind camera / degenerate w: leave the chain untouched
+    }
+
+    const sx = (posVec4[0] / posVec4[3] + 1) * 0.5;
+    const sy = (posVec4[1] / posVec4[3] + 1) * 0.5;
+    const margin = 0.25;
+
+    return sx > -margin && sx < 1 + margin && sy > -margin && sy < 1 + margin;
+  }
+
   private getScreenCoords_(pMatrix: mat4, camMatrix: mat4): vec2 {
     const posVec4 = vec4.fromValues(this.sun_.position[0], this.sun_.position[1], this.sun_.position[2], 1);
 

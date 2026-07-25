@@ -363,55 +363,69 @@ export class Scene {
         // its stale framebuffer would otherwise swallow the sun entirely.
         const fb = settingsManager.isDisableGodrays || !this.godrays ? null : this.frameBuffers.godrays;
 
-        // Draw the Sun to the Godrays Frame Buffer
-        profiler.beginGpu(GpuStage.sun);
-        this.sun.draw(this.earth.lightDirection, fb);
-        profiler.endGpu(GpuStage.sun);
+        // Off-screen sun gate: the sun/occlusion/godrays chain only reaches the
+        // canvas through the godrays composite, which emits rays solely for an
+        // on-screen sun. When godrays are live and the sun projects well outside
+        // the viewport the entire chain (a 132k-vert occlusion earth + a 40-tap
+        // fullscreen composite) is a visual no-op, so skip it. Only gated on the
+        // godrays path; the plain-sun path (fb === null) is already cheap.
+        const skipSunChain = fb !== null && !!this.godrays && !this.godrays.isSunPotentiallyVisible(camera.projectionMatrix, camera.matrixWorldInverse);
 
-        // Occlusion passes exist ONLY to mask the sun inside the godrays buffer.
-        // With godrays off/dead (fb === null) they must not run: binding the
-        // missing FBO falls back to the DEFAULT framebuffer and paints black
-        // occlusion meshes over the visible scene.
-        if (fb) {
-          const sceneManager = ServiceLocator.getScene();
-          const centerBodyEntity = sceneManager.getBodyById(settingsManager.centerBody);
+        if (skipSunChain) {
+          // Match the non-skipped path's post-processing target so the skybox /
+          // earth draws below composite to the canvas identically.
+          renderer.postProcessingManager.curBuffer = null;
+        } else {
+          // Draw the Sun to the Godrays Frame Buffer
+          profiler.beginGpu(GpuStage.sun);
+          this.sun.draw(this.earth.lightDirection, fb);
+          profiler.endGpu(GpuStage.sun);
 
-          profiler.beginGpu(GpuStage.occlusion);
+          // Occlusion passes exist ONLY to mask the sun inside the godrays buffer.
+          // With godrays off/dead (fb === null) they must not run: binding the
+          // missing FBO falls back to the DEFAULT framebuffer and paints black
+          // occlusion meshes over the visible scene.
+          if (fb) {
+            const sceneManager = ServiceLocator.getScene();
+            const centerBodyEntity = sceneManager.getBodyById(settingsManager.centerBody);
 
-          // Draw a black earth mesh on top of the sun in the godrays frame buffer
-          // Skip in astronomy mode since Earth is hidden
-          if (centerBodyEntity?.drawOcclusion && camera.cameraType !== CameraType.ASTRONOMY && camera.cameraType !== CameraType.PLANETARIUM) {
-            centerBodyEntity?.drawOcclusion(camera.projectionMatrix, camera.matrixWorldInverse, renderer?.postProcessingManager?.programs?.occlusion, this.frameBuffers.godrays);
+            profiler.beginGpu(GpuStage.occlusion);
+
+            // Draw a black earth mesh on top of the sun in the godrays frame buffer
+            // Skip in astronomy mode since Earth is hidden
+            if (centerBodyEntity?.drawOcclusion && camera.cameraType !== CameraType.ASTRONOMY && camera.cameraType !== CameraType.PLANETARIUM) {
+              centerBodyEntity?.drawOcclusion(camera.projectionMatrix, camera.matrixWorldInverse, renderer?.postProcessingManager?.programs?.occlusion, this.frameBuffers.godrays);
+            }
+
+            if (settingsManager.centerBody === SolarBody.Earth) {
+              sceneManager
+                .getBodyById(SolarBody.Moon)
+                ?.drawOcclusion(camera.projectionMatrix, camera.matrixWorldInverse, renderer?.postProcessingManager?.programs?.occlusion, this.frameBuffers.godrays);
+            }
+
+            if (settingsManager.centerBody === SolarBody.Moon) {
+              this.earth.drawOcclusion(camera.projectionMatrix, camera.matrixWorldInverse, renderer?.postProcessingManager?.programs?.occlusion, this.frameBuffers.godrays);
+            }
+
+            // Draw a black object mesh on top of the sun in the godrays frame buffer
+            if (
+              !settingsManager.modelsOnSatelliteViewOverride &&
+              Number(PluginRegistry.getPlugin(SelectSatManager)?.selectedSat ?? -1) > -1 &&
+              ServiceLocator.getMainCamera().state.camDistBuffer <= settingsManager.nearZoomLevel
+            ) {
+              renderer.meshManager.drawOcclusion(camera.projectionMatrix, camera.matrixWorldInverse, renderer.postProcessingManager.programs.occlusion, this.frameBuffers.godrays);
+            }
+            profiler.endGpu(GpuStage.occlusion);
           }
 
-          if (settingsManager.centerBody === SolarBody.Earth) {
-            sceneManager
-              .getBodyById(SolarBody.Moon)
-              ?.drawOcclusion(camera.projectionMatrix, camera.matrixWorldInverse, renderer?.postProcessingManager?.programs?.occlusion, this.frameBuffers.godrays);
-          }
-
-          if (settingsManager.centerBody === SolarBody.Moon) {
-            this.earth.drawOcclusion(camera.projectionMatrix, camera.matrixWorldInverse, renderer?.postProcessingManager?.programs?.occlusion, this.frameBuffers.godrays);
-          }
-
-          // Draw a black object mesh on top of the sun in the godrays frame buffer
-          if (
-            !settingsManager.modelsOnSatelliteViewOverride &&
-            Number(PluginRegistry.getPlugin(SelectSatManager)?.selectedSat ?? -1) > -1 &&
-            ServiceLocator.getMainCamera().state.camDistBuffer <= settingsManager.nearZoomLevel
-          ) {
-            renderer.meshManager.drawOcclusion(camera.projectionMatrix, camera.matrixWorldInverse, renderer.postProcessingManager.programs.occlusion, this.frameBuffers.godrays);
-          }
-          profiler.endGpu(GpuStage.occlusion);
+          // Add the godrays effect to the godrays frame buffer and then apply it to the postprocessing buffer two.
+          // Null-safe: a throw here used to abort renderBackground before the earth/
+          // atmosphere draws below — one godrays failure blanked the atmosphere.
+          renderer.postProcessingManager.curBuffer = null;
+          profiler.beginGpu(GpuStage.godrays);
+          this.godrays?.draw(camera.projectionMatrix, camera.matrixWorldInverse, renderer.postProcessingManager.curBuffer);
+          profiler.endGpu(GpuStage.godrays);
         }
-
-        // Add the godrays effect to the godrays frame buffer and then apply it to the postprocessing buffer two.
-        // Null-safe: a throw here used to abort renderBackground before the earth/
-        // atmosphere draws below — one godrays failure blanked the atmosphere.
-        renderer.postProcessingManager.curBuffer = null;
-        profiler.beginGpu(GpuStage.godrays);
-        this.godrays?.draw(camera.projectionMatrix, camera.matrixWorldInverse, renderer.postProcessingManager.curBuffer);
-        profiler.endGpu(GpuStage.godrays);
       }
 
       profiler.beginGpu(GpuStage.skybox);

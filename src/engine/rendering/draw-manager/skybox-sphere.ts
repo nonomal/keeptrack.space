@@ -110,27 +110,16 @@ export class SkyBoxSphere {
       gl.bindTexture(gl.TEXTURE_2D, this.textureGraySkybox_);
       gl.uniform1f(this.mesh.material.uniforms.u_fMilkyWay, 2);
     } else {
-      if (this.settings_.isDrawMilkyWay) {
-        gl.uniform1i(this.mesh.material.uniforms.u_texMilkyWay, 0);
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, this.textureMilkyWay[settingsManager.milkyWayTextureQuality]);
-      }
-
-      gl.uniform1i(this.mesh.material.uniforms.u_texMilkyWay, 1);
-      gl.activeTexture(gl.TEXTURE1);
+      // Bind the milky-way texture once, to unit 0. This previously bound the same
+      // texture to units 0, 1 AND 2 while re-setting u_texMilkyWay each time, so only
+      // the last unit (2) was ever sampled — two texture binds the single-sampler
+      // shader never reads.
+      gl.uniform1i(this.mesh.material.uniforms.u_texMilkyWay, 0);
+      gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, this.textureMilkyWay[settingsManager.milkyWayTextureQuality]);
 
-      gl.uniform1i(this.mesh.material.uniforms.u_texMilkyWay, 2);
-      gl.activeTexture(gl.TEXTURE2);
-      gl.bindTexture(gl.TEXTURE_2D, this.textureMilkyWay[settingsManager.milkyWayTextureQuality]);
-
-      /*
-       * Figure out how bright the milky way should be to make the blending consistent
-       * The more textures that are on the brighter the milky way needs to be
-       */
-      const milkyWayMul = this.settings_.isDrawMilkyWay ? 2 : 0;
-
-      gl.uniform1f(this.mesh.material.uniforms.u_fMilkyWay, milkyWayMul);
+      // Brightness compensates for the additive ONE_MINUS_SRC_COLOR blend.
+      gl.uniform1f(this.mesh.material.uniforms.u_fMilkyWay, 2);
     }
   }
 
