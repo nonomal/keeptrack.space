@@ -117,6 +117,16 @@ export class ColorSchemeManager {
   pickableBuffer: WebGLBuffer | null = null;
   pickableBufferOneTime = false;
   pickableData = new Int8Array(0);
+  /**
+   * Set on any mutation of {@link colorData}/{@link pickableData}; gates the
+   * per-frame GPU re-upload in {@link sendColorBufferToGpu}. In worker mode the
+   * update loop re-uploaded the whole ~1 MB buffer every frame even when nothing
+   * changed — this skips that on the ~99% of frames with no color change.
+   */
+  private isColorBufferDirty_ = true;
+  /** Selected/hover sats reflected in the last upload, to detect per-frame changes. */
+  private lastUploadedSelSat_ = -2;
+  private lastUploadedHovSat_ = -2;
   private hasRegisteredOffsetListener_ = false;
 
   // ─── Worker Mode ───────────────────────────────────────────────────────
@@ -159,6 +169,9 @@ export class ColorSchemeManager {
     this.pickableBufferOneTime = false;
     this.colorData = new Float32Array(0);
     this.pickableData = new Int8Array(0);
+    this.isColorBufferDirty_ = true;
+    this.lastUploadedSelSat_ = -2;
+    this.lastUploadedHovSat_ = -2;
     this.isReady = false;
     this.lastDotColored = 0;
     // Worker will receive new catalog on next onCruncherReady
@@ -271,6 +284,8 @@ export class ColorSchemeManager {
       }
       // If we don't do this then every time the color refreshes it will undo any effect being applied outside of this loop
       this.applyFovFadeOverlay_();
+      // The chunked recolor loop above rewrote a window of dots this frame.
+      this.isColorBufferDirty_ = true;
       this.setSelectedAndHoverBuffer_();
       this.sendColorBufferToGpu();
     } catch (e) {
@@ -335,6 +350,7 @@ export class ColorSchemeManager {
       // Generate some buffers
       this.colorData = new Float32Array(catalogManagerInstance.numObjects * 4);
       this.pickableData = new Int8Array(catalogManagerInstance.numObjects);
+      this.isColorBufferDirty_ = true;
 
       // Send catalog data to color worker
       if (this.colorCruncher_?.isReady) {
@@ -379,6 +395,7 @@ export class ColorSchemeManager {
       if (data && data.colorData.length === this.colorData.length) {
         this.colorData.set(data.colorData);
         this.pickableData.set(data.pickableData);
+        this.isColorBufferDirty_ = true;
         // Save clean copy before overlay so setFovFadeAlpha can reapply without compounding
         if (this.fovFadeAlpha_) {
           if (!this.cleanColorData_ || this.cleanColorData_.length !== this.colorData.length) {
@@ -987,6 +1004,8 @@ export class ColorSchemeManager {
       this.cleanColorData_ = null;
     }
 
+    // Restoring clean data and/or (re)applying the overlay rewrote colorData.
+    this.isColorBufferDirty_ = true;
     this.applyFovFadeOverlay_();
     this.setSelectedAndHoverBuffer_();
     this.sendColorBufferToGpu();
@@ -1002,6 +1021,7 @@ export class ColorSchemeManager {
     for (let i = 0; i < n; i++) {
       this.colorData[i * 4 + 3] *= this.fovFadeAlpha_[i];
     }
+    this.isColorBufferDirty_ = true;
   }
 
   /**
@@ -1009,6 +1029,8 @@ export class ColorSchemeManager {
    * colors directly (e.g. the optical-simulation capture's photometric pass).
    */
   uploadColorDataToGpu(): void {
+    // An external system wrote colorData directly, so force the upload.
+    this.isColorBufferDirty_ = true;
     this.sendColorBufferToGpu();
   }
 
@@ -1016,6 +1038,13 @@ export class ColorSchemeManager {
    * Sends the color buffer to the GPU
    */
   private sendColorBufferToGpu() {
+    // Nothing changed since the last upload and both buffers are already
+    // allocated on the GPU: skip the ~1 MB re-upload entirely. (An unallocated
+    // buffer — OneTime false — still needs its initial bufferData below.)
+    if (!this.isColorBufferDirty_ && this.colorBufferOneTime && this.pickableBufferOneTime) {
+      return;
+    }
+
     const gl = this.gl_;
 
     gl.bindBuffer(gl.ARRAY_BUFFER, this.colorBuffer);
@@ -1035,15 +1064,29 @@ export class ColorSchemeManager {
     } else {
       gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.pickableData);
     }
+
+    this.isColorBufferDirty_ = false;
   }
 
   /** Plugin-provided override for selected satellite dot color (e.g. flat map uses red since mesh is hidden). */
   static selectedColorOverride: rgbaArray | null = null;
 
   private setSelectedAndHoverBuffer_() {
-    const selSat = PluginRegistry.getPlugin(SelectSatManager)?.selectedSat;
+    const selSat = PluginRegistry.getPlugin(SelectSatManager)?.selectedSat ?? -1;
+    const hovSatForDirty = ServiceLocator.getHoverManager().hoveringSat;
 
-    if (typeof selSat !== 'undefined' && selSat !== -1) {
+    // The selected/hover dots are re-written every frame with the same values
+    // while the selection is static, so treat only a *change* as a reason to
+    // re-upload. hover-manager also does its own targeted upload on hover change;
+    // marking dirty here keeps the CPU buffer and GPU consistent for the periodic
+    // full upload regardless.
+    if (selSat !== this.lastUploadedSelSat_ || hovSatForDirty !== this.lastUploadedHovSat_) {
+      this.isColorBufferDirty_ = true;
+      this.lastUploadedSelSat_ = selSat;
+      this.lastUploadedHovSat_ = hovSatForDirty;
+    }
+
+    if (selSat !== -1) {
       // Selected satellites are always one color so forget whatever we just did
       const selSatNum = selSat;
 
