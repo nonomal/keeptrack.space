@@ -734,6 +734,14 @@ export class WebGLRenderer {
       const deepSpaceSat = sceneInstance.deepSpaceSatellites?.[settingsManager.centerBody];
 
       if (deepSpaceSat) {
+        // Re-anchor the frame's world shift to the probe BEFORE baking the mesh
+        // matrix (same contract as the selected-satellite path above). Scene.update
+        // computes the shift before the probe's position steps, and that position
+        // only steps once per second (celestial-body 1000 ms reuse gate) by ~40 km
+        // (Earth's orbital motion dominates the relative rate), so baking against
+        // the stale shift left the mesh ~40 km off-origin for one frame per step -
+        // a 1 Hz blink at close zoom.
+        sceneInstance.setWorldShiftBase([-deepSpaceSat.position[0], -deepSpaceSat.position[1], -deepSpaceSat.position[2]]);
         this.meshManager.updateForBody(deepSpaceSat.position, deepSpaceSat.getModelName());
       }
     }

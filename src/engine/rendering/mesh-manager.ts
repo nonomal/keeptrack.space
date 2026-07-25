@@ -85,6 +85,13 @@ export class MeshManager {
 
   mvMatrix_: mat4;
   nMatrix_: mat3;
+  /**
+   * Unit ECI light direction for the current mesh when it is a non-catalog
+   * body (deep-space probe). Earth's lightDirection points from Earth to the
+   * sun, which is the wrong direction at a probe billions of km away; null
+   * means "use earth.lightDirection" (the satellite path).
+   */
+  lightDirection: vec3 | null = null;
   private modelResolver_: ModelResolver;
   private meshRegistry_: MeshRegistry;
   private meshRenderer_: MeshRenderer;
@@ -163,6 +170,11 @@ export class MeshManager {
     this.currentMeshObject.inSun = 1;
     this.currentMeshObject.isRotationStable = false;
 
+    // Light the mesh from the sun as seen from the BODY, not from Earth.
+    const sunEci = Scene.getInstance().sun.eci;
+
+    this.lightDirection = vec3.normalize(vec3.create(), [sunEci.x - position[0], sunEci.y - position[1], sunEci.z - position[2]]);
+
     const resolvedMesh = this.meshRegistry_.get(modelName) ?? { id: -1, name: modelName };
 
     this.setCurrentModel(resolvedMesh);
@@ -190,6 +202,9 @@ export class MeshManager {
     if (!sat.isSatellite() && !sat.isMissile()) {
       return;
     }
+
+    // Catalog objects are lit with earth.lightDirection (see draw side).
+    this.lightDirection = null;
 
     this.updateModel_(selectedDate, sat);
 

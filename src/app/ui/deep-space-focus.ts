@@ -16,6 +16,14 @@ import { Kilometers } from '@ootk/src/main';
 export const INTERPLANETARY_MIN_ZOOM = 62e6 as Kilometers;
 /** Max zoom distance for heliocentric / interplanetary framing (15 billion km). */
 export const INTERPLANETARY_MAX_ZOOM = 1.5e10 as Kilometers;
+/**
+ * Min zoom distance when centered on a deep-space probe (50 m). Probes render
+ * a lifelike-scale 3D mesh (meters across) at their position, so the camera
+ * must be able to dolly all the way down to it - the same way a selected
+ * satellite can be inspected up close. Wheel zoom sensitivity is proportional
+ * to zoom level, so the ride from 15 billion km down to 50 m stays smooth.
+ */
+export const PROBE_MIN_ZOOM = 0.05 as Kilometers;
 
 /**
  * Centers the camera on a deep-space satellite by name (a key of
@@ -32,9 +40,22 @@ export function focusDeepSpaceSatellite(name: string): boolean {
 
   PluginRegistry.getPlugin(SelectSatManager)?.selectSat(-1);
   settingsManager.centerBody = name as SolarBody;
-  settingsManager.minZoomDistance = INTERPLANETARY_MIN_ZOOM;
+  settingsManager.minZoomDistance = PROBE_MIN_ZOOM;
   settingsManager.maxZoomDistance = INTERPLANETARY_MAX_ZOOM;
-  ServiceLocator.getMainCamera().cameraType = CameraType.FIXED_TO_EARTH;
+
+  const camera = ServiceLocator.getMainCamera();
+
+  camera.cameraType = CameraType.FIXED_TO_EARTH;
+
+  // Keep the entry framing interplanetary: the zoom floor reaches down to the
+  // probe mesh (PROBE_MIN_ZOOM), so a camera that was fully zoomed in before
+  // focusing would otherwise arrive 50 m from the spacecraft instead of seeing
+  // the heliocentric context. Zooming into the mesh stays a deliberate act.
+  const minFramingZoom = camera.getZoomFromDistance(INTERPLANETARY_MIN_ZOOM);
+
+  if (camera.state.zoomTarget < minFramingZoom) {
+    camera.state.zoomTarget = minFramingZoom;
+  }
 
   // Interplanetary framing without the planet orbit ellipses is unreadable -
   // draw the same heliocentric context the planets menu draws (Moon, planets

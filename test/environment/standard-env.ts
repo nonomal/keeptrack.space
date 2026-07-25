@@ -348,6 +348,7 @@ export const mockCameraManager = <Camera>(<unknown>{
   state: {
     mouseX: 0,
     mouseY: 0,
+    zoomTarget: 0,
   },
   panCurrent: null,
   panSpeed: null,
@@ -379,6 +380,9 @@ export const mockCameraManager = <Camera>(<unknown>{
   unregisterCameraModeDelegate: vi.fn(),
   update: vi.fn(),
   zoomLevel: vi.fn(),
+  // Real implementation (it reads only settingsManager, not `this`) so tests
+  // exercise the production zoom curve instead of a stub.
+  getZoomFromDistance: Camera.prototype.getZoomFromDistance,
   drawAstronomy: vi.fn(),
   drawFts: vi.fn(),
   drawPlanetarium_: vi.fn(),
