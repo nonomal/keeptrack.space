@@ -10,6 +10,7 @@ import { ColorDataArrays } from '@app/engine/rendering/color-worker/color-data-a
 import { ColorWorkerMsgType, ColorWorkerOutMsg, FilterState, SettingsFlags } from '@app/engine/rendering/color-worker/color-worker-messages';
 import { WebWorkerThreadManager } from '@app/engine/threads/web-worker-thread';
 import { errorManagerInstance } from '@app/engine/utils/errorManager';
+import { FrameProfiler } from '@app/engine/utils/frame-profiler';
 
 export class ColorCruncherThreadManager extends WebWorkerThreadManager {
   readonly WEB_WORKER_CODE: string = 'js/colorCruncher.js';
@@ -29,6 +30,10 @@ export class ColorCruncherThreadManager extends WebWorkerThreadManager {
     const data = event.data as ColorWorkerOutMsg;
 
     if (data.colorData && data.pickableData) {
+      // Attribute this frame to the color-message beat, mirroring the
+      // position cruncher, so its share of the long frames is visible.
+      FrameProfiler.getInstance().tagFrame('color-msg');
+
       // Discard stale messages from old catalog
       if (data.seqNum < this.currentSeqNum_) {
         return;

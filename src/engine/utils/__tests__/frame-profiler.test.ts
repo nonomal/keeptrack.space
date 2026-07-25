@@ -159,4 +159,76 @@ describe('FrameProfiler', () => {
     expect(snap.frames).toBe(3);
     expect(snap.longFrames).toBe(2);
   });
+
+  it('attributes tagged frame deltas to per-tag stats and the rest to untagged', () => {
+    profiler.setEnabled(true);
+
+    profiler.frameStart(50);
+    profiler.tagFrame('cruncher-msg');
+    profiler.frameEnd();
+
+    profiler.frameStart(10);
+    profiler.frameEnd();
+
+    const tags = profiler.getSnapshot().frameTags;
+    const cruncher = tags.find((t) => t.tag === 'cruncher-msg');
+    const untagged = tags.find((t) => t.tag === 'untagged');
+
+    expect(cruncher).toMatchObject({ samples: 1, longFrames: 1 });
+    expect(cruncher!.avg).toBeCloseTo(50, 3);
+    expect(cruncher!.max).toBeCloseTo(50, 3);
+    expect(untagged).toMatchObject({ samples: 1, longFrames: 0 });
+    expect(untagged!.avg).toBeCloseTo(10, 3);
+  });
+
+  it('attributes a tag set between frames to the next frame (cleared at frameEnd)', () => {
+    profiler.setEnabled(true);
+
+    profiler.frameStart(10);
+    profiler.frameEnd();
+
+    // Off-loop event lands after one frame ends and before the next starts.
+    profiler.tagFrame('color-msg');
+
+    profiler.frameStart(40);
+    profiler.frameEnd();
+
+    const tags = profiler.getSnapshot().frameTags;
+
+    expect(tags.find((t) => t.tag === 'color-msg')).toMatchObject({ samples: 1, avg: 40, longFrames: 1 });
+    expect(tags.find((t) => t.tag === 'untagged')).toMatchObject({ samples: 1, avg: 10 });
+  });
+
+  it('attributes one frame to every tag it carries', () => {
+    profiler.setEnabled(true);
+
+    profiler.frameStart(35);
+    profiler.tagFrame('cruncher-msg');
+    profiler.tagFrame('color-msg');
+    profiler.frameEnd();
+
+    const tags = profiler.getSnapshot().frameTags;
+
+    expect(tags.find((t) => t.tag === 'cruncher-msg')).toMatchObject({ samples: 1, longFrames: 1 });
+    expect(tags.find((t) => t.tag === 'color-msg')).toMatchObject({ samples: 1, longFrames: 1 });
+    // A tagged frame is not also counted as untagged.
+    expect(tags.find((t) => t.tag === 'untagged')).toBeUndefined();
+  });
+
+  it('records no frame tags while disabled and clears them on reset', () => {
+    profiler.frameStart(50);
+    profiler.tagFrame('cruncher-msg');
+    profiler.frameEnd();
+
+    expect(profiler.getSnapshot().frameTags).toHaveLength(0);
+
+    profiler.setEnabled(true);
+    profiler.frameStart(50);
+    profiler.tagFrame('cruncher-msg');
+    profiler.frameEnd();
+    expect(profiler.getSnapshot().frameTags.length).toBeGreaterThan(0);
+
+    profiler.reset();
+    expect(profiler.getSnapshot().frameTags).toHaveLength(0);
+  });
 });
