@@ -9,6 +9,7 @@ import { Scene } from '@app/engine/core/scene';
 import { ServiceLocator } from '@app/engine/core/service-locator';
 import { EventBus } from '@app/engine/events/event-bus';
 import { EventBusEvent } from '@app/engine/events/event-bus-events';
+import { BufferGeometry } from '@app/engine/rendering/buffer-geometry';
 import { GLSL3 } from '@app/engine/rendering/material';
 import { Mesh } from '@app/engine/rendering/mesh';
 import { ShaderMaterial } from '@app/engine/rendering/shader-material';
@@ -102,14 +103,22 @@ export abstract class CelestialBody {
     }
   }
 
+  /**
+   * Build this body's geometry. Overridden by bodies that are not spheres (the Martian
+   * moons swap in a procedural irregular shape); everything else gets a UV sphere.
+   */
+  protected createGeometry_(gl: WebGL2RenderingContext): BufferGeometry {
+    return new SphereGeometry(gl, {
+      radius: this.RADIUS,
+      widthSegments: this.NUM_HEIGHT_SEGS,
+      heightSegments: this.NUM_WIDTH_SEGS,
+    });
+  }
+
   async init(gl: WebGL2RenderingContext): Promise<void> {
     try {
       this.gl_ = gl;
-      const geometry = new SphereGeometry(gl, {
-        radius: this.RADIUS,
-        widthSegments: this.NUM_HEIGHT_SEGS,
-        heightSegments: this.NUM_WIDTH_SEGS,
-      });
+      const geometry = this.createGeometry_(gl);
       const texture = await GlUtils.initTexture(gl, this.getTexturePath());
       const material = new ShaderMaterial(gl, {
         uniforms: {
@@ -180,6 +189,18 @@ export abstract class CelestialBody {
    * (skip the recompute). On a miss it records `simTime` as the new reference and returns
    * false so the caller proceeds to recompute.
    */
+  /**
+   * Override the position-recompute gate, in milliseconds of sim time.
+   *
+   * Zero means recompute every frame. Worth paying when something small is drawn against
+   * this body up close: the gate freezes the position between ticks, so the body lurches
+   * by a full tick's motion (~90 km for Mars) each time it expires, and anything stored in
+   * absolute float32 - the dot buffer - re-rounds and visibly pops with it.
+   */
+  setPositionUpdateIntervalMs(intervalMs: number): void {
+    this.minimumPositionUpdateIntervalMs_ = intervalMs;
+  }
+
   protected canReusePosition_(simTime: Date): boolean {
     const nowMs = simTime.getTime();
 

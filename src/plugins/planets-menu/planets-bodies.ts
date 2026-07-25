@@ -37,6 +37,8 @@ export const DWARF_PLANETS: readonly SolarBody[] = [
 export const OTHER_CELESTIAL_BODIES: readonly SolarBody[] = [
   SolarBody.Moon,
   SolarBody.Sun,
+  SolarBody.Phobos,
+  SolarBody.Deimos,
   SolarBody.Io,
   SolarBody.Europa,
   SolarBody.Ganymede,

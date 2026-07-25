@@ -869,6 +869,38 @@ export class CatalogLoader {
       });
     }
 
+    /*
+     * Martian moons. Earth's Moon is deliberately left out: it is drawn as a mesh whenever
+     * it is on screen and never needs a dot to stand in for it, whereas Phobos and Deimos
+     * are a handful of kilometers across and would otherwise be unfindable and
+     * unselectable from anywhere but point-blank range.
+     */
+    const moonList = ServiceLocator.getScene().moons;
+
+    for (const moonKey of [SolarBody.Phobos, SolarBody.Deimos]) {
+      const moon = moonList?.[moonKey];
+
+      if (!moon) {
+        continue;
+      }
+
+      const moonDot = new Planet({
+        id: tempObjData.length,
+        name: moonKey,
+        type: moon.type,
+      });
+
+      moonDot.color = moon.color ?? ([1.0, 1.0, 1.0, 1.0] as rgbaArray);
+      moon.planetObject = moonDot;
+
+      tempObjData.push(moonDot);
+    }
+
+    // Deep-space probes share the planet dot block but are spacecraft, not
+    // planets - record the boundary so the shaders can give true planets a
+    // distinct glyph without also stamping it on Voyager/Pioneer/New Horizons.
+    dotsManagerInstance.deepSpaceDot1 = tempObjData.length;
+
     const deepSpaceSatellites = ServiceLocator.getScene().deepSpaceSatellites;
 
     if (deepSpaceSatellites) {

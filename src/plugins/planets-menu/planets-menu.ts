@@ -427,8 +427,34 @@ export class PlanetsMenuPlugin extends KeepTrackPlugin implements ICommandPalett
       body.drawFullOrbitPath();
     }
     this.setAllPlanetsDotSize(1);
+    this.updateMarsMoonOrbits_(planetName);
 
     settingsManager.centerBody = planetName; // Set back to selected planet
+  }
+
+  /**
+   * The Martian moon rings are only drawn from inside the Mars system. A 9375 km ellipse
+   * is sub-pixel from anywhere else, and unlike the heliocentric paths it has to be
+   * rewritten every frame to track Mars, so leaving it on would be pure cost.
+   */
+  private updateMarsMoonOrbits_(planetName: SolarBody): void {
+    const scene = ServiceLocator.getScene();
+    const isInMarsSystem = planetName === SolarBody.Mars || planetName === SolarBody.Phobos || planetName === SolarBody.Deimos;
+
+    for (const bodyId of [SolarBody.Phobos, SolarBody.Deimos]) {
+      const body = scene.getBodyById(bodyId) as CelestialBody | null;
+
+      if (!body) {
+        continue;
+      }
+
+      if (isInMarsSystem) {
+        body.isDrawOrbitPath = true;
+        body.drawFullOrbitPath();
+      } else {
+        body.hideFullOrbitPath();
+      }
+    }
   }
 
   setAllPlanetsDotSize(size = 1): void {

@@ -13,6 +13,7 @@ import { Ceres } from '../rendering/draw-manager/celestial-bodies/ceres';
 import { Charon } from '../rendering/draw-manager/celestial-bodies/charon';
 import { DeepSpaceSatellite } from '../rendering/draw-manager/celestial-bodies/deep-space-satellite';
 import { createDeepSpaceSatellites, loadDeepSpaceSatelliteData } from '../rendering/draw-manager/celestial-bodies/deep-space-satellite-catalog';
+import { Deimos } from '../rendering/draw-manager/celestial-bodies/deimos';
 import { DwarfPlanet } from '../rendering/draw-manager/celestial-bodies/dwarf-planet';
 import { Eris } from '../rendering/draw-manager/celestial-bodies/eris';
 import { Gonggong } from '../rendering/draw-manager/celestial-bodies/gonggong';
@@ -24,6 +25,7 @@ import { Mercury } from '../rendering/draw-manager/celestial-bodies/mercury';
 import { Moon } from '../rendering/draw-manager/celestial-bodies/moon';
 import { Neptune } from '../rendering/draw-manager/celestial-bodies/neptune';
 import { Orcus } from '../rendering/draw-manager/celestial-bodies/orcus';
+import { Phobos } from '../rendering/draw-manager/celestial-bodies/phobos';
 import { Pluto } from '../rendering/draw-manager/celestial-bodies/pluto';
 import { Quaoar } from '../rendering/draw-manager/celestial-bodies/quaoar';
 import { Saturn } from '../rendering/draw-manager/celestial-bodies/saturn';
@@ -54,6 +56,17 @@ export interface SceneParams {
   background?: WebGLTexture;
 }
 
+/**
+ * Bodies that must be drawn alongside the center body because they share its
+ * neighbourhood. Mars and its two moons are close enough together that viewing any one of
+ * them without the others is wrong.
+ */
+const MARS_SYSTEM_COMPANIONS: Partial<Record<SolarBody, SolarBody[]>> = {
+  [SolarBody.Mars]: [SolarBody.Phobos, SolarBody.Deimos],
+  [SolarBody.Phobos]: [SolarBody.Mars, SolarBody.Deimos],
+  [SolarBody.Deimos]: [SolarBody.Mars, SolarBody.Phobos],
+};
+
 export class Scene {
   private static instance_: Scene;
   private gl_: WebGL2RenderingContext;
@@ -72,6 +85,8 @@ export class Scene {
   };
   moons: {
     [SolarBody.Moon]: Moon;
+    [SolarBody.Phobos]: Phobos;
+    [SolarBody.Deimos]: Deimos;
     [SolarBody.Io]?: CelestialBody;
     [SolarBody.Europa]?: CelestialBody;
     [SolarBody.Ganymede]?: CelestialBody;
@@ -170,6 +185,8 @@ export class Scene {
     };
     this.moons = {
       [SolarBody.Moon]: new Moon(),
+      [SolarBody.Phobos]: new Phobos(),
+      [SolarBody.Deimos]: new Deimos(),
     };
     this.deepSpaceSatellites = createDeepSpaceSatellites();
     this.sun = new Sun();
@@ -189,7 +206,7 @@ export class Scene {
 
   update(simulationTime: Date) {
     this.sun.updateEci();
-    this.updateWorldShift();
+    this.updateWorldShift(simulationTime);
     this.sun.update();
     this.earth.update();
     for (const planet of Object.values(this.planets)) {
@@ -213,7 +230,25 @@ export class Scene {
     this.frustumFactory.updateAll();
   }
 
-  updateWorldShift() {
+  updateWorldShift(simulationTime?: Date) {
+    /*
+     * The shift is computed before every body updates, so without this the center body's
+     * position is a frame stale while the bodies drawn against the shift use the fresh
+     * one. That difference is normally invisible, but a body's position is only
+     * recomputed every 1000 ms of sim time - so the stale frame is a full 1000 ms of
+     * planetary motion, which for Mars is ~24,000 km. Anything rendered relative to Mars
+     * (its moons, their orbit rings and dots) jumped by that much for one frame, once a
+     * second. Refreshing the center body first costs nothing: the same cache that caused
+     * the problem makes the body's own update later in the frame a no-op.
+     */
+    if (simulationTime) {
+      const centerBodyEntity = this.getBodyById(settingsManager.centerBody);
+
+      if (centerBodyEntity instanceof CelestialBody) {
+        centerBodyEntity.updatePosition(simulationTime);
+      }
+    }
+
     this.updateWorldShiftBase_();
     this.applyWorldShiftForCamera(ServiceLocator.getMainCamera());
   }
@@ -246,6 +281,8 @@ export class Scene {
       case SolarBody.Venus:
       case SolarBody.Moon:
       case SolarBody.Mars:
+      case SolarBody.Phobos:
+      case SolarBody.Deimos:
       case SolarBody.Jupiter:
       case SolarBody.Saturn:
       case SolarBody.Uranus:
@@ -436,6 +473,15 @@ export class Scene {
         if (settingsManager.centerBody !== SolarBody.Earth && settingsManager.centerBody !== SolarBody.Sun) {
           profiler.beginGpu(GpuStage.planets);
           this.getBodyById(settingsManager.centerBody)?.draw(this.sun.position, renderer.postProcessingManager.curBuffer);
+
+          /*
+           * Only the center body is drawn as a mesh; everything else is a dot. That leaves
+           * the Mars system looking empty from the inside, so its members draw each other
+           * the way Earth and the Moon already do below.
+           */
+          for (const companion of MARS_SYSTEM_COMPANIONS[settingsManager.centerBody] ?? []) {
+            this.getBodyById(companion)?.draw(this.sun.position, renderer.postProcessingManager.curBuffer);
+          }
           profiler.endGpu(GpuStage.planets);
         }
       }
@@ -668,9 +714,10 @@ export class Scene {
      * (draws and readPixels are all gated), so skip its per-frame clear — a
      * render-target switch per frame that tiled mobile GPUs pay dearly for.
      * WebGL zero-initializes the attachment, so even a stray read decodes to
-     * "no object" (id -1).
+     * "no object" (id -1). WP4 also skips the clear on idle frames (no picking
+     * draws this frame), leaving the last-rendered buffer intact for readback.
      */
-    if (!settingsManager.isDisableGpuPicking) {
+    if (!settingsManager.isDisableGpuPicking && ServiceLocator.getRenderer().shouldRenderPicking) {
       gl.bindFramebuffer(gl.FRAMEBUFFER, this.frameBuffers.gpuPicking);
       gl.clearColor(0.0, 0.0, 0.0, 1.0);
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);

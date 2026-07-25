@@ -292,6 +292,8 @@ export enum SolarBody {
   Earth = 'Earth',
   Moon = 'Moon',
   Mars = 'Mars',
+  Phobos = 'Phobos',
+  Deimos = 'Deimos',
   Jupiter = 'Jupiter',
   Saturn = 'Saturn',
   Uranus = 'Uranus',

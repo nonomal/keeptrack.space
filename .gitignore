@@ -188,3 +188,7 @@ src/offline-tools
 scripts/**/*.png
 # ...but the scaffolder ships template icon assets that must be committed.
 !scripts/plugin/templates/**/*.png
+# Inspection-only exports of the procedural Mars-moon shapes (npm run mars-moons:mesh).
+# The app builds this geometry at runtime, so shipping the OBJs would just bloat the deploy.
+public/meshes/phobos.obj
+public/meshes/deimos.obj
