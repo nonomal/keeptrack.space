@@ -189,9 +189,8 @@ export class Earth {
       profiler.endGpu(GpuStage.atmosphere);
     }
     this.drawAuroraPass(tgtBuffer);
-    profiler.beginGpu(GpuStage.earth);
-    this.drawBlackGpuPickingEarth_();
-    profiler.endGpu(GpuStage.earth);
+    // The picking-earth draw is now issued from the gated picking flow in
+    // DotsManager.draw (WP4), not here.
   }
 
   /**
@@ -204,9 +203,11 @@ export class Earth {
   drawSurfacePass(tgtBuffer: WebGLFramebuffer | null) {
     const profiler = FrameProfiler.getInstance();
 
+    // Surface only — the picking-earth draw moved to the gated picking flow in
+    // DotsManager.draw (WP4), so this GPU stage now measures just the surface
+    // (it previously secretly included a second, full Earth draw).
     profiler.beginGpu(GpuStage.earth);
     this.drawEarthSurface_(tgtBuffer);
-    this.drawBlackGpuPickingEarth_();
     profiler.endGpu(GpuStage.earth);
   }
 
@@ -632,11 +633,20 @@ export class Earth {
   /**
    * This is run once per frame to render a black earth in the GPU picking buffer.
    */
-  private drawBlackGpuPickingEarth_() {
+  /**
+   * Draws the black Earth silhouette into the GPU picking FBO so satellites
+   * behind the Earth are not pickable. Relocated out of the per-frame surface
+   * draw (WP4): now called from the gated picking flow in {@link DotsManager.draw}
+   * right before the picking dots, so it is skipped on idle frames along with the
+   * dot picking pass, and the surface's own GPU stage no longer secretly includes
+   * this second Earth draw.
+   */
+  drawGpuPickingEarth() {
     // No picking reads ever happen with GPU picking disabled — skip the full
     // earth-sphere draw into the picking FBO (and its two framebuffer switches,
-    // which are expensive on tiled mobile GPUs).
-    if (settingsManager.isDisableGpuPicking) {
+    // which are expensive on tiled mobile GPUs). Also bail before the Earth's GL
+    // context/meshes are initialized (the picking flow may run first in tests).
+    if (settingsManager.isDisableGpuPicking || !this.gl_ || !this.surfaceMesh) {
       return;
     }
     const gl = this.gl_;

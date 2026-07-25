@@ -707,7 +707,9 @@ export class Scene {
       case SolarBody.Earth:
         return this.earth;
       case SolarBody.Moon:
-        return this.moons[SolarBody.Moon] ?? null;
+      case SolarBody.Phobos:
+      case SolarBody.Deimos:
+        return this.moons[solarBody] ?? null;
       case SolarBody.Mercury:
       case SolarBody.Venus:
       case SolarBody.Mars:

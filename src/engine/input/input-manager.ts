@@ -76,6 +76,70 @@ export class InputManager {
   private hasWarnedPickingDisabled_ = false;
   lastUpdateTime: number = 0;
 
+  // ─── On-demand GPU picking gate (WP4) ───────────────────────────────
+  /** How long after the last pointer/read activity to keep rendering the picking buffer. */
+  private static readonly PICK_ACTIVE_MS_ = 300;
+  /** Timestamp (Date.now) of the last pointer/touch/read activity. */
+  private lastPickActivityMs_ = 0;
+  /** One-shot: force the picking buffer to render next frame (guard for coord reads). */
+  private forcePickRender_ = false;
+  /** Previous frame's view-projection matrix, to detect camera motion. */
+  private lastPickCamMatrix_: Float32Array | null = null;
+
+  /**
+   * Mark that something happened that needs a fresh picking buffer soon: a
+   * pointer move / press, a touch, or a picking read. Keeps the picking buffer
+   * rendering for {@link PICK_ACTIVE_MS_} so the next readback is current.
+   */
+  markPickActivity(): void {
+    this.lastPickActivityMs_ = Date.now();
+  }
+
+  /**
+   * Decides whether the GPU picking buffer needs to be (re)rendered this frame.
+   * Called ONCE per frame by the renderer (it advances the camera-motion cache),
+   * and the result is read by the clear/earth/dots picking draws. Returns true on
+   * recent pointer/read activity, camera motion, or a forced refresh; false when
+   * idle so the two full-catalog picking passes can be skipped.
+   */
+  isPickingRenderNeeded(): boolean {
+    if (!this.isPickingSupported || settingsManager.isDisableGpuPicking) {
+      return false;
+    }
+    if (this.forcePickRender_) {
+      this.forcePickRender_ = false;
+
+      return true;
+    }
+    if (Date.now() - this.lastPickActivityMs_ < InputManager.PICK_ACTIVE_MS_) {
+      return true;
+    }
+
+    return this.hasCameraMoved_();
+  }
+
+  /** True when the view-projection matrix changed since the previous frame. */
+  private hasCameraMoved_(): boolean {
+    const m = ServiceLocator.getRenderer().projectionCameraMatrix;
+
+    if (!this.lastPickCamMatrix_) {
+      this.lastPickCamMatrix_ = new Float32Array(m);
+
+      return true;
+    }
+    let moved = false;
+
+    for (let i = 0; i < 16; i++) {
+      if (m[i] !== this.lastPickCamMatrix_[i]) {
+        moved = true;
+        break;
+      }
+    }
+    this.lastPickCamMatrix_.set(m);
+
+    return moved;
+  }
+
   constructor() {
     this.keyboard = new KeyboardInput();
     this.mouse = new MouseInput(this.keyboard);
@@ -282,6 +346,14 @@ export class InputManager {
     if (!this.isPickingSupported || settingsManager.isDisableGpuPicking) {
       return -1;
     }
+
+    // A coord read needs a fresh buffer next frame. Use the one-shot force flag,
+    // NOT the 300 ms activity window: the hover system polls this ~10/s even with
+    // a stationary cursor, so the window would keep picking rendering every frame
+    // and erase the idle win. The one-shot means each poll refreshes picking for
+    // exactly one frame (~10 picking renders/s idle vs 60), and it doubles as the
+    // guard for programmatic coordinate-pick APIs.
+    this.forcePickRender_ = true;
     const renderer = ServiceLocator.getRenderer();
     const dotsManagerInstance = ServiceLocator.getDotsManager();
     const catalogManagerInstance = ServiceLocator.getCatalogManager();
@@ -295,10 +367,15 @@ export class InputManager {
     profiler.beginCpu(CpuStage.pickRead);
     try {
       gl.bindFramebuffer(gl.FRAMEBUFFER, ServiceLocator.getScene().frameBuffers.gpuPicking);
-      if (!isThisNode() && this.isAsyncWorking && !settingsManager.isDisableAsyncReadPixels) {
+      // isDisableAsyncReadPixels must fall back to the sync read, not skip reading
+      // altogether: with async still flagged as working, both branches were skipped
+      // and every pick returned the stale buffer (id -1 forever).
+      const isAsyncRead = !isThisNode() && this.isAsyncWorking && !settingsManager.isDisableAsyncReadPixels;
+
+      if (isAsyncRead) {
         this.readPixelsAsync(x, gl.drawingBufferHeight - y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, dotsManagerInstance.pickReadPixelBuffer);
       }
-      if (!this.isAsyncWorking) {
+      if (!isAsyncRead) {
         try {
           gl.readPixels(x, gl.drawingBufferHeight - y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, dotsManagerInstance.pickReadPixelBuffer);
         } catch (e) {

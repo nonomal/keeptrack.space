@@ -147,6 +147,9 @@ export class TouchInput {
         (e) => {
           e.preventDefault();
           this.canvasTouchStart(e);
+          // Render the picking buffer during the touch so a tap-select read is
+          // fresh (mobile has no continuous hover to keep picking alive).
+          ServiceLocator.getInputManager().markPickActivity();
         },
         { passive: false }
       );

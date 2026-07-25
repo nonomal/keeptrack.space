@@ -337,10 +337,50 @@ export class DotsManager {
     gl.depthMask(true);
     gl.disable(gl.BLEND);
 
-    // Draw GPU Picking Overlay -- This is what lets us pick a satellite
-    profiler.beginGpu(GpuStage.picking);
-    this.drawGpuPickingFrameBuffer(projectionCameraMatrix, ServiceLocator.getMainCamera().state.mouseX, ServiceLocator.getMainCamera().state.mouseY);
-    profiler.endGpu(GpuStage.picking);
+    /*
+     * GPU picking (WP4): on idle frames the last-rendered picking buffer stays
+     * valid (nothing under the cursor moved), so skip both full-catalog picking
+     * passes AND the picking-earth silhouette. InputManager.isPickingRenderNeeded
+     * (computed once per frame into renderer.shouldRenderPicking) turns this back
+     * on for pointer/read activity and camera motion. The picking earth is drawn
+     * here — before the picking dots so they depth-test against it — instead of in
+     * Earth.drawSurfacePass, so it is gated with the dots and no longer inflates
+     * the surface's GPU stage.
+     */
+    if (ServiceLocator.getRenderer().shouldRenderPicking) {
+      profiler.beginGpu(GpuStage.picking);
+      ServiceLocator.getScene().earth.drawGpuPickingEarth();
+      this.drawGpuPickingFrameBuffer(projectionCameraMatrix, ServiceLocator.getMainCamera().state.mouseX, ServiceLocator.getMainCamera().state.mouseY);
+      profiler.endGpu(GpuStage.picking);
+    }
+  }
+
+  /**
+   * Uploads the star dot index range so the vertex shaders can re-anchor the
+   * star shell to the camera (stars are directions, not positions). The
+   * no-stars default from catalog-loader is a degenerate range (starIndex1 ===
+   * starIndex2 pointing at a real dot), so only a strictly increasing range is
+   * forwarded; -1/-1 keeps the branch off for every vertex.
+   */
+  private setStarRangeUniforms_(gl: WebGL2RenderingContext, uniforms: { u_starIdx1: WebGLUniformLocation; u_starIdx2: WebGLUniformLocation }): void {
+    const hasStars = this.starIndex2 > this.starIndex1;
+
+    gl.uniform1i(uniforms.u_starIdx1, hasStars ? this.starIndex1 : -1);
+    gl.uniform1i(uniforms.u_starIdx2, hasStars ? this.starIndex2 : -1);
+  }
+
+  /**
+   * Uploads the true-planet dot index range (planets + dwarf planets, EXCLUDING
+   * the deep-space probes that share the tail of the planet block) so the
+   * fragment shaders can draw the bold "ringed planet" glyph. -1/-1 keeps the
+   * branch off for every vertex until the catalog populates the indices.
+   */
+  private setPlanetRangeUniforms_(gl: WebGL2RenderingContext, uniforms: { u_planetIdx1: WebGLUniformLocation; u_planetIdx2: WebGLUniformLocation }): void {
+    const end = (this.deepSpaceDot1 ?? this.planetDot2) as number;
+    const hasPlanets = Number.isInteger(this.planetDot1) && Number.isInteger(end) && end > this.planetDot1;
+
+    gl.uniform1i(uniforms.u_planetIdx1, hasPlanets ? this.planetDot1 : -1);
+    gl.uniform1i(uniforms.u_planetIdx2, hasPlanets ? end - 1 : -1);
   }
 
   /**
