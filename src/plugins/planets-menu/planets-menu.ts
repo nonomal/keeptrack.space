@@ -274,13 +274,9 @@ export class PlanetsMenuPlugin extends KeepTrackPlugin implements ICommandPalett
    *
    * Driven by the body's own `parentBody` rather than the roster in `planet-moon-systems.ts`:
    * it is the moon object's own declaration of what it orbits, so it cannot disagree with
-   * where the moon is actually drawn. It covers Earth's Moon as well as the planet moons -
+   * where the moon is actually drawn. It covers Earth's Moon, the planet moons, and Charon -
    * Earth's own upgrade is a no-op, since Earth always loads its highest tier first, but
    * routing it through the same path means a future Earth with real tiers needs no change here.
-   *
-   * Not covered: Charon, which is carried as a dwarf planet of the Pluto-Charon binary rather
-   * than as a moon and so declares no parent. If Pluto ever looks soft from Charon, giving
-   * Charon a `parentBody` is the whole fix.
    */
   private upgradeParentTexture_(body: CelestialBody | null): void {
     const parent = body?.parentBody;

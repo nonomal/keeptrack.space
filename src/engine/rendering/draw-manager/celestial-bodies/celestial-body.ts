@@ -20,6 +20,7 @@ import { SelectSatManager } from '@app/plugins/select-sat-manager/select-sat-man
 import { DEG2RAD, EpochUTC, J2000, Kilometers, KilometersPerSecond, Seconds, SpaceObjectType, TEME, TemeVec3, Vector3D } from '@ootk/src/main';
 import { Body, BackdatePosition as backdatePosition, KM_PER_AU, RotationAxis as rotationAxis } from 'astronomy-engine';
 import { mat3, mat4, vec3 } from 'gl-matrix';
+import { DOT_HIDE_BODY_RADII } from '../../body-glyph';
 import { DepthManager } from '../../depth-manager';
 import { GlUtils } from '../../gl-utils';
 import { OrbitPathLine } from '../../line-manager/orbit-path';
@@ -400,6 +401,84 @@ export abstract class CelestialBody {
       positionData[Number(this.planetObject.id) * 3 + 1] = this.position[1];
       positionData[Number(this.planetObject.id) * 3 + 2] = this.position[2];
     }
+  }
+
+  /** Last dot visibility written to the GPU buffers, so the writes only happen on a change. */
+  protected isDotVisible_: boolean | null = null;
+  /** Pickability upload the last write went out against; a newer one means it was clobbered. */
+  protected lastPickableGeneration_ = -1;
+
+  /**
+   * Minimum on-screen separation from the parent body, in radians, for this body's dot to
+   * be shown.
+   *
+   * Zoomed far enough out the moons collapse onto the planet's own pixel, where their dots
+   * are both useless and in the way - clicking Jupiter would hit whichever dot happens to be
+   * on top. Below this the dot is hidden AND unpickable.
+   */
+  protected static readonly DOT_MIN_SEPARATION_RAD_ = 0.02;
+
+  /**
+   * The dot stands in for the body only in the range where it is the better marker, and is
+   * hidden (and made unpickable) at both ends of that range. Only meaningful for a body
+   * drawn as a mesh beside its parent - the catalog moons and Charon, i.e. anything with a
+   * `parentBody`/`semiMajorAxisKm` pair. A lone center body's dot is already handled by
+   * `DotsManager.hiddenCenterBodySlot_`.
+   *
+   * Far end: zoomed out the moons collapse onto the planet's own pixel, where their dots are
+   * in the way - clicking the planet would select whichever dot won the depth test. Hiding
+   * is not enough on its own, because a size-0 dot still owns its pick square; only
+   * `a_pickable` clears it.
+   *
+   * Near end: the dot buffer is a Float32Array of absolute coordinates, and out at Saturn
+   * that resolves to no better than ~100 km, which visibly swims against the body it is
+   * marking. The mesh is placed in doubles and is already several pixels wide by then, so
+   * the dot has nothing left to contribute.
+   *
+   * The state is reasserted whenever the color scheme re-uploads the pickability buffer.
+   * That upload rebuilds every dot from the scheme, which hands all planet dots
+   * `Pickable.Yes` unconditionally, so a moon that had gone unpickable silently became
+   * clickable again while its dot stayed hidden - you would aim at Jupiter, hit Io, and have
+   * nothing on screen explaining why. Comparing the generation costs an integer per body per
+   * frame and issues no GPU work unless something actually clobbered the byte.
+   */
+  protected updateDotVisibility_(): void {
+    const planetObject = this.planetObject;
+    const parent = this.parentBody ? (ServiceLocator.getScene()?.getBodyById(this.parentBody) as CelestialBody | null) : null;
+
+    // The render loop reaches here before every singleton registers; guard each lookup.
+    const camera = ServiceLocator.getMainCamera();
+
+    if (!planetObject || !parent || typeof this.semiMajorAxisKm !== 'number' || !camera) {
+      return;
+    }
+
+    const cameraDistanceToParent = Math.max(camera.getDistFromEntity(vec3.fromValues(parent.position[0], parent.position[1], parent.position[2])), 1);
+    // Small-angle separation between this body's orbit and its parent, as the camera sees it.
+    const separationRad = this.semiMajorAxisKm / cameraDistanceToParent;
+    const cameraDistanceToBody = Math.max(camera.getDistFromEntity(vec3.fromValues(this.position[0], this.position[1], this.position[2])), 1);
+    const nearLimitKm = this.RADIUS * DOT_HIDE_BODY_RADII;
+    /*
+     * Hysteresis on the near limit: the camera-to-body distance swings by the orbit
+     * diameter as the body goes round, so a bare threshold would flicker the dot on and
+     * off once per orbit for any view parked near it.
+     */
+    const nearLimitWithHysteresisKm = this.isDotVisible_ === false ? nearLimitKm * 1.25 : nearLimitKm;
+    const isVisible = separationRad >= CelestialBody.DOT_MIN_SEPARATION_RAD_ && cameraDistanceToBody > nearLimitWithHysteresisKm;
+    // Undefined until the color scheme registers itself, which is later than the first frames.
+    const pickableGeneration = ServiceLocator.getColorSchemeManager()?.pickableUploadGeneration ?? -1;
+
+    if (isVisible === this.isDotVisible_ && pickableGeneration === this.lastPickableGeneration_) {
+      return;
+    }
+
+    this.isDotVisible_ = isVisible;
+    this.lastPickableGeneration_ = pickableGeneration;
+
+    const gl = this.gl_;
+
+    planetObject.setHoverDotSize(gl, isVisible ? 1 : 0);
+    planetObject.setPickable(gl, isVisible);
   }
 
   protected readonly shaders = {

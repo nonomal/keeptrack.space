@@ -62,8 +62,8 @@ describe('planets-bodies', () => {
   });
 
   describe('with only the built-in content', () => {
-    it("ships Earth's Moon and the two Mars moons, and no others", () => {
-      expect(moons()).toEqual([SolarBody.Moon, SolarBody.Phobos, SolarBody.Deimos]);
+    it("ships Earth's Moon, the two Mars moons, and Charon, and no others", () => {
+      expect(moons()).toEqual([SolarBody.Moon, SolarBody.Phobos, SolarBody.Deimos, SolarBody.Charon]);
     });
 
     it('ships no asteroids', () => {
@@ -129,6 +129,8 @@ describe('planets-bodies', () => {
     expect(categoryOf(SolarBody.Pluto)).toBe('dwarfPlanets');
     expect(categoryOf(SolarBody.Moon)).toBe('moons');
     expect(categoryOf(SolarBody.Phobos)).toBe('moons');
+    // Charon is Pluto's moon by classification, even though it renders as a Chebyshev body.
+    expect(categoryOf(SolarBody.Charon)).toBe('moons');
     expect(categoryOf(SolarBody.Sun)).toBe('otherCelestialBodies');
   });
 

@@ -22,7 +22,6 @@
 import { EciArr3, SolarBody } from '@app/engine/core/interfaces';
 import { Scene } from '@app/engine/core/scene';
 import { ServiceLocator } from '@app/engine/core/service-locator';
-import { DOT_HIDE_BODY_RADII } from '@app/engine/rendering/body-glyph';
 import { BufferGeometry } from '@app/engine/rendering/buffer-geometry';
 import { IrregularBodyGeometry } from '@app/engine/rendering/irregular-body-geometry';
 import { IrregularBodyShape } from '@app/engine/rendering/irregular-body-shape';
@@ -134,20 +133,6 @@ export abstract class PlanetMoon extends CelestialBody {
   private readonly ringVertexBuffer_ = new Float32Array(this.orbitPathSegments_ * 4);
   /** Which segment-width slice of sim time the ring vertices were last sampled from. */
   private lastRingSampleIndex_ = Number.NaN;
-  /** Last dot visibility written to the GPU buffers, so the writes only happen on a change. */
-  private isDotVisible_: boolean | null = null;
-  /** Pickability upload the last write went out against; a newer one means it was clobbered. */
-  private lastPickableGeneration_ = -1;
-
-  /**
-   * Minimum on-screen separation from the parent planet, in radians, for this moon's dot to
-   * be shown.
-   *
-   * Zoomed far enough out the moons collapse onto the planet's own pixel, where their dots
-   * are both useless and in the way - clicking Jupiter would hit whichever dot happens to be
-   * on top. Below this the dot is hidden AND unpickable.
-   */
-  private static readonly DOT_MIN_SEPARATION_RAD_ = 0.02;
 
   /**
    * Follows the planets toggle rather than the moon loop that loads it.
@@ -440,62 +425,5 @@ export abstract class PlanetMoon extends CelestialBody {
    */
   protected get isOrbitPathDrawnAsCenterBody_(): boolean {
     return true;
-  }
-
-  /**
-   * The dot stands in for the moon only in the range where it is the better marker, and is
-   * hidden (and made unpickable) at both ends of that range.
-   *
-   * Far end: zoomed out the moons collapse onto the planet's own pixel, where their dots are
-   * in the way - clicking the planet would select whichever dot won the depth test. Hiding
-   * is not enough on its own, because a size-0 dot still owns its pick square; only
-   * `a_pickable` clears it.
-   *
-   * Near end: the dot buffer is a Float32Array of absolute coordinates, and out at Saturn
-   * that resolves to no better than ~100 km, which visibly swims against the body it is
-   * marking. The mesh is placed in doubles and is already several pixels wide by then, so
-   * the dot has nothing left to contribute.
-   *
-   * The state is reasserted whenever the color scheme re-uploads the pickability buffer.
-   * That upload rebuilds every dot from the scheme, which hands all planet dots
-   * `Pickable.Yes` unconditionally, so a moon that had gone unpickable silently became
-   * clickable again while its dot stayed hidden - you would aim at Jupiter, hit Io, and have
-   * nothing on screen explaining why. Comparing the generation costs an integer per moon per
-   * frame and issues no GPU work unless something actually clobbered the byte.
-   */
-  private updateDotVisibility_(): void {
-    const planetObject = this.planetObject;
-
-    if (!planetObject) {
-      return;
-    }
-
-    const camera = ServiceLocator.getMainCamera();
-    const cameraDistanceToParent = Math.max(camera.getDistFromEntity(vec3.fromValues(...this.parent_.position)), 1);
-    // Small-angle separation between the moon's orbit and the planet, as the camera sees it.
-    const separationRad = this.semiMajorAxisKm / cameraDistanceToParent;
-    const cameraDistanceToMoon = Math.max(camera.getDistFromEntity(vec3.fromValues(...this.position)), 1);
-    const nearLimitKm = this.RADIUS * DOT_HIDE_BODY_RADII;
-    /*
-     * Hysteresis on the near limit: the camera-to-moon distance swings by the orbit
-     * diameter as the moon goes round, so a bare threshold would flicker the dot on and
-     * off once per orbit for any view parked near it.
-     */
-    const nearLimitWithHysteresisKm = this.isDotVisible_ === false ? nearLimitKm * 1.25 : nearLimitKm;
-    const isVisible = separationRad >= PlanetMoon.DOT_MIN_SEPARATION_RAD_ && cameraDistanceToMoon > nearLimitWithHysteresisKm;
-    // Undefined until the color scheme registers itself, which is later than the first frames.
-    const pickableGeneration = ServiceLocator.getColorSchemeManager()?.pickableUploadGeneration ?? -1;
-
-    if (isVisible === this.isDotVisible_ && pickableGeneration === this.lastPickableGeneration_) {
-      return;
-    }
-
-    this.isDotVisible_ = isVisible;
-    this.lastPickableGeneration_ = pickableGeneration;
-
-    const gl = this.gl_;
-
-    planetObject.setHoverDotSize(gl, isVisible ? 1 : 0);
-    planetObject.setPickable(gl, isVisible);
   }
 }

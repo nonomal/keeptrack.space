@@ -98,27 +98,45 @@ export function parentPlanetOf(body: SolarBody): SolarBody | null {
 }
 
 /**
+ * Mutual companions that draw together without being roster entries. Pluto-Charon is near
+ * enough a binary that Charon rides its own heliocentric Chebyshev ephemeris instead of the
+ * planet-moon catalog - but the pair is only ~19,600 km apart, so from either one the other
+ * fills a real part of the sky. Listed both ways because the lookup is by center body.
+ *
+ * Deliberately NOT a {@link registerPlanetSystem} entry: the roster feeds `allPlanetMoons()`
+ * and the parent-centric orbit-ring machinery, and Charon has neither a catalog entry nor a
+ * parent-centric ring - drawing its "orbit" inside the Pluto system would put its heliocentric
+ * ellipse straight through the view.
+ */
+const BINARY_COMPANIONS_: Partial<Record<SolarBody, readonly SolarBody[]>> = {
+  [SolarBody.Pluto]: [SolarBody.Charon],
+  [SolarBody.Charon]: [SolarBody.Pluto],
+};
+
+/**
  * Every body that shares a neighbourhood with `centerBody` and therefore has to be drawn
- * alongside it: a planet's moons, and for a moon its planet plus its siblings.
+ * alongside it: a planet's moons, for a moon its planet plus its siblings, and for either
+ * half of a binary pair the other half.
  *
  * Load-bearing. Only the center body is drawn as a mesh, so a system missing from the table
  * above means centering on Jupiter and seeing no moons at all - or standing on Europa and
  * seeing empty space where Jupiter should fill half the sky.
  */
 export function systemCompanionsOf(centerBody: SolarBody): readonly SolarBody[] {
+  const binary = BINARY_COMPANIONS_[centerBody] ?? [];
   const ownMoons = PLANET_SYSTEM_MOONS_[centerBody];
 
   if (ownMoons) {
-    return ownMoons;
+    return [...binary, ...ownMoons];
   }
 
   const parent = parentPlanetOf(centerBody);
 
   if (!parent) {
-    return [];
+    return binary;
   }
 
-  return [parent, ...PLANET_SYSTEM_MOONS_[parent]!.filter((moon) => moon !== centerBody)];
+  return [...binary, parent, ...PLANET_SYSTEM_MOONS_[parent]!.filter((moon) => moon !== centerBody)];
 }
 
 /** True when `centerBody` is the given planet or one of its moons. */

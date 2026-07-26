@@ -33,20 +33,22 @@ export const DWARF_PLANETS: readonly SolarBody[] = [
   SolarBody.Quaoar,
   SolarBody.Orcus,
   SolarBody.Gonggong,
-  SolarBody.Charon,
 ];
 
 /**
- * Earth's Moon first, then every planet moon grouped by parent and ordered outward from it.
- * The planet-moon half is pulled from the scene's own roster rather than re-listed, so a moon
- * cannot exist in the renderer and be missing from the menu.
+ * Earth's Moon first, then every planet moon grouped by parent and ordered outward from it,
+ * then Charon. The planet-moon half is pulled from the scene's own roster rather than
+ * re-listed, so a moon cannot exist in the renderer and be missing from the menu. Charon is
+ * appended by hand because it is Pluto's moon by classification but not by machinery - it
+ * rides its own heliocentric Chebyshev ephemeris, not the planet-moon catalog - and Pluto is
+ * the outermost parent anyway, so last place is also its ordered place.
  *
  * A function rather than a constant: the roster is registered during plugin init, so a
  * module-level snapshot taken when this file is first imported can miss whatever registers
  * after it. See the load-order note in `planet-moon-systems.ts`.
  */
 export function moons(): readonly SolarBody[] {
-  return [SolarBody.Moon, ...allPlanetMoons()];
+  return [SolarBody.Moon, ...allPlanetMoons(), SolarBody.Charon];
 }
 
 /**
@@ -133,8 +135,8 @@ const CONTRIBUTED_BODIES: ReadonlySet<SolarBody> = new Set([SolarBody.Vesta, Sol
  * The bodies shown indented under `body` in the menu: its moons.
  *
  * Earth's Moon and Charon are special-cased because neither belongs to the planet-moon
- * catalog - the Moon predates it, and Charon is carried as a dwarf planet (Pluto-Charon is
- * near enough a binary that it is catalogued both ways).
+ * catalog - the Moon predates it, and Charon rides its own heliocentric Chebyshev ephemeris
+ * (Pluto-Charon is near enough a binary that both bodies are fitted directly).
  */
 export function satellitesOf(body: SolarBody): readonly SolarBody[] {
   if (body === SolarBody.Earth) {
