@@ -1,9 +1,9 @@
 /**
  * Procedural shape models for Phobos and Deimos.
  *
- * Kept apart from the body classes (which pull in settings and GL) so
- * `scripts/mars-moons/export-moon-mesh.ts` can import them in plain Node and emit the
- * identical surface as an OBJ. See {@link IrregularBodyShape} for how the fields combine.
+ * Kept apart from the body classes (which pull in settings and GL) so a plain-Node exporter
+ * can import them and emit the identical surface as an OBJ. See {@link IrregularBodyShape}
+ * for how the fields combine.
  */
 
 import { IrregularBodyShape } from '@app/engine/rendering/irregular-body-shape';

@@ -45,6 +45,34 @@ export const PlanetColors = {
   ORCUS: [0.55, 0.55, 0.58, 0.7] as rgbaArray,
   GONGGONG: [0.7, 0.3, 0.2, 0.7] as rgbaArray,
   CHARON: [0.6, 0.6, 0.65, 0.7] as rgbaArray,
+  // Main-belt asteroids, tinted by spectral class: bright V-type Vesta, bluish B-type Pallas,
+  // warm S-type Juno, and Hygiea as dark as its 7% albedo allows while staying visible.
+  VESTA: [0.78, 0.74, 0.64, 0.85] as rgbaArray,
+  PALLAS: [0.46, 0.48, 0.52, 0.8] as rgbaArray,
+  JUNO: [0.62, 0.52, 0.42, 0.8] as rgbaArray,
+  HYGIEA: [0.4, 0.39, 0.38, 0.8] as rgbaArray,
+  /*
+   * Moons, tinted toward how each body actually looks so a dot or an orbit ring reads as
+   * that moon rather than as a generic grey marker: Io's sulfur yellow against Europa's
+   * pale ice, Titan's orange haze against Enceladus's near-white.
+   */
+  IO: [0.95, 0.85, 0.45, 0.8] as rgbaArray,
+  EUROPA: [0.9, 0.85, 0.78, 0.8] as rgbaArray,
+  GANYMEDE: [0.72, 0.68, 0.62, 0.8] as rgbaArray,
+  CALLISTO: [0.55, 0.5, 0.45, 0.8] as rgbaArray,
+  MIMAS: [0.82, 0.82, 0.84, 0.8] as rgbaArray,
+  ENCELADUS: [0.97, 0.98, 1.0, 0.8] as rgbaArray,
+  TETHYS: [0.88, 0.89, 0.9, 0.8] as rgbaArray,
+  DIONE: [0.85, 0.85, 0.86, 0.8] as rgbaArray,
+  RHEA: [0.8, 0.8, 0.82, 0.8] as rgbaArray,
+  TITAN: [0.92, 0.66, 0.32, 0.8] as rgbaArray,
+  IAPETUS: [0.72, 0.63, 0.5, 0.8] as rgbaArray,
+  MIRANDA: [0.75, 0.75, 0.78, 0.8] as rgbaArray,
+  ARIEL: [0.8, 0.8, 0.82, 0.8] as rgbaArray,
+  UMBRIEL: [0.55, 0.55, 0.58, 0.8] as rgbaArray,
+  TITANIA: [0.76, 0.72, 0.68, 0.8] as rgbaArray,
+  OBERON: [0.7, 0.64, 0.6, 0.8] as rgbaArray,
+  TRITON: [0.9, 0.85, 0.85, 0.8] as rgbaArray,
   // Deep-space satellites
   VOYAGER1: [0.7, 0.85, 1.0, 0.9] as rgbaArray,
   VOYAGER2: [0.85, 0.75, 1.0, 0.9] as rgbaArray,
@@ -57,6 +85,17 @@ export abstract class CelestialBody {
   readonly RADIUS: number;
   protected readonly NUM_HEIGHT_SEGS: number;
   protected readonly NUM_WIDTH_SEGS: number;
+
+  /**
+   * Radius the camera's surface-zoom floor must clear, km. `RADIUS` is a MEAN radius, so any
+   * body with a procedural irregular shape has to report its longest axis instead: at
+   * 1.2 x mean, the camera can end up INSIDE the mesh, and since the fragment shader discards
+   * every face pointing away from it, the body then renders as a completely empty black frame
+   * with no error anywhere. See planets-core.getBodyViewConfig.
+   */
+  get zoomFloorRadiusKm(): number {
+    return this.RADIUS;
+  }
 
   protected gl_: WebGL2RenderingContext;
   protected isLoaded_ = false;
@@ -76,7 +115,12 @@ export abstract class CelestialBody {
 
   orbitPathSegments_ = 8192;
   orbitalPeriod: Seconds;
+  /** Only meaningful for a body that orbits the Sun. Moons leave this undefined and set the two below. */
   meanDistanceToSun: Kilometers;
+  /** The body this one orbits, when that is not the Sun. `PlanetMoon` requires both of these. */
+  parentBody?: SolarBody;
+  /** Mean orbital radius about `parentBody`, in kilometres. */
+  semiMajorAxisKm?: number;
   fullOrbitPath: OrbitPathLine | null = null;
   fullOrbitPathEarthCentered: OrbitPathLine | null = null;
   isDrawOrbitPath: boolean = false;

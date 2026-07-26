@@ -258,6 +258,7 @@ export class SelectSatManager extends KeepTrackPlugin implements ISettingsContri
         case SpaceObjectType.GAS_GIANT:
         case SpaceObjectType.ICE_GIANT:
         case SpaceObjectType.DWARF_PLANET:
+        case SpaceObjectType.ASTEROID:
         case SpaceObjectType.MOON:
           PluginRegistry.getPlugin(PlanetsMenuPlugin)?.changePlanet(obj.name as SolarBody);
 

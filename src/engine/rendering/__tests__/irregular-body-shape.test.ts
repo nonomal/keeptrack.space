@@ -1,4 +1,4 @@
-import { PHOBOS_SHAPE } from '@app/engine/rendering/draw-manager/celestial-bodies/mars-moon-shapes';
+import { PHOBOS_SHAPE } from '@app/engine/rendering/draw-manager/celestial-bodies/irregular-moon-shapes';
 import { buildIrregularSurface, IrregularBodyShape, shapeRadius } from '@app/engine/rendering/irregular-body-shape';
 
 const DEG2RAD = Math.PI / 180;

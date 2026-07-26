@@ -41,6 +41,8 @@ export class Moon extends CelestialBody {
   protected readonly NUM_HEIGHT_SEGS = 128;
   protected readonly NUM_WIDTH_SEGS = 128;
   orbitalPeriod = (27.321661 * 24 * 3600) as Seconds;
+  readonly parentBody = SolarBody.Earth;
+  readonly semiMajorAxisKm = 384400;
   color = PlanetColors.MOON;
   rotation = [0, 0, Math.PI];
   textureQuality: MoonTextureQuality = MoonTextureQuality.POTATO;

@@ -7,9 +7,9 @@
  * on the same lat/lon grid `SphereGeometry` uses, so the equirectangular texture maps
  * exactly as it does on every other body.
  *
- * Deliberately GL-free so `scripts/mars-moons/export-moon-mesh.ts` can emit the identical
- * surface as an OBJ for inspection in the mesh viewer. The noise is a seeded integer hash,
- * so the runtime geometry and the exported file agree vertex for vertex.
+ * Deliberately GL-free so a plain-Node exporter can build the identical surface and write it
+ * out as an OBJ for inspection in the mesh viewer. The noise is a seeded integer hash, so the
+ * runtime geometry and the exported file agree vertex for vertex.
  */
 
 export interface CraterSpec {

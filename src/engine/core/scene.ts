@@ -8,12 +8,12 @@ import { CameraType } from '../camera/camera-type';
 import { Engine } from '../engine';
 import { EventBus } from '../events/event-bus';
 import { EventBusEvent } from '../events/event-bus-events';
+import { createRegisteredBodies, RegisteredBodyKind, registeredDustField, SolarSystemDustField } from '../rendering/draw-manager/celestial-bodies/body-registry';
 import { CelestialBody } from '../rendering/draw-manager/celestial-bodies/celestial-body';
 import { Ceres } from '../rendering/draw-manager/celestial-bodies/ceres';
 import { Charon } from '../rendering/draw-manager/celestial-bodies/charon';
 import { DeepSpaceSatellite } from '../rendering/draw-manager/celestial-bodies/deep-space-satellite';
 import { createDeepSpaceSatellites, loadDeepSpaceSatelliteData } from '../rendering/draw-manager/celestial-bodies/deep-space-satellite-catalog';
-import { Deimos } from '../rendering/draw-manager/celestial-bodies/deimos';
 import { DwarfPlanet } from '../rendering/draw-manager/celestial-bodies/dwarf-planet';
 import { Eris } from '../rendering/draw-manager/celestial-bodies/eris';
 import { Gonggong } from '../rendering/draw-manager/celestial-bodies/gonggong';
@@ -25,7 +25,7 @@ import { Mercury } from '../rendering/draw-manager/celestial-bodies/mercury';
 import { Moon } from '../rendering/draw-manager/celestial-bodies/moon';
 import { Neptune } from '../rendering/draw-manager/celestial-bodies/neptune';
 import { Orcus } from '../rendering/draw-manager/celestial-bodies/orcus';
-import { Phobos } from '../rendering/draw-manager/celestial-bodies/phobos';
+import { systemCompanionsOf } from '../rendering/draw-manager/celestial-bodies/planet-moon-systems';
 import { Pluto } from '../rendering/draw-manager/celestial-bodies/pluto';
 import { Quaoar } from '../rendering/draw-manager/celestial-bodies/quaoar';
 import { Saturn } from '../rendering/draw-manager/celestial-bodies/saturn';
@@ -56,17 +56,6 @@ export interface SceneParams {
   background?: WebGLTexture;
 }
 
-/**
- * Bodies that must be drawn alongside the center body because they share its
- * neighbourhood. Mars and its two moons are close enough together that viewing any one of
- * them without the others is wrong.
- */
-const MARS_SYSTEM_COMPANIONS: Partial<Record<SolarBody, SolarBody[]>> = {
-  [SolarBody.Mars]: [SolarBody.Phobos, SolarBody.Deimos],
-  [SolarBody.Phobos]: [SolarBody.Mars, SolarBody.Deimos],
-  [SolarBody.Deimos]: [SolarBody.Mars, SolarBody.Phobos],
-};
-
 export class Scene {
   private static instance_: Scene;
   private gl_: WebGL2RenderingContext;
@@ -83,21 +72,11 @@ export class Scene {
     [SolarBody.Uranus]: CelestialBody;
     [SolarBody.Neptune]: CelestialBody;
   };
-  moons: {
-    [SolarBody.Moon]: Moon;
-    [SolarBody.Phobos]: Phobos;
-    [SolarBody.Deimos]: Deimos;
-    [SolarBody.Io]?: CelestialBody;
-    [SolarBody.Europa]?: CelestialBody;
-    [SolarBody.Ganymede]?: CelestialBody;
-    [SolarBody.Callisto]?: CelestialBody;
-    [SolarBody.Titan]?: CelestialBody;
-    [SolarBody.Rhea]?: CelestialBody;
-    [SolarBody.Iapetus]?: CelestialBody;
-    [SolarBody.Dione]?: CelestialBody;
-    [SolarBody.Tethys]?: CelestialBody;
-    [SolarBody.Enceladus]?: CelestialBody;
-  };
+  /**
+   * Earth's Moon plus every moon of another planet. Only the Moon is guaranteed present -
+   * the rest come from {@link createPlanetMoons}, which owns the roster.
+   */
+  moons: { [SolarBody.Moon]: Moon } & Partial<Record<SolarBody, CelestialBody>>;
   dwarfPlanets: {
     [SolarBody.Makemake]?: DwarfPlanet;
     [SolarBody.Pluto]?: DwarfPlanet;
@@ -110,7 +89,20 @@ export class Scene {
     [SolarBody.Gonggong]?: DwarfPlanet;
     [SolarBody.Charon]?: DwarfPlanet;
   };
+  /**
+   * Main-belt asteroids rendered as real bodies, with Horizons ephemerides and measured
+   * shapes, unlike the procedural cloud in {@link asteroidBelt}. Contributed content - empty
+   * in a build that ships none.
+   */
+  asteroids: Partial<Record<SolarBody, CelestialBody>>;
   deepSpaceSatellites: Record<string, DeepSpaceSatellite>;
+  /**
+   * The procedural main belt, Hilda group and Jupiter Trojan swarms.
+   *
+   * Null in a build that ships no dust field, so every use site has to check. That is the
+   * point: the belt is contributed content and the scene has to render correctly without it.
+   */
+  asteroidBelt: SolarSystemDustField | null;
   sun: Sun;
   godrays: Godrays;
   worldMarkers: WorldMarkers;
@@ -183,12 +175,17 @@ export class Scene {
       [SolarBody.Gonggong]: new Gonggong(),
       [SolarBody.Charon]: new Charon(),
     };
-    this.moons = {
-      [SolarBody.Moon]: new Moon(),
-      [SolarBody.Phobos]: new Phobos(),
-      [SolarBody.Deimos]: new Deimos(),
-    };
+    /*
+     * Earth's Moon is built here because it predates the planet-moon system and is not part
+     * of it; every other moon, and every asteroid, is contributed content (see
+     * `body-registry.ts`). Providers registered before the plugins loaded, so whatever this
+     * build ships is already known.
+     */
+    this.moons = { [SolarBody.Moon]: new Moon() };
+    Object.assign(this.moons, createRegisteredBodies(RegisteredBodyKind.Moon));
+    this.asteroids = createRegisteredBodies(RegisteredBodyKind.Asteroid);
     this.deepSpaceSatellites = createDeepSpaceSatellites();
+    this.asteroidBelt = registeredDustField();
     this.sun = new Sun();
     this.godrays = new Godrays();
     this.worldMarkers = new WorldMarkers();
@@ -217,6 +214,9 @@ export class Scene {
     }
     for (const dwarfPlanet of Object.values(this.dwarfPlanets)) {
       dwarfPlanet.update(simulationTime);
+    }
+    for (const asteroid of Object.values(this.asteroids)) {
+      asteroid.update(simulationTime);
     }
     for (const deepSpaceSat of Object.values(this.deepSpaceSatellites)) {
       deepSpaceSat.update(simulationTime);
@@ -277,44 +277,24 @@ export class Scene {
 
   private updateWorldShiftBase_() {
     switch (settingsManager.centerBody) {
-      case SolarBody.Mercury:
-      case SolarBody.Venus:
-      case SolarBody.Moon:
-      case SolarBody.Mars:
-      case SolarBody.Phobos:
-      case SolarBody.Deimos:
-      case SolarBody.Jupiter:
-      case SolarBody.Saturn:
-      case SolarBody.Uranus:
-      case SolarBody.Neptune:
-        this.worldShiftBase_ = (this.getBodyById(settingsManager.centerBody)!.position as [number, number, number]).map((coord: number) => -coord) as [number, number, number];
-        break;
-      case SolarBody.Pluto:
-      case SolarBody.Makemake:
-      case SolarBody.Ceres:
-      case SolarBody.Haumea:
-      case SolarBody.Eris:
-      case SolarBody.Sedna:
-      case SolarBody.Quaoar:
-      case SolarBody.Orcus:
-      case SolarBody.Gonggong:
-      case SolarBody.Charon:
-        this.worldShiftBase_ = (this.dwarfPlanets[settingsManager.centerBody]!.position as [number, number, number]).map((coord: number) => -coord) as [number, number, number];
-        break;
       case SolarBody.Sun:
         this.worldShiftBase_ = [this.sun.eci.x, this.sun.eci.y, this.sun.eci.z].map((coord: number) => -coord) as [number, number, number];
         break;
       case SolarBody.Earth:
         this.worldShiftBase_ = [0, 0, 0];
         break;
-      default:
-        if (this.deepSpaceSatellites?.[settingsManager.centerBody]) {
-          const sat = this.deepSpaceSatellites[settingsManager.centerBody];
+      default: {
+        /*
+         * Everything else - planets, dwarf planets, moons, deep-space probes - is just the
+         * negated position of whatever getBodyById resolves. This used to be three
+         * hand-maintained case lists, and a body missing from them fell through to
+         * [0, 0, 0], which draws the entire scene hundreds of millions of kilometers
+         * off-screen rather than failing in any way that points at the cause.
+         */
+        const centerBodyEntity = this.getBodyById(settingsManager.centerBody);
 
-          this.worldShiftBase_ = (sat.position as [number, number, number]).map((coord: number) => -coord) as [number, number, number];
-        } else {
-          this.worldShiftBase_ = [0, 0, 0];
-        }
+        this.worldShiftBase_ = centerBodyEntity ? ((centerBodyEntity.position as [number, number, number]).map((coord: number) => -coord) as [number, number, number]) : [0, 0, 0];
+      }
     }
 
     // Satellite position is ALWAYS relative to Earth center and selecting a
@@ -476,10 +456,10 @@ export class Scene {
 
           /*
            * Only the center body is drawn as a mesh; everything else is a dot. That leaves
-           * the Mars system looking empty from the inside, so its members draw each other
+           * a planet's system looking empty from the inside, so its members draw each other
            * the way Earth and the Moon already do below.
            */
-          for (const companion of MARS_SYSTEM_COMPANIONS[settingsManager.centerBody] ?? []) {
+          for (const companion of systemCompanionsOf(settingsManager.centerBody)) {
             this.getBodyById(companion)?.draw(this.sun.position, renderer.postProcessingManager.curBuffer);
           }
           profiler.endGpu(GpuStage.planets);
@@ -502,6 +482,22 @@ export class Scene {
         profiler.beginGpu(GpuStage.planets);
         this.getBodyById(SolarBody.Moon)?.draw(this.sun.position, renderer.postProcessingManager.curBuffer);
         profiler.endGpu(GpuStage.planets);
+      }
+
+      /*
+       * After the planets so the dust depth-tests against a planet in front of it, and before
+       * the dots/orbits of renderOpaque so those draw over it. Self-gating: nothing is
+       * submitted unless the camera is out at interplanetary range.
+       */
+      if (this.asteroidBelt) {
+        profiler.beginGpu(GpuStage.asteroidBelt);
+        this.asteroidBelt.draw(
+          renderer.projectionCameraMatrix,
+          ServiceLocator.getTimeManager().simulationTimeObj,
+          this.worldShift as [number, number, number],
+          renderer.postProcessingManager.curBuffer
+        );
+        profiler.endGpu(GpuStage.asteroidBelt);
       }
 
       profiler.beginGpu(GpuStage.scenery);
@@ -753,10 +749,6 @@ export class Scene {
     switch (solarBody) {
       case SolarBody.Earth:
         return this.earth;
-      case SolarBody.Moon:
-      case SolarBody.Phobos:
-      case SolarBody.Deimos:
-        return this.moons[solarBody] ?? null;
       case SolarBody.Mercury:
       case SolarBody.Venus:
       case SolarBody.Mars:
@@ -776,10 +768,16 @@ export class Scene {
       case SolarBody.Gonggong:
       case SolarBody.Charon:
         return this.dwarfPlanets[solarBody] ?? null;
+      case SolarBody.Vesta:
+      case SolarBody.Pallas:
+      case SolarBody.Juno:
+      case SolarBody.Hygiea:
+        return this.asteroids[solarBody] ?? null;
       case SolarBody.Sun:
         return this.sun as unknown as CelestialBody;
       default:
-        return this.deepSpaceSatellites?.[solarBody] ?? null;
+        // Earth's Moon, the nineteen planet moons, then the deep-space probes.
+        return this.moons?.[solarBody] ?? this.deepSpaceSatellites?.[solarBody] ?? null;
     }
   }
 
@@ -802,6 +800,17 @@ export class Scene {
         for (const dwarfPlanet of Object.values(this.dwarfPlanets)) {
           dwarfPlanet.init(this.gl_);
         }
+        for (const asteroid of Object.values(this.asteroids)) {
+          asteroid.init(this.gl_);
+        }
+
+        /*
+         * Always built, even with the belt currently switched off: the program and buffer are
+         * cheap, and this is what lets the setting be toggled live (the population itself is
+         * generated by the first draw that actually needs it). Absent entirely in a build
+         * that ships no dust field.
+         */
+        this.asteroidBelt?.init(this.gl_);
 
         // This doesn't belong under a disable planets flag
         await loadDeepSpaceSatelliteData(this.deepSpaceSatellites);
