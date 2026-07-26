@@ -39,6 +39,21 @@ const PLANET_MAX_ZOOM = 1.3e10; // 13 billion km
 /** Multiplier applied to a body's radius to keep the camera just above its surface. */
 const SURFACE_ZOOM_FACTOR = 1.2;
 /**
+ * The camera never gets closer than this to a body's surface, whatever its radius. The
+ * proportional rule alone lets a small moon pull the camera within a few hundred meters
+ * (1.2 x mean radius is ~1.2 km above Deimos), where there is nothing to see but noise - and
+ * for an irregular body the mean radius understates the long axis, so 1.2 x mean can even end
+ * up INSIDE the mesh, which renders as a black frame with no error. Ten kilometers of clearance
+ * closes both: no body's long axis exceeds its mean radius by 10 km at the size where the
+ * proportional rule stops dominating.
+ */
+const MIN_SURFACE_CLEARANCE_KM = 10;
+
+/** Closest zoom for a body: proportional to its radius, but never nearer than the clearance floor. */
+function surfaceZoomFloor(radius: Kilometers): Kilometers {
+  return Math.max(radius * SURFACE_ZOOM_FACTOR, radius + MIN_SURFACE_CLEARANCE_KM) as Kilometers;
+}
+/**
  * Multiplier applied to a body's radius for the distance a fresh selection frames it at. Matches
  * `initialFramingDistanceKm` for satellites (6x the object radius), which puts the body a little
  * under 20 degrees across - large enough to read the mesh, wide enough to keep its context.
@@ -101,24 +116,24 @@ export function getBodyViewConfig(body: SolarBody, radius: Kilometers = 0 as Kil
 
   if (body === SolarBody.Moon) {
     return {
-      minZoom: (radius * SURFACE_ZOOM_FACTOR) as Kilometers,
+      minZoom: surfaceZoomFloor(radius),
       maxZoom: NEAR_BODY_MAX_ZOOM as Kilometers,
       dotSize: 0,
       drawOrbits: false,
       clearLines: true,
       useHighestQualityTexture: true,
-      framingDistance: framingDistanceFor(radius, radius * SURFACE_ZOOM_FACTOR, NEAR_BODY_MAX_ZOOM),
+      framingDistance: framingDistanceFor(radius, surfaceZoomFloor(radius), NEAR_BODY_MAX_ZOOM),
     };
   }
 
   // Anything else: a planet, dwarf planet, or other loaded body.
   return {
-    minZoom: (radius * SURFACE_ZOOM_FACTOR) as Kilometers,
+    minZoom: surfaceZoomFloor(radius),
     maxZoom: PLANET_MAX_ZOOM as Kilometers,
     dotSize: 1,
     drawOrbits: true,
     clearLines: false,
     useHighestQualityTexture: true,
-    framingDistance: framingDistanceFor(radius, radius * SURFACE_ZOOM_FACTOR, PLANET_MAX_ZOOM),
+    framingDistance: framingDistanceFor(radius, surfaceZoomFloor(radius), PLANET_MAX_ZOOM),
   };
 }

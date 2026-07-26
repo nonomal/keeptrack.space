@@ -44,6 +44,27 @@ describe('planets-core getBodyViewConfig', () => {
     expect(cfg.clearLines).toBe(false);
     expect(cfg.useHighestQualityTexture).toBe(true);
   });
+
+  /*
+   * The proportional 1.2x rule alone would put the camera ~1.2 km above a Deimos-sized moon
+   * (and, since the mean radius understates an irregular body's long axis, potentially inside
+   * the mesh - a black frame with no error). Every body now keeps 10 km of surface clearance.
+   */
+  it.each([
+    ['Deimos', SolarBody.Deimos, 6.2],
+    ['Phobos', SolarBody.Phobos, 11.1],
+  ])('keeps at least 10 km of surface clearance at %s', (_label, body, radius) => {
+    const cfg = getBodyViewConfig(body as SolarBody, radius as Kilometers);
+
+    expect(cfg.minZoom).toBeCloseTo(radius + 10);
+    expect(cfg.minZoom - radius).toBeGreaterThanOrEqual(10);
+  });
+
+  it('leaves large bodies on the proportional rule', () => {
+    // 1.2x radius already clears 10 km for anything bigger than 50 km.
+    expect(getBodyViewConfig(SolarBody.Moon, 1737 as Kilometers).minZoom).toBeCloseTo(1737 * 1.2);
+    expect(getBodyViewConfig(SolarBody.Mars, 3389 as Kilometers).minZoom).toBeCloseTo(3389 * 1.2);
+  });
 });
 
 /*
