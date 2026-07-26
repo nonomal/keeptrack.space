@@ -97,6 +97,13 @@ export class Camera {
   inputHandler = new CameraInputHandler(this);
   readonly transition = new CameraTransition();
 
+  /**
+   * Fraction of the view's flat-curve zoom level used as the scroll-out floor. Chosen so the
+   * Earth view still lands on the 0.1 this was hard-coded to; see
+   * {@link Camera.zoomOutSensitivityFloor_}.
+   */
+  private static readonly ZOOM_OUT_FLOOR_FRACTION_ = 0.245;
+
   private chaseSpeed_ = 0.0005;
   private wasDragging_ = false;
   private fpsLastTime_ = <Milliseconds>0;
@@ -459,7 +466,7 @@ export class Camera {
     // Use asymmetric scaling: full deceleration when zooming in, but a higher floor when zooming out
     // so the user isn't trapped at close zoom levels.
     const isZoomingOut = delta > 0;
-    const zoomSensitivity = isZoomingOut ? Math.max(this.state.zoomLevel, 0.1) : Math.max(this.state.zoomLevel, 0.001);
+    const zoomSensitivity = isZoomingOut ? Math.max(this.state.zoomLevel, Camera.zoomOutSensitivityFloor_()) : Math.max(this.state.zoomLevel, 0.001);
 
     if (settingsManager.isZoomStopsSnappedOnSat || (selectSatManagerInstance?.selectedSat ?? '-1') === '-1' || !this.state.camZoomSnappedOnSat) {
       // No satellite selected, not snapped, or snapping disabled — standard Earth-centered zoom
@@ -475,6 +482,32 @@ export class Camera {
     }
 
     this.zoomWheelFov_(delta);
+  }
+
+  /**
+   * Smallest zoom-level step a scroll-out is allowed to move, as a fraction of the view's
+   * full zoom range.
+   *
+   * Zoom level maps to distance as `z^ZOOM_EXP * (max - min) + min`, so below
+   * `(min / (max - min)) ^ (1 / ZOOM_EXP)` the `min` term dominates and proportional steps
+   * barely move the camera at all. That flat region is what the floor exists to push through -
+   * without it you are trapped at close zoom.
+   *
+   * It used to be the constant 0.1, which is that value for the Earth view and nowhere else.
+   * A deep-space probe view spans 50 m to 15 billion km, where the flat region ends around
+   * 2e-4, so a floor of 0.1 was five hundred times too coarse: measured from Voyager's framing
+   * distance, ONE notch went from 84 m to 24.4 km and the spacecraft vanished. Deriving the
+   * floor from the range instead reproduces 0.1 for Earth (that is where the 0.245 comes from)
+   * and gives the probe a ~6% step.
+   */
+  private static zoomOutSensitivityFloor_(): number {
+    const range = settingsManager.maxZoomDistance - settingsManager.minZoomDistance;
+
+    if (!(range > 0) || !(settingsManager.minZoomDistance > 0)) {
+      return Camera.ZOOM_OUT_FLOOR_FRACTION_;
+    }
+
+    return Camera.ZOOM_OUT_FLOOR_FRACTION_ * (settingsManager.minZoomDistance / range) ** (1 / ZOOM_EXP);
   }
 
   private zoomWheelFov_(delta: number) {
@@ -747,6 +780,65 @@ export class Camera {
 
   getZoomFromDistance(distance: Kilometers): number {
     return ((distance - settingsManager.minZoomDistance) / (settingsManager.maxZoomDistance - settingsManager.minZoomDistance)) ** (1 / ZOOM_EXP);
+  }
+
+  /**
+   * Start a smooth blend from the view currently on screen across to a new center body, so
+   * selecting a planet, moon or probe travels there the way selecting a satellite travels to it.
+   * Recentering re-bases the whole scene ({@link Scene.worldShift}) and rewrites the zoom limits in
+   * a single frame, so without this the camera teleports.
+   *
+   * Call this BEFORE mutating `settingsManager.centerBody` or the zoom limits - the frozen "from"
+   * endpoint is read out of the view matrix and world shift that are still on screen.
+   */
+  beginCenterBodyTransition(): void {
+    /*
+     * The blend orients the camera at whatever is at the origin of the shifted frame, so it is only
+     * continuous from a mode that was already looking at it: orbiting Earth, or orbiting the
+     * tracked satellite (which is what the world shift is centered on while one is selected). From
+     * a first-person, planetarium or 2D view the first blended frame would swing to face the origin
+     * - worse than the jump it replaces - so those modes keep the instant recenter.
+     */
+    const isOrbitingCenter = this.cameraType === CameraType.FIXED_TO_EARTH || this.cameraType === CameraType.FIXED_TO_SAT_LVLH || this.cameraType === CameraType.FIXED_TO_SAT_ECI;
+
+    if (!settingsManager.isSmoothCameraTransitions || !isOrbitingCenter) {
+      // Drop any blend a preceding deselect started: it was aimed at the old world shift.
+      this.transition.cancel();
+
+      return;
+    }
+
+    this.transition.duration = settingsManager.cameraTransitionDuration;
+    this.transition.beginCenterBody(this.matrixWorldInverse, Scene.getInstance().worldShift);
+  }
+
+  /**
+   * Frame the camera a fixed distance from whatever it is centered on, with none of the satellite
+   * standoff bookkeeping. Level and target are both snapped: when {@link beginCenterBodyTransition} is
+   * running the blend owns the animation, and when smooth transitions are disabled the move is
+   * meant to be instant.
+   *
+   * Call this AFTER `settingsManager.minZoomDistance`/`maxZoomDistance` are updated - they define
+   * the zoom curve the distance is converted through.
+   */
+  snapZoomToDistance(distance: Kilometers): void {
+    const zoom = this.getZoomFromDistance(distance);
+
+    if (!Number.isFinite(zoom)) {
+      errorManagerInstance.debug(`Camera.snapZoomToDistance: ${distance} km is outside the current zoom limits`);
+
+      return;
+    }
+
+    /*
+     * Drop the satellite snap first: snapToSat() rewrites zoomTarget from camDistBuffer every
+     * frame, and the zoomTarget setter restores earthCenteredLastZoom while the snap is still set.
+     */
+    this.state.camZoomSnappedOnSat = false;
+    // updateZoom_ cancels any target that disagrees with the last zoom direction that was asked for.
+    this.state.isZoomIn = zoom < this.state.zoomLevel;
+    this.state.zoomTarget = zoom;
+    this.state.zoomLevel = zoom;
   }
 
   /**

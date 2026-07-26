@@ -7,6 +7,7 @@ import { CameraType } from '@app/engine/camera/camera-type';
 import { SolarBody } from '@app/engine/core/interfaces';
 import { PluginRegistry } from '@app/engine/core/plugin-registry';
 import { ServiceLocator } from '@app/engine/core/service-locator';
+import { initialFramingDistanceKm } from '@app/engine/utils/transforms';
 import { PlanetsMenuPlugin } from '@app/plugins/planets-menu/planets-menu';
 import { SelectSatManager } from '@app/plugins/select-sat-manager/select-sat-manager';
 import { settingsManager } from '@app/settings/settings';
@@ -27,39 +28,46 @@ export const PROBE_MIN_ZOOM = 0.05 as Kilometers;
 
 /**
  * Centers the camera on a deep-space satellite by name (a key of
- * `scene.deepSpaceSatellites`), applying interplanetary zoom limits.
+ * `scene.deepSpaceSatellites`), framed on its 3D mesh with the zoom ceiling opened all the
+ * way out to interplanetary range.
  * @returns false when the probe is not in the scene (ephemeris failed to load
  * or planets are disabled), in which case nothing is changed.
  */
 export function focusDeepSpaceSatellite(name: string): boolean {
   const scene = ServiceLocator.getScene();
+  const probe = scene?.deepSpaceSatellites?.[name];
 
-  if (!scene?.deepSpaceSatellites?.[name]) {
+  if (!probe) {
     return false;
   }
 
+  const camera = ServiceLocator.getMainCamera();
+
   PluginRegistry.getPlugin(SelectSatManager)?.selectSat(-1);
+
+  // Blend across to the probe instead of teleporting (see Camera.beginCenterBodyTransition).
+  camera.beginCenterBodyTransition();
+  camera.state.panCurrent = { x: 0, y: 0, z: 0 };
+
   settingsManager.centerBody = name as SolarBody;
   settingsManager.minZoomDistance = PROBE_MIN_ZOOM;
   settingsManager.maxZoomDistance = INTERPLANETARY_MAX_ZOOM;
 
-  const camera = ServiceLocator.getMainCamera();
-
   camera.cameraType = CameraType.FIXED_TO_EARTH;
 
-  // Keep the entry framing interplanetary: the zoom floor reaches down to the
-  // probe mesh (PROBE_MIN_ZOOM), so a camera that was fully zoomed in before
-  // focusing would otherwise arrive 50 m from the spacecraft instead of seeing
-  // the heliocentric context. Zooming into the mesh stays a deliberate act.
-  const minFramingZoom = camera.getZoomFromDistance(INTERPLANETARY_MIN_ZOOM);
+  /*
+   * Frame the spacecraft itself, exactly the way selecting a satellite frames on its estimated
+   * radius (`initialFramingDistanceKm`, 6x the bounding radius). Selecting a probe used to
+   * arrive at interplanetary range instead, which put a 14 m spacecraft billions of times
+   * smaller than a pixel and showed a dot - the 3D mesh, which is the whole reason these
+   * probes have one, was only reachable by zooming in by hand from 62 million km.
+   */
+  camera.snapZoomToDistance(initialFramingDistanceKm(probe.meshRadiusKm));
 
-  if (camera.state.zoomTarget < minFramingZoom) {
-    camera.state.zoomTarget = minFramingZoom;
-  }
-
-  // Interplanetary framing without the planet orbit ellipses is unreadable -
-  // draw the same heliocentric context the planets menu draws (Moon, planets
-  // including Earth, dwarf planets), restoring centerBody to the probe.
+  // The view starts at the mesh but the zoom ceiling reaches interplanetary range, and out
+  // there the planet orbit ellipses are the only thing that makes the frame readable - draw
+  // the same heliocentric context the planets menu draws (Moon, planets including Earth,
+  // dwarf planets), restoring centerBody to the probe.
   PluginRegistry.getPlugin(PlanetsMenuPlugin)?.drawHeliocentricOrbits(name as SolarBody);
 
   ServiceLocator.getUiManager().hideSideMenus();

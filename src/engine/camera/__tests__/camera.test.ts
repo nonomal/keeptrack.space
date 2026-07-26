@@ -813,3 +813,68 @@ const testVariousKeyCombinationInputs = (testFunc: () => void, cameraInstance: C
   cameraInstance.inputHandler.keyDownShiftRight_();
   testFunc();
 };
+
+describe('Camera.zoomWheel scroll-out floor', () => {
+  let cameraInstance: Camera;
+  const distAt = (zoom: number) => cameraInstance.calcDistanceBasedOnZoom(zoom);
+  const setRange = (min: number, max: number) => {
+    settingsManager.minZoomDistance = min as Kilometers;
+    settingsManager.maxZoomDistance = max as Kilometers;
+  };
+  /** One notch out, returning the distance ratio it moved through. */
+  const notchOut = (fromKm: number) => {
+    cameraInstance.state.zoomTarget = cameraInstance.getZoomFromDistance(fromKm as Kilometers);
+    cameraInstance.state.zoomLevel = cameraInstance.state.zoomTarget;
+    cameraInstance.zoomWheel(100);
+
+    return distAt(cameraInstance.state.zoomTarget) / fromKm;
+  };
+
+  beforeEach(() => {
+    cameraInstance = new Camera();
+    cameraInstance.cameraType = CameraType.FIXED_TO_EARTH;
+    cameraInstance.state.speedModifier = 1;
+    cameraInstance.state.camZoomSnappedOnSat = false;
+    settingsManager.isZoomStopsRotation = false;
+    vi.spyOn(PluginRegistry, 'getPlugin').mockReturnValue(null as never);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  /*
+   * The floor used to be the constant 0.1, which is the right number for the Earth view and
+   * nowhere else. Centered on a deep-space probe the range is 50 m to 15 billion km, and one
+   * notch out of the framing distance went from 84 m to 24 km - the spacecraft simply vanished.
+   */
+  it('moves a probe view out by a readable step instead of hundreds of times over', () => {
+    setRange(0.05, 1.5e10);
+
+    expect(notchOut(0.084)).toBeLessThan(1.5);
+    expect(notchOut(0.084)).toBeGreaterThan(1.0);
+  });
+
+  it('leaves the Earth view where it was', () => {
+    // The floor is derived from the zoom range now; for Earth that derivation IS 0.1.
+    setRange(RADIUS_OF_EARTH + 50, 200000);
+
+    // eslint-disable-next-line dot-notation
+    expect(Camera['zoomOutSensitivityFloor_']()).toBeCloseTo(0.1, 3);
+  });
+
+  it('keeps stepping out from the very bottom of the range, so no view can trap the camera', () => {
+    for (const [min, max] of [
+      [RADIUS_OF_EARTH + 50, 200000],
+      [0.05, 1.5e10],
+      [2084, 1.2e6],
+    ] as const) {
+      setRange(min, max);
+      cameraInstance.state.zoomTarget = 0;
+      cameraInstance.state.zoomLevel = 0;
+      cameraInstance.zoomWheel(100);
+
+      expect(cameraInstance.state.zoomTarget).toBeGreaterThan(0);
+    }
+  });
+});

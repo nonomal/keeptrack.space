@@ -87,6 +87,12 @@ export class CameraTransition {
   private fromAnchor_: TransitionAnchor | null = null;
   private hasFromAnchor_ = false;
 
+  // Center-body transitions (see beginCenterBody). The body being left, in ECI km. Bodies are not
+  // TransitionAnchors: Earth's position is the origin, which begin() reads as "no position", and
+  // the destination never needs looking up because it is the origin of the shifted frame.
+  private isCenterBodyTransition_ = false;
+  private readonly fromBodyPos_ = vec3.create();
+
   // Target-centered look-at blend buffers. When both endpoints follow a real object, the blend
   // runs in the worldShift-ed frame (object near the origin, small coordinates) and interpolates
   // the camera's offset FROM the object rather than its absolute ECI position. This keeps the
@@ -155,6 +161,40 @@ export class CameraTransition {
       this.hasFromAnchor_ = false;
     }
 
+    this.isCenterBodyTransition_ = false;
+    this.startTime_ = performance.now();
+    this.isActive_ = true;
+  }
+
+  /**
+   * Start a transition between center bodies (the solar system equivalent of selecting a
+   * satellite): the world origin is about to jump from one body to another, hundreds of millions
+   * of kilometers away, and the zoom limits are about to be rewritten under an unchanged zoom
+   * level.
+   *
+   * This is a separate entry point from {@link begin} rather than an anchor because the endpoints
+   * are not catalog objects. The destination never has to be named - it is the origin of the
+   * shifted frame the next frames render in - and the body being left is recovered from the world
+   * shift, which is its negated position. That also makes Earth a legal endpoint, where an object
+   * anchor at the origin means "decayed, do not follow".
+   *
+   * Call BEFORE `settingsManager.centerBody` changes, so the world shift still describes the view
+   * that is on screen.
+   */
+  beginCenterBody(currentViewMatrix: mat4, currentWorldShift: number[]): void {
+    mat4.copy(this.fromComposed_, currentViewMatrix);
+    vec3.set(this.wsVec3_, currentWorldShift[0], currentWorldShift[1], currentWorldShift[2]);
+    mat4.translate(this.fromComposed_, this.fromComposed_, this.wsVec3_);
+
+    // The centered body is at the origin of the shifted frame, so its ECI position is -worldShift
+    // and the camera's offset from it is simply the eye of the current view matrix.
+    vec3.set(this.fromBodyPos_, -currentWorldShift[0], -currentWorldShift[1], -currentWorldShift[2]);
+    this.extractEyeFromView_(currentViewMatrix, this.fromOffset_);
+    vec3.set(this.fromUp_, currentViewMatrix[2], currentViewMatrix[6], currentViewMatrix[10]);
+
+    this.fromAnchor_ = null;
+    this.hasFromAnchor_ = false;
+    this.isCenterBodyTransition_ = true;
     this.startTime_ = performance.now();
     this.isActive_ = true;
   }
@@ -164,6 +204,7 @@ export class CameraTransition {
     this.isActive_ = false;
     this.fromAnchor_ = null;
     this.hasFromAnchor_ = false;
+    this.isCenterBodyTransition_ = false;
   }
 
   /**
@@ -198,6 +239,7 @@ export class CameraTransition {
       this.isActive_ = false;
       this.fromAnchor_ = null;
       this.hasFromAnchor_ = false;
+      this.isCenterBodyTransition_ = false;
 
       return null;
     }
@@ -210,11 +252,33 @@ export class CameraTransition {
     const tRot = rawT * rawT * (3 - 2 * rawT);
     const tPos = posRawT * posRawT * (3 - 2 * posRawT);
 
-    // Target-centered blend first: when both endpoints follow a real object, keep it centered.
+    // Center-body blend first: the destination body IS the origin of the current shifted frame,
+    // and the body being left is wherever it now sits relative to that origin.
+    if (this.isCenterBodyTransition_) {
+      vec3.set(this.tgtShiftedTo_, 0, 0, 0);
+      vec3.set(this.tgtShiftedFrom_, this.fromBodyPos_[0] + currentWorldShift[0], this.fromBodyPos_[1] + currentWorldShift[1], this.fromBodyPos_[2] + currentWorldShift[2]);
+
+      const eff = this.applyCenteredBlend_(currentViewMatrix, tPos, tRot);
+
+      if (eff) {
+        return eff;
+      }
+    }
+
+    // Target-centered blend next: when both endpoints follow a real object, keep it centered.
     const toPos = toAnchor?.position;
 
     if (this.hasFromAnchor_ && this.fromAnchor_ && toPos && (toPos.x !== 0 || toPos.y !== 0 || toPos.z !== 0)) {
-      const eff = this.applyTargetCentered_(currentViewMatrix, currentWorldShift, toPos, tPos, tRot);
+      const fromPos = this.fromAnchor_.position;
+
+      vec3.set(this.tgtShiftedTo_, toPos.x + currentWorldShift[0], toPos.y + currentWorldShift[1], toPos.z + currentWorldShift[2]);
+      /*
+       * Old target's position in the CURRENT shifted frame (equals tgtShiftedTo_ for a same-object
+       * switch such as ECI <-> LVLH; differs for a primary <-> secondary switch, giving a sweep).
+       */
+      vec3.set(this.tgtShiftedFrom_, fromPos.x + currentWorldShift[0], fromPos.y + currentWorldShift[1], fromPos.z + currentWorldShift[2]);
+
+      const eff = this.applyCenteredBlend_(currentViewMatrix, tPos, tRot);
 
       if (eff) {
         return eff;
@@ -251,34 +315,27 @@ export class CameraTransition {
   }
 
   /**
-   * Target-centered blend, computed entirely in the current worldShift-ed frame (object near the
-   * origin) so coordinates stay small and the object projects to a stable centre. Interpolates the
-   * camera's offset FROM the object and the object's shifted position separately, then orients the
-   * camera down the (negated) offset so it looks straight at the object every frame.
+   * Target-centered blend, computed entirely in the current worldShift-ed frame (target near the
+   * origin) so coordinates stay small and the target projects to a stable centre. Interpolates the
+   * camera's offset FROM the target and the target's shifted position separately, then orients the
+   * camera down the (negated) offset so it looks straight at the target every frame.
+   *
+   * The caller supplies both endpoints of the target's own travel in {@link tgtShiftedFrom_} and
+   * {@link tgtShiftedTo_}: a satellite selection blends between two objects' live positions, a
+   * center-body change blends from the old body toward the origin.
    *
    * Returns the effective view matrix (already in the shifted frame the shaders draw in, so no
-   * worldShift undo is needed), or null for a degenerate configuration (camera on the object, or a
+   * worldShift undo is needed), or null for a degenerate configuration (camera on the target, or a
    * forward/up that can't form a basis) so the caller can fall back to the rotation-slerp blend.
    */
-  private applyTargetCentered_(currentViewMatrix: mat4, currentWorldShift: number[], toPos: { x: number; y: number; z: number }, tPos: number, tRot: number): mat4 | null {
-    // "To" camera offset = its shifted eye minus the object's shifted position (both small).
+  private applyCenteredBlend_(currentViewMatrix: mat4, tPos: number, tRot: number): mat4 | null {
+    // "To" camera offset = its shifted eye minus the target's shifted position (both small).
     this.extractEyeFromView_(currentViewMatrix, this.toOffset_);
-    this.tgtShiftedTo_[0] = toPos.x + currentWorldShift[0];
-    this.tgtShiftedTo_[1] = toPos.y + currentWorldShift[1];
-    this.tgtShiftedTo_[2] = toPos.z + currentWorldShift[2];
     vec3.subtract(this.toOffset_, this.toOffset_, this.tgtShiftedTo_);
     vec3.set(this.toUp_, currentViewMatrix[2], currentViewMatrix[6], currentViewMatrix[10]);
 
-    // Old target's position in the CURRENT shifted frame (equals tgtShiftedTo_ for a same-object
-    // switch such as ECI <-> LVLH; differs for a primary <-> secondary switch, giving a sweep).
-    const fromPos = this.fromAnchor_!.position;
-
-    this.tgtShiftedFrom_[0] = fromPos.x + currentWorldShift[0];
-    this.tgtShiftedFrom_[1] = fromPos.y + currentWorldShift[1];
-    this.tgtShiftedFrom_[2] = fromPos.z + currentWorldShift[2];
-
     // Blend target position (position timeline) and camera offset (arc, so the standoff distance
-    // is preserved as the camera swings around the object rather than dipping toward it).
+    // is preserved as the camera swings around the target rather than dipping toward it).
     vec3.lerp(this.tgtShiftedBlend_, this.tgtShiftedFrom_, this.tgtShiftedTo_, tPos);
     this.sphericalArcLerp_(this.fromOffset_, this.toOffset_, tPos, this.blendedOffset_);
     vec3.add(this.eyeShifted_, this.tgtShiftedBlend_, this.blendedOffset_);

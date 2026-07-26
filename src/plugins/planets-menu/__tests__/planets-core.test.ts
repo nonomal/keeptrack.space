@@ -45,3 +45,47 @@ describe('planets-core getBodyViewConfig', () => {
     expect(cfg.useHighestQualityTexture).toBe(true);
   });
 });
+
+/*
+ * Selecting a body used to leave the normalized zoom level alone and simply re-read it through
+ * the new limits, so where the camera ended up depended on where it happened to be - almost
+ * always far enough away that the body was a dot. Every view now names the distance it frames at.
+ */
+describe('planets-core framing distance', () => {
+  const framingOf = (body: SolarBody, radius?: Kilometers) => getBodyViewConfig(body, radius).framingDistance;
+
+  it.each([
+    ['the Moon', SolarBody.Moon, 1737],
+    ['Mars', SolarBody.Mars, 3389],
+    ['Phobos-sized irregulars', SolarBody.Phobos, 13.4],
+  ])('frames %s at six radii', (_label, body, radius) => {
+    expect(framingOf(body as SolarBody, radius as Kilometers)).toBeCloseTo(radius * 6);
+  });
+
+  it.each([
+    ['Earth', SolarBody.Earth, RADIUS_OF_EARTH],
+    ['the Moon', SolarBody.Moon, 1737 as Kilometers],
+    ['Mars', SolarBody.Mars, 3389 as Kilometers],
+    ['Phobos', SolarBody.Phobos, 13.4 as Kilometers],
+    ['the Sun', SolarBody.Sun, undefined],
+  ])('keeps %s visible without letting the camera inside it', (_label, body, radius) => {
+    const cfg = getBodyViewConfig(body as SolarBody, radius as Kilometers);
+
+    // Outside the surface floor, inside the ceiling: a framing outside either is not reachable.
+    expect(cfg.framingDistance).toBeGreaterThan(cfg.minZoom);
+    expect(cfg.framingDistance).toBeLessThanOrEqual(cfg.maxZoom);
+  });
+
+  it('falls back to a finite distance for a body that reports no radius', () => {
+    // A body missing zoomFloorRadiusKm would otherwise frame at zero, which is a black screen.
+    expect(framingOf(SolarBody.Mars, 0 as Kilometers)).toBeGreaterThan(0);
+  });
+
+  /*
+   * The Sun view is the solar-system view, so it is framed for context rather than at six solar
+   * radii - which would be 25x closer than the view's own zoom floor allows.
+   */
+  it('arrives at the Sun far enough out to show the inner planets, not the Sun alone', () => {
+    expect(framingOf(SolarBody.Sun)).toBeGreaterThan(getBodyViewConfig(SolarBody.Sun).minZoom);
+  });
+});

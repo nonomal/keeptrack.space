@@ -21,11 +21,27 @@ export interface DeepSpaceSatelliteConfig {
   meanDistanceToSun: Kilometers;
   dataFile: string;
   model?: string;
+  /**
+   * Bounding radius of the probe's 3D mesh, in METERS - what the camera has to clear to see
+   * the whole spacecraft. Selecting a probe frames it on this the way selecting a satellite
+   * frames on its estimated radius, so it must cover the deployed booms and antennas, not
+   * just the bus. Omitted probes fall back to {@link DEFAULT_PROBE_MESH_RADIUS_M}.
+   */
+  meshRadiusM?: number;
   /** NORAD catalog number, when assigned (resolves ?sat= URLs to this probe) */
   sccNum?: string;
   /** International designator (COSPAR), when assigned (resolves ?intldes= URLs to this probe) */
   intlDes?: string;
 }
+
+/**
+ * Mesh bounding radius (m) assumed for a probe whose config does not state one. This is the
+ * radius of the DRAWN mesh, not of the real spacecraft: the default model is the generic
+ * `sat2` bus, whose vertices reach 3.24 model units and whose units are decameters (the mesh
+ * generators author through `m(meters) = meters / 10`), so 33 m. A probe that renders a
+ * different model should state its own.
+ */
+export const DEFAULT_PROBE_MESH_RADIUS_M = 33;
 
 interface ChebyshevJsonSegment {
   a: number;
@@ -151,6 +167,21 @@ export class DeepSpaceSatellite extends ChebyshevBody {
 
   getModelName(): string {
     return this.config_.model ?? 'sat2';
+  }
+
+  /** Bounding radius of this probe's 3D mesh, in kilometers. */
+  get meshRadiusKm(): Kilometers {
+    return ((this.config_.meshRadiusM ?? DEFAULT_PROBE_MESH_RADIUS_M) / 1000) as Kilometers;
+  }
+
+  /**
+   * The mesh, not `RADIUS`. A probe has no body to speak of - `RADIUS` is a 1 m placeholder
+   * that exists so the sphere machinery has a number - so anything sizing the camera or the
+   * dot against "how big is this thing on screen" has to measure the spacecraft that is
+   * actually drawn.
+   */
+  get zoomFloorRadiusKm(): number {
+    return this.meshRadiusKm;
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
