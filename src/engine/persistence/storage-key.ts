@@ -16,6 +16,7 @@ export enum StorageKey {
   SETTINGS_DRAW_BLACK_EARTH = 'v2-keepTrack-settings-drawBlackEarth',
   SETTINGS_DRAW_ATMOSPHERE = 'v2-keepTrack-settings-drawAtmosphere',
   SETTINGS_DRAW_MILKY_WAY = 'v2-keepTrack-settings-drawMilkyWay',
+  SETTINGS_DRAW_ASTEROID_BELT = 'v2-keepTrack-settings-drawAsteroidBelt',
   SETTINGS_GRAY_SKYBOX = 'v2-keepTrack-settings-graySkybox',
   SETTINGS_ECI_ON_HOVER = 'v2-keepTrack-settings-eciOnHover',
   SETTINGS_HOS = 'v2-keepTrack-settings-hos',

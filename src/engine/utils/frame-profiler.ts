@@ -56,6 +56,7 @@ export const GpuStage = {
   godrays: 'gpu:godrays',
   skybox: 'gpu:skybox',
   planets: 'gpu:planets',
+  asteroidBelt: 'gpu:asteroid-belt',
   earthBackground: 'gpu:earth-background',
   scenery: 'gpu:scenery',
   customBackground: 'gpu:custom-background',

@@ -255,6 +255,19 @@ export class GraphicsSettings {
   isGraySkybox = false;
   isDisableSkybox = false;
   isDisablePlanets = false;
+  /**
+   * Draw the asteroid belt, the Hilda group and Jupiter's Trojan swarms as a procedural
+   * point cloud. Only visible once the camera is out at interplanetary range (see
+   * AsteroidBelt), and suppressed entirely whenever `isDisablePlanets` is set.
+   */
+  isDrawAsteroidBelt = true;
+  /**
+   * How many bodies the asteroid belt generates. The whole population is one GPU draw with
+   * the orbit solve in the vertex shader, so the cost is essentially fill rate: raising this
+   * makes the belt dustier and more expensive when it fills the screen, lowering it makes the
+   * Kirkwood gaps and the Hilda triangle harder to read.
+   */
+  asteroidBeltObjectCount = 15000;
 
   // Stars and Constellations
   /**

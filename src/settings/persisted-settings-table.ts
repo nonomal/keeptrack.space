@@ -129,6 +129,13 @@ export const PERSISTED_SETTINGS_TABLE: readonly PersistedSettingEntry[] = [
     },
   },
   {
+    key: StorageKey.SETTINGS_DRAW_ASTEROID_BELT,
+    serialize: (sm) => String(sm.isDrawAsteroidBelt),
+    deserialize: (sm, raw) => {
+      sm.isDrawAsteroidBelt = bool(raw);
+    },
+  },
+  {
     key: StorageKey.SETTINGS_GRAY_SKYBOX,
     serialize: (sm) => String(sm.isGraySkybox),
     deserialize: (sm, raw) => {

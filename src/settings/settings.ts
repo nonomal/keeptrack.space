@@ -92,6 +92,8 @@ const PROPERTY_CATEGORY_MAP: Record<string, keyof SettingsManager> = {
   isGraySkybox: 'graphics',
   isDisableSkybox: 'graphics',
   isDisablePlanets: 'graphics',
+  isDrawAsteroidBelt: 'graphics',
+  asteroidBeltObjectCount: 'graphics',
   isDisableStars: 'graphics',
   isDrawConstellationBoundaries: 'graphics',
   isDrawNasaConstellations: 'graphics',
