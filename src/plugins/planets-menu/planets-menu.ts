@@ -15,6 +15,7 @@ import {
   ISideMenuConfig,
 } from '@app/engine/plugins/core/plugin-capabilities';
 import { CelestialBody } from '@app/engine/rendering/draw-manager/celestial-bodies/celestial-body';
+import { allPlanetMoons, isInPlanetSystem, parentPlanetOf } from '@app/engine/rendering/draw-manager/celestial-bodies/planet-moon-systems';
 import { html } from '@app/engine/utils/development/formatter';
 import { getEl } from '@app/engine/utils/get-el';
 import { t7e } from '@app/locales/keys';
@@ -22,7 +23,19 @@ import { settingsManager } from '@app/settings/settings';
 import { Kilometers, RADIUS_OF_EARTH } from '@ootk/src/main';
 import planetPng from '@public/img/icons/planet.png';
 import { SelectSatManager } from '../select-sat-manager/select-sat-manager';
-import { ALL_BODIES, BodyCategory, DWARF_PLANETS, isKnownBody, isPlanned, isSelectableBody, OTHER_CELESTIAL_BODIES, PLANETS } from './planets-bodies';
+import {
+  allBodies,
+  asteroids,
+  DWARF_PLANETS,
+  displayGroups,
+  isKnownBody,
+  isPlanned,
+  isSelectableBody,
+  moons,
+  OTHER_CELESTIAL_BODIES,
+  PLANETS,
+  satellitesOf,
+} from './planets-bodies';
 import { getBodyViewConfig } from './planets-core';
 import './planets-menu.css';
 
@@ -40,7 +53,21 @@ export class PlanetsMenuPlugin extends KeepTrackPlugin implements ICommandPalett
   // references terse and let the scene-iterating helpers below read naturally.
   PLANETS = PLANETS;
   DWARF_PLANETS = DWARF_PLANETS;
+
   OTHER_CELESTIAL_BODIES = OTHER_CELESTIAL_BODIES;
+
+  /**
+   * Getters, unlike their neighbours, because both sets are contributed content registered
+   * before the plugins load - and a plain field would snapshot whatever existed when this
+   * plugin was constructed. See `body-registry.ts`.
+   */
+  get MOONS(): readonly SolarBody[] {
+    return moons();
+  }
+
+  get ASTEROIDS(): readonly SolarBody[] {
+    return asteroids();
+  }
 
   getBottomIconConfig(): IBottomIconConfig {
     return {
@@ -103,7 +130,7 @@ export class PlanetsMenuPlugin extends KeepTrackPlugin implements ICommandPalett
       },
     ];
 
-    for (const body of ALL_BODIES) {
+    for (const body of allBodies()) {
       if (!isSelectableBody(body)) {
         continue;
       }
@@ -163,6 +190,8 @@ export class PlanetsMenuPlugin extends KeepTrackPlugin implements ICommandPalett
           settingsManager.centerBody = SolarBody.Earth;
           settingsManager.minZoomDistance = (RADIUS_OF_EARTH + 50) as Kilometers;
           settingsManager.maxZoomDistance = 1.2e6 as Kilometers; // 1.2 million km
+          // Same reason as in changePlanet: nothing else notices maxZoomDistance moved.
+          this.refreshCatalogVisibility_();
         },
       },
     ];
@@ -182,28 +211,23 @@ export class PlanetsMenuPlugin extends KeepTrackPlugin implements ICommandPalett
         <input id="planets-filter-input" type="text" class="planets-filter-input"
           placeholder="${this.t_('filterPlaceholder')}" autocomplete="off" spellcheck="false" />
       </div>
-      ${this.buildSectionHtml_('planets', this.PLANETS)}
-      ${this.buildSectionHtml_('dwarfPlanets', this.DWARF_PLANETS)}
-      ${this.buildSectionHtml_('otherCelestialBodies', this.OTHER_CELESTIAL_BODIES)}
+      ${displayGroups()
+        .map((group) => this.buildSectionHtml_(group.key, group.bodies))
+        .join('')}
     `;
   }
 
-  private buildSectionHtml_(sectionKey: BodyCategory, bodies: readonly SolarBody[]): string {
-    const centerTooltip = (body: string) => this.t_('tooltips.centerCamera').replace('{body}', body);
+  /**
+   * One card: a group heading, its primary bodies in order outward from the Sun, and each
+   * body's moons indented directly beneath it.
+   */
+  private buildSectionHtml_(sectionKey: string, bodies: readonly SolarBody[]): string {
     let rows = '';
 
     for (const body of bodies) {
-      const name = this.bodyName_(body);
-      const filterKey = name.toLowerCase();
-
-      if (isPlanned(body)) {
-        rows +=
-          `<button type="button" class="kt-action planets-menu-disabled" kt-tooltip="${this.t_('tooltips.plannedFuture')}" ` +
-          `data-planet-name="${filterKey}" aria-disabled="true" disabled><span class="kt-action-label">${name}</span></button>`;
-      } else {
-        rows +=
-          `<button type="button" class="kt-action waves-effect planets-menu-item" kt-tooltip="${centerTooltip(name)}" ` +
-          `data-planet="${body}" data-planet-name="${filterKey}"><span class="kt-action-label">${name}</span></button>`;
+      rows += this.buildBodyRowHtml_(body, false);
+      for (const moon of satellitesOf(body)) {
+        rows += this.buildBodyRowHtml_(moon, true);
       }
     }
 
@@ -213,6 +237,59 @@ export class PlanetsMenuPlugin extends KeepTrackPlugin implements ICommandPalett
         <div class="planets-section-list">${rows}</div>
       </section>
     `;
+  }
+
+  /**
+   * A single body row. `isSatellite` indents it under the body above, which is what turns a
+   * flat 30-row list into a readable hierarchy.
+   */
+  private buildBodyRowHtml_(body: SolarBody, isSatellite: boolean): string {
+    const name = this.bodyName_(body);
+    const filterKey = name.toLowerCase();
+    const satelliteClass = isSatellite ? ' planets-menu-satellite' : '';
+
+    if (isPlanned(body)) {
+      return (
+        `<button type="button" class="kt-action planets-menu-disabled${satelliteClass}" kt-tooltip="${this.t_('tooltips.plannedFuture')}" ` +
+        `data-planet-name="${filterKey}" aria-disabled="true" disabled><span class="kt-action-label">${name}</span></button>`
+      );
+    }
+
+    const centerTooltip = this.t_('tooltips.centerCamera').replace('{body}', name);
+
+    return (
+      `<button type="button" class="kt-action waves-effect planets-menu-item${satelliteClass}" kt-tooltip="${centerTooltip}" ` +
+      `data-planet="${body}" data-planet-name="${filterKey}"><span class="kt-action-label">${name}</span></button>`
+    );
+  }
+
+  /**
+   * Upgrade a moon's planet to its own highest-quality texture alongside the moon.
+   *
+   * Selecting a moon frames it a few radii out, and from there the planet fills a large part
+   * of the sky - Jupiter is about 20 degrees across from Io, and Mars is wider than that from
+   * Phobos. But the planet is still on whatever tier it was last drawn at, which is usually
+   * the low one it was given as a distant dot, and at that range the blur is the first thing
+   * you notice.
+   *
+   * Driven by the body's own `parentBody` rather than the roster in `planet-moon-systems.ts`:
+   * it is the moon object's own declaration of what it orbits, so it cannot disagree with
+   * where the moon is actually drawn. It covers Earth's Moon as well as the planet moons -
+   * Earth's own upgrade is a no-op, since Earth always loads its highest tier first, but
+   * routing it through the same path means a future Earth with real tiers needs no change here.
+   *
+   * Not covered: Charon, which is carried as a dwarf planet of the Pluto-Charon binary rather
+   * than as a moon and so declares no parent. If Pluto ever looks soft from Charon, giving
+   * Charon a `parentBody` is the whole fix.
+   */
+  private upgradeParentTexture_(body: CelestialBody | null): void {
+    const parent = body?.parentBody;
+
+    if (!parent) {
+      return;
+    }
+
+    ServiceLocator.getScene().getBodyById(parent)?.useHighestQualityTexture();
   }
 
   changePlanet(planetName: SolarBody) {
@@ -226,32 +303,46 @@ export class PlanetsMenuPlugin extends KeepTrackPlugin implements ICommandPalett
     // Resolve the body object (and radius) up front; Earth and Sun do not need it.
     let selectedBody: CelestialBody | null = null;
 
-    if (planetName === SolarBody.Moon) {
-      selectedBody = scene.moons.Moon;
-    } else if (planetName !== SolarBody.Earth && planetName !== SolarBody.Sun) {
+    if (planetName !== SolarBody.Earth && planetName !== SolarBody.Sun) {
       selectedBody = scene.getBodyById(planetName) as CelestialBody | null;
       if (!selectedBody) {
         return;
       }
     }
 
-    const view = getBodyViewConfig(planetName, (selectedBody?.RADIUS ?? 0) as Kilometers);
+    /*
+     * zoomFloorRadiusKm, not RADIUS: for an irregular body the mean radius is smaller than its
+     * longest axis, and the surface-zoom floor is a multiple of whatever it is handed.
+     */
+    const view = getBodyViewConfig(planetName, (selectedBody?.zoomFloorRadiusKm ?? 0) as Kilometers);
 
     if (view.clearLines) {
       ServiceLocator.getLineManager().clear();
     }
 
     const catalogManager = ServiceLocator.getCatalogManager();
+    const camera = ServiceLocator.getMainCamera();
 
     ServiceLocator.getDotsManager().updateSizeBuffer(catalogManager.objectCache.length);
     PluginRegistry.getPlugin(SelectSatManager)?.selectSat(-1);
 
+    /*
+     * Freeze the view that is on screen before the scene re-centers, so the camera blends across
+     * to the new body the way selecting a satellite blends across to it. Everything below is a
+     * one-frame jump otherwise: centerBody moves the world origin and the zoom limits change what
+     * the (unchanged) zoom level means.
+     */
+    camera.beginCenterBodyTransition();
+    // A pan offset from the old view would shove the new body off center.
+    camera.state.panCurrent = { x: 0, y: 0, z: 0 };
+
     settingsManager.centerBody = planetName;
-    ServiceLocator.getMainCamera().cameraType = CameraType.FIXED_TO_EARTH;
+    camera.cameraType = CameraType.FIXED_TO_EARTH;
     ServiceLocator.getUiManager().hideSideMenus();
 
     if (view.useHighestQualityTexture) {
       selectedBody?.useHighestQualityTexture();
+      this.upgradeParentTexture_(selectedBody);
     }
     if (view.drawOrbits) {
       this.drawOrbits_(planetName);
@@ -259,9 +350,27 @@ export class PlanetsMenuPlugin extends KeepTrackPlugin implements ICommandPalett
 
     settingsManager.minZoomDistance = view.minZoom;
     settingsManager.maxZoomDistance = view.maxZoom;
+    // Frame the body itself. Must follow the zoom limits above - they define the curve.
+    camera.snapZoomToDistance(view.framingDistance);
     this.setAllPlanetsDotSize(view.dotSize);
+    this.refreshCatalogVisibility_();
 
     this.updateActiveBody_();
+  }
+
+  /**
+   * Force a recolor after `maxZoomDistance` changes, so the Earth catalog appears or
+   * disappears with the view.
+   *
+   * The color schemes already blank every GP/TLE object once `maxZoomDistance` passes 2e6 km
+   * - the marker for "this view is not about Earth orbit" - but neither the main-thread rule
+   * nor the color worker re-reads that value on its own. Without this call the rule simply
+   * never fired from the Planets menu: measured at the Sun view, 900 million km out, all
+   * 52,590 satellites were still being drawn, smeared across a single pixel in front of the
+   * solar system.
+   */
+  private refreshCatalogVisibility_(): void {
+    ServiceLocator.getColorSchemeManager().calculateColorBuffers(true);
   }
 
   showBottomIcon(): void {
@@ -394,7 +503,7 @@ export class PlanetsMenuPlugin extends KeepTrackPlugin implements ICommandPalett
 
     // Same set drawOrbits_ draws, plus the deep-space probes, whose paths the
     // pro missions menu can turn on. The Sun is excluded - it has no orbit path.
-    for (const bodyId of [SolarBody.Moon, SolarBody.Phobos, SolarBody.Deimos, ...this.PLANETS, ...this.DWARF_PLANETS]) {
+    for (const bodyId of [...this.MOONS, ...this.PLANETS, ...this.DWARF_PLANETS, ...this.ASTEROIDS]) {
       scene.getBodyById(bodyId)?.hideFullOrbitPath();
     }
 
@@ -417,7 +526,7 @@ export class PlanetsMenuPlugin extends KeepTrackPlugin implements ICommandPalett
       moon.planetObject?.setHoverDotSize(gl, 1);
     }
 
-    for (const bodyId of [...this.PLANETS, ...this.DWARF_PLANETS]) {
+    for (const bodyId of [...this.PLANETS, ...this.DWARF_PLANETS, ...this.ASTEROIDS]) {
       const body = scene.getBodyById(bodyId) as CelestialBody | null;
 
       if (!body) {
@@ -427,28 +536,28 @@ export class PlanetsMenuPlugin extends KeepTrackPlugin implements ICommandPalett
       body.drawFullOrbitPath();
     }
     this.setAllPlanetsDotSize(1);
-    this.updateMarsMoonOrbits_(planetName);
+    this.updatePlanetMoonOrbits_(planetName);
 
     settingsManager.centerBody = planetName; // Set back to selected planet
   }
 
   /**
-   * The Martian moon rings are only drawn from inside the Mars system. A 9375 km ellipse
-   * is sub-pixel from anywhere else, and unlike the heliocentric paths it has to be
-   * rewritten every frame to track Mars, so leaving it on would be pure cost.
+   * A moon's ring is only drawn from inside its own planet's system. Enceladus's 238,000 km
+   * circle is sub-pixel from anywhere else, and unlike the heliocentric paths it has to be
+   * resampled to track its planet, so leaving nineteen of them on would be pure cost.
    */
-  private updateMarsMoonOrbits_(planetName: SolarBody): void {
+  private updatePlanetMoonOrbits_(planetName: SolarBody): void {
     const scene = ServiceLocator.getScene();
-    const isInMarsSystem = planetName === SolarBody.Mars || planetName === SolarBody.Phobos || planetName === SolarBody.Deimos;
 
-    for (const bodyId of [SolarBody.Phobos, SolarBody.Deimos]) {
+    for (const bodyId of allPlanetMoons()) {
       const body = scene.getBodyById(bodyId) as CelestialBody | null;
+      const parent = parentPlanetOf(bodyId);
 
-      if (!body) {
+      if (!body || !parent) {
         continue;
       }
 
-      if (isInMarsSystem) {
+      if (isInPlanetSystem(planetName, parent)) {
         body.isDrawOrbitPath = true;
         body.drawFullOrbitPath();
       } else {
@@ -461,9 +570,9 @@ export class PlanetsMenuPlugin extends KeepTrackPlugin implements ICommandPalett
     const scene = ServiceLocator.getScene();
     const gl = ServiceLocator.getRenderer().gl;
 
-    // Earth lives in PLANETS and Moon in OTHER_CELESTIAL_BODIES, so the union
-    // already covers them - no need to special-case either.
-    for (const bodyId of [...this.PLANETS, ...this.DWARF_PLANETS, ...this.OTHER_CELESTIAL_BODIES]) {
+    // Earth lives in PLANETS and every moon in MOONS, so the union already covers
+    // them - no need to special-case either.
+    for (const bodyId of [...this.PLANETS, ...this.DWARF_PLANETS, ...this.ASTEROIDS, ...this.MOONS, ...this.OTHER_CELESTIAL_BODIES]) {
       const body = scene.getBodyById(bodyId) as CelestialBody | null;
 
       body?.planetObject?.setHoverDotSize(gl, size);

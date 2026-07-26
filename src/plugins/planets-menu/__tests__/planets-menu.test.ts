@@ -2,6 +2,9 @@ import { MenuMode, SolarBody } from '@app/engine/core/interfaces';
 import { ServiceLocator } from '@app/engine/core/service-locator';
 import { EventBus } from '@app/engine/events/event-bus';
 import { EventBusEvent } from '@app/engine/events/event-bus-events';
+import { clearBodyRegistry } from '@app/engine/rendering/draw-manager/celestial-bodies/body-registry';
+import { registerMarsMoons } from '@app/engine/rendering/draw-manager/celestial-bodies/mars-moon-catalog';
+import { clearPlanetSystems } from '@app/engine/rendering/draw-manager/celestial-bodies/planet-moon-systems';
 import { PlanetsMenuPlugin } from '@app/plugins/planets-menu/planets-menu';
 import { settingsManager } from '@app/settings/settings';
 import { setupDefaultHtml } from '@test/environment/standard-env';
@@ -12,6 +15,15 @@ import { vi } from 'vitest';
 describe('PlanetsMenuPlugin', () => {
   beforeEach(() => {
     setupDefaultHtml();
+    /*
+     * Solar-system bodies are contributed content, so a test that wants any has to register
+     * them - the app does it in registerSolarSystemContent() before the plugins load. Only
+     * the built-in Mars system is available here; the Solar System Pack's moons and asteroids
+     * are asserted in the pack's own tests.
+     */
+    clearBodyRegistry();
+    clearPlanetSystems();
+    registerMarsMoons();
   });
 
   afterEach(() => {
@@ -88,13 +100,30 @@ describe('PlanetsMenuPlugin', () => {
   });
 
   describe('Side menu HTML', () => {
-    it('should contain section headers', () => {
+    it('should contain one card per display group, Sun-outward', () => {
+      const plugin = new PlanetsMenuPlugin();
+      const menuHtml = plugin.buildSideMenuHtml_();
+      // Order matters: the menu is a tour of the solar system from the Sun outward.
+      const headings = ['Star', 'Terrestrial Planets', 'Asteroid Belt', 'Gas Giants', 'Ice Giants', 'Trans-Neptunian Objects'];
+      let previousIndex = -1;
+
+      for (const heading of headings) {
+        const index = menuHtml.indexOf(`>${heading}<`);
+
+        expect(index).toBeGreaterThan(previousIndex);
+        previousIndex = index;
+      }
+    });
+
+    it('should indent each moon under the body it orbits', () => {
       const plugin = new PlanetsMenuPlugin();
       const menuHtml = plugin.buildSideMenuHtml_();
 
-      expect(menuHtml).toContain('Planets');
-      expect(menuHtml).toContain('Dwarf Planets');
-      expect(menuHtml).toContain('Other Celestial Bodies');
+      expect(menuHtml).toContain('planets-menu-satellite" kt-tooltip="Center the camera on Moon."');
+      // Earth is a top-level row, so its own button must NOT carry the indent class.
+      expect(menuHtml).toContain('planets-menu-item" kt-tooltip="Center the camera on Earth."');
+      expect(menuHtml.indexOf('data-planet="Earth"')).toBeLessThan(menuHtml.indexOf('data-planet="Moon"'));
+      expect(menuHtml.indexOf('data-planet="Moon"')).toBeLessThan(menuHtml.indexOf('data-planet="Mars"'));
     });
 
     it('should include planet entries with data-planet attributes', () => {
@@ -107,12 +136,24 @@ describe('PlanetsMenuPlugin', () => {
       expect(menuHtml).toContain('data-planet="Mars"');
     });
 
-    it('should mark unsupported moons as disabled', () => {
+    it('should list every registered moon as a selectable row', () => {
       const plugin = new PlanetsMenuPlugin();
       const menuHtml = plugin.buildSideMenuHtml_();
 
-      expect(menuHtml).toContain('planets-menu-disabled');
-      expect(menuHtml).toContain('Planned for future update.');
+      // Nothing is merely "planned" any more, so no row may render disabled.
+      expect(menuHtml).not.toContain('planets-menu-disabled');
+      for (const moon of [SolarBody.Moon, SolarBody.Phobos, SolarBody.Deimos]) {
+        expect(menuHtml).toContain(`data-planet="${moon}"`);
+      }
+    });
+
+    it('omits moons no provider registered', () => {
+      const plugin = new PlanetsMenuPlugin();
+      const menuHtml = plugin.buildSideMenuHtml_();
+
+      for (const moon of [SolarBody.Io, SolarBody.Titan, SolarBody.Oberon, SolarBody.Triton]) {
+        expect(menuHtml).not.toContain(`data-planet="${moon}"`);
+      }
     });
   });
 
@@ -124,13 +165,53 @@ describe('PlanetsMenuPlugin', () => {
       expect(() => plugin.changePlanet('InvalidPlanet' as SolarBody)).not.toThrow();
     });
 
-    it('should reject planned (not-yet-loaded) bodies before touching the scene', () => {
+    it('should reject unknown bodies before touching the scene', () => {
       const plugin = new PlanetsMenuPlugin();
       const sceneSpy = vi.spyOn(ServiceLocator, 'getScene');
 
-      // Io is listed but planned; the guard must return before any ServiceLocator use.
-      expect(() => plugin.changePlanet(SolarBody.Io)).not.toThrow();
+      // The guard must return before any ServiceLocator use. This is the path a
+      // still-planned body would take too, if one is ever added back.
+      expect(() => plugin.changePlanet('Nibiru' as SolarBody)).not.toThrow();
       expect(sceneSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('parent texture upgrade on moon selection', () => {
+    /**
+     * Selecting a moon frames it a few radii out, which puts its planet across a large part
+     * of the sky while the planet is still on the low tier it was given as a distant dot.
+     */
+    const runWithScene = (selected: unknown) => {
+      const upgraded: SolarBody[] = [];
+
+      vi.spyOn(ServiceLocator, 'getScene').mockReturnValue({
+        getBodyById: (id: SolarBody) => ({
+          useHighestQualityTexture: () => upgraded.push(id),
+        }),
+      } as unknown as ReturnType<typeof ServiceLocator.getScene>);
+
+      const plugin = new PlanetsMenuPlugin();
+
+      (plugin as unknown as { upgradeParentTexture_: (b: unknown) => void }).upgradeParentTexture_(selected);
+
+      return upgraded;
+    };
+
+    it('upgrades the planet a moon orbits', () => {
+      expect(runWithScene({ parentBody: SolarBody.Jupiter })).toEqual([SolarBody.Jupiter]);
+    });
+
+    it("routes Earth's Moon to Earth like any other moon", () => {
+      expect(runWithScene({ parentBody: SolarBody.Earth })).toEqual([SolarBody.Earth]);
+    });
+
+    it('does nothing for a body that orbits no planet', () => {
+      // Planets, dwarf planets and asteroids declare no parentBody.
+      expect(runWithScene({})).toEqual([]);
+    });
+
+    it('does nothing when no body resolved', () => {
+      expect(runWithScene(null)).toEqual([]);
     });
   });
 
@@ -176,11 +257,15 @@ describe('PlanetsMenuPlugin', () => {
       expect(ids).toContain('PlanetsMenuPlugin.toggleMenu');
       expect(ids).toContain(`PlanetsMenuPlugin.center.${SolarBody.Earth}`);
       expect(ids).toContain(`PlanetsMenuPlugin.center.${SolarBody.Moon}`);
-      // Planned bodies must not get a command.
-      expect(ids).not.toContain(`PlanetsMenuPlugin.center.${SolarBody.Io}`);
+      // Every registered moon gets its own command...
+      expect(ids).toContain(`PlanetsMenuPlugin.center.${SolarBody.Phobos}`);
+      // ...and moons this build did not register get none.
+      expect(ids).not.toContain(`PlanetsMenuPlugin.center.${SolarBody.Enceladus}`);
+      // Unknown bodies never do.
+      expect(ids).not.toContain('PlanetsMenuPlugin.center.Nibiru');
     });
 
-    it('does not invoke a planned-body center command path', () => {
+    it('does not center when the planets toggle is off', () => {
       const plugin = new PlanetsMenuPlugin();
       const commands = plugin.getCommandPaletteCommands();
       const earthCmd = commands.find((c) => c.id === `PlanetsMenuPlugin.center.${SolarBody.Earth}`);
