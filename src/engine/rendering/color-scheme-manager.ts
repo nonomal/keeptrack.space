@@ -23,6 +23,8 @@
  */
 
 import { DensityBin } from '@app/app/data/catalog-manager';
+import { OemSatellite } from '@app/app/objects/oem-satellite';
+import { Planet } from '@app/app/objects/planet';
 import { ColorCruncherThreadManager } from '@app/app/threads/color-cruncher-thread-manager';
 import { LayersManager } from '@app/app/ui/layers-manager';
 import { ColorRuleSet } from '@app/engine/core/interfaces';
@@ -117,6 +119,14 @@ export class ColorSchemeManager {
   pickableBuffer: WebGLBuffer | null = null;
   pickableBufferOneTime = false;
   pickableData = new Int8Array(0);
+  /**
+   * Bumped on every upload of {@link pickableData}, which overwrites the whole buffer.
+   *
+   * Anything that pokes a single dot's pickability outside the color scheme loses that write
+   * here, and cannot tell that it did. Watching this counter is how such a caller knows to
+   * reassert; see `Planet.setPickable` and `PlanetMoon.updateDotVisibility_`.
+   */
+  pickableUploadGeneration = 0;
   /**
    * Set on any mutation of {@link colorData}/{@link pickableData}; gates the
    * per-frame GPU re-upload in {@link sendColorBufferToGpu}. In worker mode the
@@ -324,6 +334,18 @@ export class ColorSchemeManager {
     this.resetObjectTypeFlags();
     this.colorBuffer = renderer.gl.createBuffer();
     this.pickableBuffer = renderer.gl.createBuffer();
+
+    /*
+     * `DotsManager.buffers` holds a copy of these references, taken once in setColorScheme.
+     * Creating fresh buffers here without re-pointing it leaves that copy addressing a buffer
+     * nothing reads, which is how per-dot pickability writes went silently nowhere.
+     */
+    const dotsManagerInstance = ServiceLocator.getDotsManager();
+
+    if (dotsManagerInstance?.buffers) {
+      dotsManagerInstance.buffers.color = this.colorBuffer;
+      dotsManagerInstance.buffers.pickability = this.pickableBuffer;
+    }
 
     // Initialize color worker if registry is provided
     if (threadsRegistry) {
@@ -896,8 +918,43 @@ export class ColorSchemeManager {
     }
   }
 
+  /**
+   * Blanks Earth-orbit traffic once the view is no longer about Earth orbit.
+   *
+   * `maxZoomDistance` past 2e6 km is the marker for that: it is only ever set by centering on
+   * a body other than Earth or the Moon. From Mars the whole GP catalog is a sub-pixel smear
+   * 2e8 km away, so drawing it is noise at best and a click target at worst.
+   *
+   * This lives here, ahead of the scheme, rather than inside each scheme's own early-exit
+   * chain, for two reasons the app has already been bitten by. Only 2 of the 18 schemes had
+   * the rule, so switching to Velocity or RCS put all 52,590 satellites back on screen at the
+   * Sun view (measured). And where it did exist it sat ABOVE the star check and took the
+   * entire 9,096-star sky with it. One rule, one place, and the three exemptions stated once.
+   */
+  private getColorIfHiddenAtSolarSystemScale_(obj: BaseObject): ColorInformation | null {
+    if (settingsManager.maxZoomDistance <= 2e6) {
+      return null;
+    }
+
+    /*
+     * Planets and OEM/deep-space objects are the whole point of these views, and the stars
+     * are the backdrop they are seen against - they are camera-anchored to a fixed shell and
+     * belong at every scale.
+     */
+    const oemSource = (obj as OemSatellite).source ?? '';
+
+    if (obj instanceof Planet || oemSource === 'OEM Import' || oemSource === 'KeepTrack' || obj.isStar()) {
+      return null;
+    }
+
+    return {
+      color: this.colorTheme.deselected,
+      pickable: Pickable.No,
+    };
+  }
+
   private calculateBufferData_(i: number, satData: BaseObject[], params: ColorSchemeParams) {
-    let colors = this.getColorIfDisabledSat_(satData, i);
+    let colors = this.getColorIfHiddenAtSolarSystemScale_(satData[i]) ?? this.getColorIfDisabledSat_(satData, i);
 
     if (this.isUseGroupColorScheme) {
       colors ??= this.currentColorScheme?.updateGroup(satData[i], params) ?? this.currentColorSchemeUpdate(satData[i], params);
@@ -1064,6 +1121,7 @@ export class ColorSchemeManager {
     } else {
       gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.pickableData);
     }
+    this.pickableUploadGeneration++;
 
     this.isColorBufferDirty_ = false;
   }

@@ -233,13 +233,12 @@ export abstract class ColorScheme {
       };
     }
 
-    if (settingsManager.maxZoomDistance > 2e6) {
-      return {
-        color: this.colorTheme.deselected,
-        pickable: Pickable.No,
-      };
-    }
-
+    /*
+     * The "blank everything at solar-system scale" rule used to live here, above the star
+     * check, which meant it took the entire sky with the catalog. It now lives once in
+     * ColorSchemeManager.getColorIfHiddenAtSolarSystemScale_, ahead of every scheme - only 2
+     * of the 18 schemes ever had a copy of it here, so the other 16 never hid anything.
+     */
     if (obj.isNotional()) {
       return {
         color: this.colorTheme.deselected,

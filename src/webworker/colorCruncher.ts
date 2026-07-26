@@ -504,12 +504,12 @@ function objectTypePrologue_(cd: Float32Array, pd: Int8Array, i: number, flags: 
     return true;
   }
 
-  if (settings.maxZoomDistance > 2e6) {
-    writeDeselected(cd, pd, i);
-
-    return true;
-  }
-
+  /*
+   * The "blank everything at solar-system scale" rule used to live here, above the star
+   * check, which meant it took the entire sky with the catalog. It now wraps every scheme
+   * once in getUpdateFn - this prologue is only shared by 2 of the 18 schemes, so the other
+   * 16 never hid anything.
+   */
   if (type === SOT_NOTIONAL) {
     writeDeselected(cd, pd, i);
 
@@ -1801,8 +1801,39 @@ const SCHEME_MAP: Record<string, { update: SchemeUpdateFn; updateGroup?: SchemeU
   SmallSatColorScheme: { update: smallSatScheme },
 };
 
+/**
+ * Wraps a scheme so Earth-orbit traffic is blanked once the view is no longer about Earth
+ * orbit. Mirrors `ColorSchemeManager.getColorIfHiddenAtSolarSystemScale_` on the main thread;
+ * keep the two exemption lists in step.
+ *
+ * Applied here rather than inside each scheme because only 2 of the 18 carried the rule, so
+ * switching to Velocity or RCS put all 52,590 satellites back on screen at the Sun view.
+ * Planets and OEM/deep-space objects are what those views are for, and the stars are the
+ * backdrop they are seen against.
+ */
+function withSolarSystemScaleBlank(update: SchemeUpdateFn): SchemeUpdateFn {
+  return (cd, pd, i) => {
+    if (settings.maxZoomDistance > 2e6 && catalogData) {
+      const flags = catalogData.objFlags[i];
+
+      if (!(flags & (ObjFlags.IS_PLANET | ObjFlags.IS_OEM | ObjFlags.IS_STAR))) {
+        writeDeselected(cd, pd, i);
+
+        return;
+      }
+    }
+
+    update(cd, pd, i);
+  };
+}
+
 /** Returns the appropriate color update function for the current scheme and group state. */
 function getUpdateFn(): SchemeUpdateFn {
+  return withSolarSystemScaleBlank(resolveSchemeFn_());
+}
+
+/** The scheme's own update function, before the view-scale wrapper above is applied. */
+function resolveSchemeFn_(): SchemeUpdateFn {
   const entry = SCHEME_MAP[currentSchemeId];
 
   if (!entry) {
