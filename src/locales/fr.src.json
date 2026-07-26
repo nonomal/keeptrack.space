@@ -23,7 +23,8 @@
       "embed": "Intégré",
       "offline": "Offline",
       "epfl": "EPFL",
-      "companion": "Companion"
+      "companion": "Companion",
+      "solar-system": "Système solaire"
     }
   },
   "errorMsgs": {

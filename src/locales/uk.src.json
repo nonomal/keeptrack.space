@@ -23,7 +23,8 @@
       "embed": "Вбудований",
       "offline": "Offline",
       "epfl": "EPFL",
-      "companion": "Companion"
+      "companion": "Companion",
+      "solar-system": "Сонячна система"
     }
   },
   "errorMsgs": {

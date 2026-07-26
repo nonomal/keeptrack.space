@@ -23,7 +23,8 @@
       "embed": "Osadzony",
       "offline": "Offline",
       "epfl": "EPFL",
-      "companion": "Companion"
+      "companion": "Companion",
+      "solar-system": "Układ Słoneczny"
     }
   },
   "errorMsgs": {

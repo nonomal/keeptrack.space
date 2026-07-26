@@ -23,7 +23,8 @@
       "embed": "嵌入式",
       "offline": "Offline",
       "epfl": "EPFL",
-      "companion": "Companion"
+      "companion": "Companion",
+      "solar-system": "太阳系"
     }
   },
   "errorMsgs": {
