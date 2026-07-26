@@ -10,6 +10,7 @@ import { ServiceLocator } from '../core/service-locator';
 import { Engine } from '../engine';
 import { EventBus } from '../events/event-bus';
 import { RmbMenuContext } from '../plugins/core/plugin-capabilities';
+import type { PickBox } from '../rendering/dots-manager';
 import { lineManagerInstance } from '../rendering/line-manager';
 import { html } from '../utils/development/formatter';
 import { errorManagerInstance } from '../utils/errorManager';
@@ -85,6 +86,19 @@ export class InputManager {
   private forcePickRender_ = false;
   /** Previous frame's view-projection matrix, to detect camera motion. */
   private lastPickCamMatrix_: Float32Array | null = null;
+  /**
+   * The picking box the staging buffer actually holds, or null when nothing has landed
+   * in it yet. Set only once a read has completed (the async one resolves a frame or
+   * more after it is issued), so a decode can tell whether the bytes it is about to read
+   * describe the pixel being asked about.
+   */
+  private pickBufferBox_: PickBox | null = null;
+  /**
+   * The picking pass's draw box as of the moment the buffered read was taken. Outside it
+   * the framebuffer had not been rendered yet, so those bytes are an older frame's
+   * leftovers no matter which box the read covered.
+   */
+  private pickBufferDrawBox_: PickBox | null = null;
 
   /**
    * Mark that something happened that needs a fresh picking buffer soon: a
@@ -356,8 +370,8 @@ export class InputManager {
     this.forcePickRender_ = true;
     const renderer = ServiceLocator.getRenderer();
     const dotsManagerInstance = ServiceLocator.getDotsManager();
-    const catalogManagerInstance = ServiceLocator.getCatalogManager();
     const { gl } = renderer;
+    const pickBox = dotsManagerInstance.getPickBox(gl, x, y);
 
     // NOTE: gl.readPixels is a huge bottleneck but readPixelsAsync doesn't work properly on mobile.
     // readPixelsAsync swallows its own errors and flips isAsyncWorking; safe to fire-and-forget.
@@ -372,12 +386,33 @@ export class InputManager {
       // and every pick returned the stale buffer (id -1 forever).
       const isAsyncRead = !isThisNode() && this.isAsyncWorking && !settingsManager.isDisableAsyncReadPixels;
 
+      /*
+       * The bytes in the staging buffer only describe this pixel if BOTH are true:
+       * the read covered it, and the picking pass had already rendered it when that
+       * read was taken. Track the draw box alongside the read box - the read happens
+       * before this frame's picking pass, so it always reflects an earlier draw.
+       */
+      const drawBoxAtRead = dotsManagerInstance.lastPickDrawBox;
+
       if (isAsyncRead) {
-        this.readPixelsAsync(x, gl.drawingBufferHeight - y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, dotsManagerInstance.pickReadPixelBuffer);
+        /*
+         * readPixelsAsync fills the staging buffer when its fence resolves, which is
+         * always AFTER this call returns - so what is in the buffer right now belongs to
+         * an earlier read. Keep the async read (no pipeline stall) for the parked-cursor
+         * case, and fall back to a sync read whenever the buffered bytes cannot answer
+         * for this pixel. Decoding them unconditionally is what made lone dots
+         * unhoverable: over empty sky somebody else's pixel decodes to -1.
+         */
+        this.readPixelsAsync(pickBox.x0, pickBox.y0, pickBox.size, pickBox.size, gl.RGBA, gl.UNSIGNED_BYTE, dotsManagerInstance.pickReadPixelBuffer).then((didLand) => {
+          this.pickBufferBox_ = didLand ? pickBox : null;
+          this.pickBufferDrawBox_ = didLand ? drawBoxAtRead : null;
+        });
       }
-      if (!isAsyncRead) {
+      if (!isAsyncRead || !this.isPixelBuffered_(pickBox)) {
         try {
-          gl.readPixels(x, gl.drawingBufferHeight - y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, dotsManagerInstance.pickReadPixelBuffer);
+          gl.readPixels(pickBox.x0, pickBox.y0, pickBox.size, pickBox.size, gl.RGBA, gl.UNSIGNED_BYTE, dotsManagerInstance.pickReadPixelBuffer);
+          this.pickBufferBox_ = pickBox;
+          this.pickBufferDrawBox_ = drawBoxAtRead;
         } catch (e) {
           this.disablePicking_(e);
 
@@ -388,16 +423,69 @@ export class InputManager {
       profiler.endCpu(CpuStage.pickRead);
     }
 
-    const buf = dotsManagerInstance.pickReadPixelBuffer;
-    const id = ((buf[2] << 16) | (buf[1] << 8) | buf[0]) - 1;
+    /*
+     * Decode against the box the buffer actually holds - on the cached-async path that is
+     * the earlier read's box, offset by however far the cursor has drifted since - but
+     * measure distance from where the cursor is NOW.
+     */
+    const bufferedBox = this.pickBufferBox_ ?? pickBox;
 
-    // Async readback can leave pickReadPixelBuffer with stale or partially-written values,
-    // producing decoded ids well outside the catalog. Treat any out-of-range id as a miss.
-    if (id < 0 || id >= catalogManagerInstance.numObjects) {
-      return -1;
+    return this.decodePickBox_({ ...bufferedBox, cx: pickBox.cx, cy: pickBox.cy });
+  }
+
+  /** True when a box contains a drawing-buffer pixel. */
+  private static boxContains_(box: PickBox | null, px: number, py: number): boolean {
+    return !!box && px >= box.x0 && px < box.x0 + box.size && py >= box.y0 && py < box.y0 + box.size;
+  }
+
+  /**
+   * True when the staging buffer already holds usable bytes for this pixel: a completed
+   * read that covered it, taken after a picking pass that had rendered it.
+   */
+  private isPixelBuffered_(pickBox: PickBox): boolean {
+    return InputManager.boxContains_(this.pickBufferBox_, pickBox.cx, pickBox.cy) && InputManager.boxContains_(this.pickBufferDrawBox_, pickBox.cx, pickBox.cy);
+  }
+
+  /**
+   * Decodes the picking box in the staging buffer and returns the in-catalog id nearest
+   * the cursor. The box is read (and rendered) around the cursor rather than at exactly
+   * one pixel so a cursor that moved between the picking draw and this read still lands
+   * on its target - see DotsManager.PICKING_READ_PIXEL_BUFFER_SIZE.
+   */
+  private decodePickBox_(pickBox: PickBox): number {
+    const dotsManagerInstance = ServiceLocator.getDotsManager();
+    const catalogManagerInstance = ServiceLocator.getCatalogManager();
+    const buf = dotsManagerInstance.pickReadPixelBuffer;
+    const { x0, y0, size, cx, cy } = pickBox;
+    let bestId = -1;
+    let bestDistance = Number.POSITIVE_INFINITY;
+
+    for (let row = 0; row < size; row++) {
+      for (let col = 0; col < size; col++) {
+        const offset = (row * size + col) * 4;
+        const id = ((buf[offset + 2] << 16) | (buf[offset + 1] << 8) | buf[offset]) - 1;
+
+        /*
+         * Async readback can leave pickReadPixelBuffer with stale or partially-written
+         * values, producing decoded ids well outside the catalog. Treat any out-of-range
+         * id as a miss.
+         */
+        if (id < 0 || id >= catalogManagerInstance.numObjects) {
+          continue;
+        }
+
+        const dx = x0 + col - cx;
+        const dy = y0 + row - cy;
+        const distance = dx * dx + dy * dy;
+
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          bestId = id;
+        }
+      }
     }
 
-    return id;
+    return bestId;
   }
 
   /**
@@ -661,7 +749,8 @@ export class InputManager {
   }
 
   /* istanbul ignore next */
-  public async readPixelsAsync(x: number, y: number, w: number, h: number, format: number, type: number, dstBuffer: Uint8Array) {
+  /** @returns true when the readback actually landed in `dstBuffer`. */
+  public async readPixelsAsync(x: number, y: number, w: number, h: number, format: number, type: number, dstBuffer: Uint8Array): Promise<boolean> {
     const gl = ServiceLocator.getRenderer().gl;
 
     try {
@@ -676,9 +765,13 @@ export class InputManager {
 
       gl.deleteBuffer(buf);
       this.isAsyncWorking = true;
+
+      return true;
     } catch {
       this.isAsyncWorking = false;
       gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+
+      return false;
     }
   }
 

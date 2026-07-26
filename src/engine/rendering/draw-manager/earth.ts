@@ -691,6 +691,12 @@ export class Earth {
     gl.uniform1f(uniforms.u_gmst, dotsManagerInstance.cruncherGmst);
     gl.uniform1f(uniforms.u_currentGmst, ServiceLocator.getTimeManager().gmst);
     gl.uniform1f(uniforms.u_earthRadius, RADIUS_OF_EARTH);
+    /*
+     * This mesh is 66,049 vertices, so its gl_VertexIDs run through the catalog index ranges
+     * the shader uses to spot stars and planets. Leaving the dots pass's ranges in place made
+     * the shader camera-anchor a whole band of Earth's sphere as if it were the star shell.
+     */
+    dotsManagerInstance.disableObjectRangeUniformsForMesh(gl, uniforms);
 
     if (isFlatMap) {
       gl.uniform1f(uniforms.u_flatMapCenterX, mainCam.flatMapPanX);
@@ -707,17 +713,15 @@ export class Earth {
     }
 
     /*
-     * no reason to render 100000s of pixels when
-     * we're only going to read one
+     * no reason to render 100000s of pixels when we're only going to read a small box.
+     * MUST be the same box the dots pass scissors to and the read consumes, or the
+     * earth silhouette stops occluding part of what gets picked.
      */
     if (!settingsManager.isMobileModeEnabled) {
+      const pickBox = dotsManagerInstance.getPickBox(gl, mainCam.state.mouseX, mainCam.state.mouseY);
+
       gl.enable(gl.SCISSOR_TEST);
-      gl.scissor(
-        mainCam.state.mouseX,
-        gl.drawingBufferHeight - mainCam.state.mouseY,
-        ServiceLocator.getDotsManager().PICKING_READ_PIXEL_BUFFER_SIZE,
-        ServiceLocator.getDotsManager().PICKING_READ_PIXEL_BUFFER_SIZE
-      );
+      gl.scissor(pickBox.x0, pickBox.y0, pickBox.size, pickBox.size);
     }
 
     gl.drawElements(gl.TRIANGLES, this.surfaceMesh.geometry.indexLength, this.surfaceMesh.geometry.indexType, 0);
