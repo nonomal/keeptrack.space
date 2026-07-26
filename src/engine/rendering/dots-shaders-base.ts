@@ -1,5 +1,6 @@
 import { SettingsManager } from '../../settings/settings';
 import { glsl } from '../utils/development/formatter';
+import { BODY_GLYPH_WORDS, BodyGlyph } from './body-glyph';
 import { DepthManager } from './depth-manager';
 
 /**
@@ -76,12 +77,17 @@ export const createDotStyleGlsl = (settings: SettingsManager): string => glsl`
       return 1.0 - smoothstep(-aa, aa, d);
     }
 
-    // Bold "ringed planet" glyph: opaque disc + tilted elliptical ring. Reads
-    // as a planet at a glance and is distinct from the satellite dot styles,
-    // the soft-glow stars, and the status markers. Returns 0..1 coverage; the
-    // ring's "ears" extend past the disc left/right like the classic Saturn icon.
-    float ktPlanetAlpha(vec2 p, float scale, float pointSize) {
-      float aa = ktAa(pointSize);
+    // ---------------------------------------------------------------------
+    // Solar-system body glyphs. Each stands in for a body too small to see at
+    // this range, and the SHAPE says what kind of thing it is (see BodyGlyph in
+    // body-glyph.ts) - color alone cannot, since the dot is already tinted with
+    // the body's own color. All return 0..1 coverage over the point sprite and
+    // are drawn at "scale", which shrinks when a status marker rings the dot.
+    // ---------------------------------------------------------------------
+
+    // Saturn: opaque disc + tilted elliptical ring whose "ears" reach past the
+    // disc left/right, exactly like the classic icon.
+    float ktRingedAlpha(vec2 p, float scale, float aa) {
       float disc = ktDiscAlpha(p, 0.5 * scale, aa);
 
       // Rotate 30 degrees, then squash y 3x so the ring becomes an ellipse
@@ -94,6 +100,102 @@ export const createDotStyleGlsl = (settings: SettingsManager): string => glsl`
       float ring = 1.0 - smoothstep(-2.0 * aa, 2.0 * aa, abs(length(q) - 0.86 * scale) - 0.09 * scale);
 
       return max(disc, ring);
+    }
+
+    // Terrestrial planet: a plain solid disc. The baseline every other glyph
+    // is read against, and the only one with no decoration at all.
+    float ktTerrestrialAlpha(vec2 p, float scale, float aa) {
+      return ktDiscAlpha(p, 0.62 * scale, aa);
+    }
+
+    // Gas giant: a fatter disc with two belts cut out of it. The bands wash out
+    // into a plain disc once the sprite is small enough that the AA width
+    // swallows them, which is the right way for this to degrade.
+    float ktGasGiantAlpha(vec2 p, float scale, float aa) {
+      float disc = ktDiscAlpha(p, 0.72 * scale, aa);
+      float upper = 1.0 - smoothstep(0.06 * scale - aa, 0.06 * scale + aa, abs(p.y - 0.24 * scale));
+      float lower = 1.0 - smoothstep(0.05 * scale - aa, 0.05 * scale + aa, abs(p.y + 0.30 * scale));
+
+      return disc * (1.0 - max(upper, lower));
+    }
+
+    // Ice giant: a smaller disc inside an UPRIGHT ring. Uranus' rings really do
+    // stand on end, and the 90 degree difference from Saturn's tilt is what
+    // separates the two glyphs at a glance.
+    float ktIceGiantAlpha(vec2 p, float scale, float aa) {
+      float disc = ktDiscAlpha(p, 0.46 * scale, aa);
+      // Squash x 3x: the ellipse's long axis is now vertical
+      vec2 q = vec2(p.x * 3.0, p.y);
+      float ring = 1.0 - smoothstep(-2.0 * aa, 2.0 * aa, abs(length(q) - 0.86 * scale) - 0.09 * scale);
+
+      return max(disc, ring);
+    }
+
+    // Dwarf planet: a small disc inside a broken ring - a body that did not
+    // clear its neighbourhood. The dashes keep it from reading as the solid
+    // search ring, and the core's smaller radius survives even when the dashes
+    // blur away at tiny sprite sizes.
+    float ktDwarfPlanetAlpha(vec2 p, float scale, float aa) {
+      float core = ktDiscAlpha(p, 0.40 * scale, aa);
+      float ring = ktRingAlpha(p, 0.80 * scale, 0.07 * scale, aa);
+      // 8 segments, 50% duty
+      float dash = step(0.5, fract(atan(p.y, p.x) * 4.0 / 3.14159265));
+
+      return max(core, ring * dash);
+    }
+
+    // Moon: a crescent, cut by an offset disc.
+    float ktMoonAlpha(vec2 p, float scale, float aa) {
+      float disc = ktDiscAlpha(p, 0.66 * scale, aa);
+      float bite = ktDiscAlpha(p - vec2(0.34 * scale, 0.12 * scale), 0.60 * scale, aa);
+
+      return clamp(disc - bite, 0.0, 1.0);
+    }
+
+    // Asteroid: a rock. A disc whose radius wobbles with angle, so it is lumpy
+    // and obviously not a planet even when it is only a few pixels across.
+    float ktAsteroidAlpha(vec2 p, float scale, float aa) {
+      float a = atan(p.y, p.x);
+      float r = 0.58 * scale * (1.0 + 0.22 * cos(3.0 * a + 0.8) + 0.12 * cos(5.0 * a - 1.7));
+
+      return 1.0 - smoothstep(r - aa, r + aa, length(p));
+    }
+
+    // Deep-space probe: a bus with two solar panels. These share the body dot
+    // block but are spacecraft, and at Voyager's range the alternative is a dot
+    // indistinguishable from a star.
+    float ktSpacecraftAlpha(vec2 p, float scale, float aa) {
+      vec2 a = abs(p);
+      float bus = ktSquareAlpha(p, 0.30 * scale, aa);
+      float panels =
+        (1.0 - smoothstep(0.15 * scale - aa, 0.15 * scale + aa, a.y)) *
+        (1.0 - smoothstep(0.92 * scale - aa, 0.92 * scale + aa, a.x));
+
+      return max(bus, panels);
+    }
+
+    // Dispatch on the packed BodyGlyph class. Unknown classes fall back to the
+    // terrestrial disc rather than vanishing.
+    float ktBodyGlyphAlpha(int glyph, vec2 p, float scale, float pointSize) {
+      float aa = ktAa(pointSize);
+
+      if (glyph == ${BodyGlyph.GasGiant}) {
+        return ktGasGiantAlpha(p, scale, aa);
+      } else if (glyph == ${BodyGlyph.IceGiant}) {
+        return ktIceGiantAlpha(p, scale, aa);
+      } else if (glyph == ${BodyGlyph.Ringed}) {
+        return ktRingedAlpha(p, scale, aa);
+      } else if (glyph == ${BodyGlyph.DwarfPlanet}) {
+        return ktDwarfPlanetAlpha(p, scale, aa);
+      } else if (glyph == ${BodyGlyph.Moon}) {
+        return ktMoonAlpha(p, scale, aa);
+      } else if (glyph == ${BodyGlyph.Asteroid}) {
+        return ktAsteroidAlpha(p, scale, aa);
+      } else if (glyph == ${BodyGlyph.Spacecraft}) {
+        return ktSpacecraftAlpha(p, scale, aa);
+      }
+
+      return ktTerrestrialAlpha(p, scale, aa);
     }
 
     // Core dot coverage for the active style. scale < 1 shrinks the core to
@@ -148,6 +250,7 @@ export const createBaseFragShader = (settings: SettingsManager): string => glsl`
     in float vDist;
     in float vPointSize;
     in float vIsPlanet;
+    in float vGlyph;
 
     out vec4 fragColor;
 
@@ -156,10 +259,16 @@ export const createBaseFragShader = (settings: SettingsManager): string => glsl`
     void main(void) {
       vec2 ptCoord = gl_PointCoord * 2.0 - vec2(1.0, 1.0);
 
+      // vGlyph is already the glyph this dot should DRAW - the vertex shader has folded in
+      // the solar-system-view gate and the center body's own suppression.
+      bool hasGlyph = vGlyph > 0.5;
+
       // Stars always keep the soft-glow look regardless of dot style. Outer
       // planets also sit beyond 1e8 km, so exclude planets explicitly or
-      // Jupiter+ render as stars and lose their glyph and status markers.
-      bool isStar = vDist > 1.0e8 && vIsPlanet < 0.5;
+      // Jupiter+ render as stars and lose their glyph and status markers. The
+      // deep-space probes are past 1e8 km too and are NOT planets, so their
+      // glyph has to veto the star branch on its own.
+      bool isStar = vDist > 1.0e8 && vIsPlanet < 0.5 && !hasGlyph;
 
       // vSize carries the per-dot status code (see DotStatus); markers only
       // exist for statuses above Big so planets stay plain
@@ -170,8 +279,8 @@ export const createBaseFragShader = (settings: SettingsManager): string => glsl`
       float coreScale = mix(1.0, 0.55, hasMarker);
       float core;
 
-      if (vIsPlanet > 0.5) {
-        core = ktPlanetAlpha(ptCoord, coreScale, vPointSize);
+      if (hasGlyph) {
+        core = ktBodyGlyphAlpha(int(vGlyph + 0.5), ptCoord, coreScale, vPointSize);
       } else {
         core = isStar ? ktSoftAlpha(ptCoord) : ktShapeAlpha(u_dotStyle, ptCoord, coreScale, vPointSize);
       }
@@ -189,6 +298,27 @@ export const createBaseFragShader = (settings: SettingsManager): string => glsl`
       float alpha = clamp(max(core, marker), 0.0, 1.0);
 
       fragColor = vec4(rgb, vColor.a * alpha);
+    }
+    `;
+
+/**
+ * Vertex-side lookup for the packed body-glyph table. Interpolated into the base and symbology
+ * vertex shaders so the unpacking can never drift from {@link packBodyGlyphs}.
+ *
+ * Declares `u_bodyGlyph` itself - every shader that includes this MUST therefore have the
+ * uniform assigned (`GlUtils.assignUniforms` throws on a uniform it cannot find).
+ */
+export const createBodyGlyphLookupGlsl = (): string => glsl`
+    uniform int u_bodyGlyph[${BODY_GLYPH_WORDS}];
+
+    // The BodyGlyph class for a slot in the body block (gl_VertexID - u_planetIdx1), or
+    // BodyGlyph.None for anything outside it. Four bits per body, eight bodies per word.
+    int ktBodyGlyphAt(int slot) {
+      if (slot < 0 || slot >= ${BODY_GLYPH_WORDS * 8}) {
+        return ${BodyGlyph.None};
+      }
+
+      return (u_bodyGlyph[slot >> 3] >> ((slot & 7) * 4)) & 15;
     }
     `;
 
@@ -220,12 +350,17 @@ export const createBaseVertShader = (settings: SettingsManager): string => glsl`
     uniform int u_starIdx2;
     uniform int u_planetIdx1;
     uniform int u_planetIdx2;
+    uniform bool u_planetGlyph;
+    uniform int u_hiddenBodyIdx;
 
     out vec4 vColor;
     out float vSize;
     out float vDist;
     out float vPointSize;
     out float vIsPlanet;
+    out float vGlyph;
+
+    ${createBodyGlyphLookupGlsl()}
 
     float when_lt(float x, float y) {
         return max(sign(y - x), 0.0);
@@ -235,11 +370,41 @@ export const createBaseVertShader = (settings: SettingsManager): string => glsl`
     }
 
     void main(void) {
-        // True planets/dwarf planets get a dedicated glyph and a size boost;
-        // set first so every early-return path leaves the varying defined
-        float isPlanet = (gl_VertexID >= u_planetIdx1 && gl_VertexID <= u_planetIdx2) ? 1.0 : 0.0;
+        // Solar-system bodies and deep-space probes share one contiguous index block, and
+        // which of the two a dot is comes out of the glyph table rather than a second range.
+        // Set first so every early-return path leaves the varyings defined.
+        int bodySlot = (gl_VertexID >= u_planetIdx1 && gl_VertexID <= u_planetIdx2) ? gl_VertexID - u_planetIdx1 : -1;
+        int glyph = ktBodyGlyphAt(bodySlot);
+        // Planet treatment (origin-cull exemption, star exclusion) covers every celestial body
+        // in the block but not the probes, which are spacecraft. Derived from the glyph the
+        // body HAS, not the one it draws, so it holds for the center body too.
+        float isPlanet = (glyph > ${BodyGlyph.None} && glyph != ${BodyGlyph.Spacecraft}) ? 1.0 : 0.0;
+        float glyphDrawn = (glyph > ${BodyGlyph.None} && u_planetGlyph) ? float(glyph) : 0.0;
 
         vIsPlanet = isPlanet;
+        vGlyph = glyphDrawn;
+
+        /*
+         * Drop the center body's dot entirely while its own mesh is on screen (DotsManager
+         * only names it then, and passes -1 otherwise). The dot sits at the mesh's exact
+         * center, so it is a marker for the thing you are already looking at: a planet's
+         * sphere buries it, but a probe framed at 84 m is thin booms and the dot showed
+         * straight through the gaps. Must match the picking shader or it stays an invisible
+         * click target.
+         *
+         * Compared as an ABSOLUTE vertex id, never a slot: slots are -1 outside the body
+         * block, so a slot comparison also matched every star and satellite the moment there
+         * was nothing to hide. gl_VertexID is never negative, so -1 can match nothing.
+         */
+        if (gl_VertexID == u_hiddenBodyIdx) {
+            gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+            gl_PointSize = 0.0;
+            vColor = vec4(0.0);
+            vSize = 0.0;
+            vDist = 0.0;
+            vPointSize = 0.0;
+            return;
+        }
 
         // Skip objects with invalid positions:
         // - NaN from failed propagation (NaN comparisons always false)
@@ -423,8 +588,9 @@ export const createBaseVertShader = (settings: SettingsManager): string => glsl`
         // Searched Object
         drawSize += when_ge(a_size, 0.5) * ${settings.satShader.starSize};
 
-        // Planets render a bolder glyph, so give the sprite room to draw it
-        drawSize *= 1.0 + 0.4 * isPlanet;
+        // Bodies render a bolder glyph, so give the sprite room to draw it - but only
+        // when the glyph is actually drawn, or a plain body dot would be 40% too big
+        drawSize *= 1.0 + 0.4 * step(0.5, glyphDrawn);
 
         gl_PointSize = drawSize;
         vPointSize = gl_PointSize;

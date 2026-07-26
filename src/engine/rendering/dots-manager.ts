@@ -19,6 +19,7 @@ import { RADIUS_OF_EARTH } from '../utils/constants';
 import { glsl } from '../utils/development/formatter';
 import { CounterStage, CpuStage, FrameProfiler, GpuStage } from '../utils/frame-profiler';
 import { ensureVelocityVec3 } from '../utils/space-object-invariants';
+import { BODY_GLYPH_WORDS, BodyGlyph, DOT_HIDE_BODY_RADII, packBodyGlyphs } from './body-glyph';
 import { BufferAttribute } from './buffer-attribute';
 import { DepthManager } from './depth-manager';
 import { IDotsShaderProvider } from './dots-shader-provider';
@@ -44,10 +45,60 @@ declare module '@app/engine/core/interfaces' {
 }
 
 /**
+ * A square of the GPU picking framebuffer in drawing-buffer pixels, y measured from the
+ * BOTTOM (GL convention). `x0`/`y0` are its lower-left corner after edge clamping;
+ * `cx`/`cy` are the cursor pixel it was built around, which is NOT the box centre once
+ * the box has been clamped against a screen edge.
+ */
+/** The picking program's `gl_VertexID`-keyed range uniforms. */
+export interface PickingRangeUniforms {
+  u_starIdx1: WebGLUniformLocation;
+  u_starIdx2: WebGLUniformLocation;
+  u_planetIdx1: WebGLUniformLocation;
+  u_planetIdx2: WebGLUniformLocation;
+  u_planetGlyph: WebGLUniformLocation;
+  u_hiddenBodyIdx: WebGLUniformLocation;
+}
+
+/** The visual programs' body-block uniforms: the picking range plus the packed glyph table. */
+interface BodyRangeUniforms extends PickingRangeUniforms {
+  u_bodyGlyph: WebGLUniformLocation;
+}
+
+export interface PickBox {
+  x0: number;
+  y0: number;
+  size: number;
+  cx: number;
+  cy: number;
+}
+
+/**
  * Class representing a manager for dots in a space visualization.
  */
 export class DotsManager {
-  readonly PICKING_READ_PIXEL_BUFFER_SIZE = 1;
+  /**
+   * Side length of the square of the picking buffer that is rendered AND read back,
+   * centred on the cursor. This was 1 for years: the picking pass scissored itself to
+   * the single pixel under the cursor, and that single pixel was the only valid data in
+   * the whole buffer. But the pass is drawn from the cursor position of the frame that
+   * triggered it while the read happens on a later tick (up to `updateHoverDelayLimit`
+   * frames + the 100 ms hover throttle later, and the async readback lands later still),
+   * so ANY cursor movement in between made the read sample a pixel that had never been
+   * rendered for it - an instant miss. Isolated dots (planets, stars, high orbits) were
+   * effectively unhoverable; inside the LEO cloud the stale pixel still held some
+   * satellite, which is why only the sparse sky looked broken. A box wide enough to
+   * absorb that drift costs ~225 fragments per picking pass instead of 1.
+   */
+  readonly PICKING_READ_PIXEL_BUFFER_SIZE = 15;
+
+  /**
+   * The region of the picking framebuffer the last picking pass actually rendered, or
+   * null before the first pass. Outside it the buffer holds whatever an older frame left
+   * there, so a readback is only meaningful where it overlaps this - see
+   * `InputManager.getSatIdFromCoord`.
+   */
+  lastPickDrawBox: PickBox | null = null;
 
   /**
    * Distance from Earth's center (km) below which the dots shader rotates a dot by
@@ -143,6 +194,9 @@ export class DotsManager {
         u_starIdx2: <WebGLUniformLocation>(<unknown>null),
         u_planetIdx1: <WebGLUniformLocation>(<unknown>null),
         u_planetIdx2: <WebGLUniformLocation>(<unknown>null),
+        u_planetGlyph: <WebGLUniformLocation>(<unknown>null),
+        u_hiddenBodyIdx: <WebGLUniformLocation>(<unknown>null),
+        u_bodyGlyph: <WebGLUniformLocation>(<unknown>null),
       },
       vao: <WebGLVertexArrayObject>(<unknown>null),
     },
@@ -187,6 +241,8 @@ export class DotsManager {
         u_starIdx2: <WebGLUniformLocation>(<unknown>null),
         u_planetIdx1: <WebGLUniformLocation>(<unknown>null),
         u_planetIdx2: <WebGLUniformLocation>(<unknown>null),
+        u_planetGlyph: <WebGLUniformLocation>(<unknown>null),
+        u_hiddenBodyIdx: <WebGLUniformLocation>(<unknown>null),
       },
       vao: <WebGLVertexArrayObject>(<unknown>null),
     },
@@ -214,9 +270,14 @@ export class DotsManager {
   planetDot1: number;
   // End of the planet dots in the object cache
   planetDot2: number;
-  // Start of the deep-space probe dots (Voyager etc.) inside the planet block;
-  // true planets/dwarf planets occupy [planetDot1, deepSpaceDot1)
-  deepSpaceDot1: number;
+  /**
+   * Packed BodyGlyph class per dot in [planetDot1, planetDot2), uploaded as `u_bodyGlyph`.
+   * All zeros until the catalog populates it, which reads in the shader as "no bodies" -
+   * the same safe state the -1/-1 index range gives.
+   */
+  private bodyGlyphWords_: Int32Array = new Int32Array(BODY_GLYPH_WORDS);
+  /** Body name per glyph slot, so `settingsManager.centerBody` can be resolved to a slot. */
+  private bodyGlyphNames_: string[] = [];
   velocityData: Float32Array;
   lastUpdateSimTime = 0;
 
@@ -393,17 +454,108 @@ export class DotsManager {
   }
 
   /**
-   * Uploads the true-planet dot index range (planets + dwarf planets, EXCLUDING
-   * the deep-space probes that share the tail of the planet block) so the
-   * fragment shaders can draw the bold "ringed planet" glyph. -1/-1 keeps the
-   * branch off for every vertex until the catalog populates the indices.
+   * True when the view is about the solar system rather than Earth orbit.
+   *
+   * This is the ONE condition behind the body glyphs, their 1.4x sprite, the matching
+   * pick-size floor, and the big-dot status the dots are drawn at - they all describe the same
+   * thing, so they must all key off the same test or they disagree.
+   *
+   * It used to be camera RANGE (`> SOLAR_SYSTEM_SCALE_KM`), which made the glyphs vanish the
+   * moment you zoomed in: from the Sun view, closing to 4e7 km flipped every glyph back to a
+   * plain dot even though the planets there are still far under a pixel and the icon is the
+   * only thing marking them. Range answers "how zoomed in am I", not "can I see the body
+   * itself" - and the latter is already handled per-body and much better, by
+   * `PlanetMoon.updateDotVisibility_` hiding a dot outright once its mesh is on screen, and by
+   * the center body never drawing its own glyph (see `centerBodyGlyphSlot_`).
+   *
+   * `maxZoomDistance > 2e6` is the same marker the color schemes use to blank Earth-orbit
+   * traffic (`ColorSchemeManager.getColorIfHiddenAtSolarSystemScale_`); the center-body test
+   * is belt and braces for a view that set one without the other.
    */
-  private setPlanetRangeUniforms_(gl: WebGL2RenderingContext, uniforms: { u_planetIdx1: WebGLUniformLocation; u_planetIdx2: WebGLUniformLocation }): void {
-    const end = (this.deepSpaceDot1 ?? this.planetDot2) as number;
+  private static isSolarSystemView_(): boolean {
+    return settingsManager.maxZoomDistance > (2e6 as Kilometers) || (settingsManager.centerBody !== SolarBody.Earth && settingsManager.centerBody !== SolarBody.Moon);
+  }
+
+  /**
+   * Records what each dot in the body block is, in catalog order starting at `planetDot1`.
+   * Called once by the catalog loader after the block is built.
+   *
+   * The names come along because the dot the center body would draw has to be suppressed, and
+   * `settingsManager.centerBody` names it rather than indexing it.
+   */
+  setBodyGlyphs(bodies: readonly { name: string; glyph: BodyGlyph }[]): void {
+    this.bodyGlyphNames_ = bodies.map((body) => body.name);
+    this.bodyGlyphWords_ = packBodyGlyphs(bodies.map((body) => body.glyph));
+  }
+
+  /**
+   * Catalog index of the one dot the shaders must drop entirely, or -1 when there is none.
+   *
+   * That is the center body, and only while its own mesh is doing the job. The dot sits at the
+   * mesh's exact center, so once the mesh is more than about a pixel wide the dot is a marker
+   * for something you are already looking at: on a planet the sphere's depth buries it, but a
+   * probe framed at 84 m is thin booms and the dot showed straight through the gaps.
+   *
+   * Zoomed back out the mesh shrinks to nothing and the center body needs its marker like
+   * every other body, so this returns -1 again and the dot (and its glyph) come back. Same
+   * `radius * DOT_HIDE_BODY_RADII` rule the moons use, so a body cannot be hidden by one and
+   * shown by the other.
+   *
+   * An ABSOLUTE index, not a slot within the body block. The shaders compare it to
+   * `gl_VertexID`, which is never negative, so the -1 "nothing hidden" case cannot match
+   * anything. Handing them a slot instead was a real bug: slots are also -1 for every vertex
+   * OUTSIDE the block, so the moment nothing was hidden the cull took every star, satellite
+   * and marker in the catalog with it - visible as "the stars disappear when you zoom out".
+   */
+  private hiddenBodyDotIndex_(): number {
+    const slot = this.bodyGlyphNames_.indexOf(settingsManager.centerBody);
+
+    if (slot === -1 || !Number.isInteger(this.planetDot1)) {
+      return -1;
+    }
+
+    // The center body sits at the origin of the shifted world the dots are drawn in, so the
+    // camera's own position in that frame IS the range to it.
+    const camPos = ServiceLocator.getMainCamera()?.getCamPos();
+    // Earth is its own class and reports only RADIUS; every other body prefers the zoom-floor
+    // radius, which is the longest axis for an irregular shape and the mesh for a probe.
+    const body = ServiceLocator.getScene()?.getBodyById(settingsManager.centerBody) as { zoomFloorRadiusKm?: number; RADIUS?: number } | null;
+    const radiusKm = body?.zoomFloorRadiusKm ?? body?.RADIUS ?? 0;
+
+    if (!camPos || radiusKm <= 0) {
+      return -1;
+    }
+
+    return Math.hypot(camPos[0], camPos[1], camPos[2]) <= radiusKm * DOT_HIDE_BODY_RADII ? this.planetDot1 + slot : -1;
+  }
+
+  /**
+   * Uploads the body dot index range, the packed per-body glyph table, and the index of the one
+   * dot that is dropped.
+   *
+   * The range covers the WHOLE block - planets, dwarf planets, asteroids, moons and the
+   * deep-space probes that share its tail. Telling the probes apart from the bodies is the
+   * glyph table's job now (they get {@link BodyGlyph.Spacecraft}), so there is no second
+   * index boundary in the shaders. -1/-1 keeps every body branch off for every vertex until
+   * the catalog populates the indices.
+   *
+   * `u_planetGlyph` gates the glyphs themselves, and is deliberately separate from the range:
+   * the range also marks bodies exempt from the near-origin cull (Earth's dot sits AT the
+   * ECI origin) and excludes them from the star branch, and both of those must hold in every
+   * view. Only the drawn glyph, its 1.4x sprite and the matching pick-size floor follow it.
+   */
+  private setPlanetRangeUniforms_(gl: WebGL2RenderingContext, uniforms: PickingRangeUniforms | BodyRangeUniforms): void {
+    const end = this.planetDot2;
     const hasPlanets = Number.isInteger(this.planetDot1) && Number.isInteger(end) && end > this.planetDot1;
 
     gl.uniform1i(uniforms.u_planetIdx1, hasPlanets ? this.planetDot1 : -1);
     gl.uniform1i(uniforms.u_planetIdx2, hasPlanets ? end - 1 : -1);
+    gl.uniform1i(uniforms.u_planetGlyph, DotsManager.isSolarSystemView_() ? 1 : 0);
+    gl.uniform1i(uniforms.u_hiddenBodyIdx, this.hiddenBodyDotIndex_());
+
+    if ('u_bodyGlyph' in uniforms) {
+      gl.uniform1iv(uniforms.u_bodyGlyph, this.bodyGlyphWords_);
+    }
   }
 
   /**
@@ -459,10 +611,16 @@ export class DotsManager {
       gl.uniform1f(this.programs.picking.uniforms.logDepthBufFC, DepthManager.getConfig().logDepthBufFC);
     }
 
-    // no reason to render 100000s of pixels when we're only going to read one
-    if (!settingsManager.isMobileModeEnabled) {
+    // no reason to render 100000s of pixels when we're only going to read a small box
+    if (settingsManager.isMobileModeEnabled) {
+      // Unscissored: the whole buffer is valid to read from
+      this.lastPickDrawBox = { x0: 0, y0: 0, size: Math.max(gl.drawingBufferWidth, gl.drawingBufferHeight), cx: 0, cy: 0 };
+    } else {
+      const pickBox = this.getPickBox(gl, mouseX, mouseY);
+
+      this.lastPickDrawBox = pickBox;
       gl.enable(gl.SCISSOR_TEST);
-      gl.scissor(mouseX, gl.drawingBufferHeight - mouseY, this.PICKING_READ_PIXEL_BUFFER_SIZE, this.PICKING_READ_PIXEL_BUFFER_SIZE);
+      gl.scissor(pickBox.x0, pickBox.y0, pickBox.size, pickBox.size);
     }
 
     gl.bindVertexArray(this.programs.picking.vao);
@@ -475,6 +633,53 @@ export class DotsManager {
       // Restore the active viewport pass's scissor (disables it in single view)
       ViewportManager.getInstance().applyPassScissor(gl);
     }
+  }
+
+  /**
+   * Turns off every `gl_VertexID`-keyed branch in the picking vertex shader. MUST be called
+   * before drawing anything through that program which is NOT the dots buffer.
+   *
+   * The shader identifies stars and planets by comparing `gl_VertexID` against catalog index
+   * ranges, which only means anything while the dots buffer is the source. Earth's occlusion
+   * mesh is 66,049 vertices, so its vertex ids run straight through the star range - ~9,096 of
+   * its sphere vertices were being camera-anchored (`eciPos = a_position + u_camPos`) like a
+   * star, and the triangles bridging them to the untouched vertices clipped into a wedge
+   * covering 27% of the picking buffer, blanking every dot behind it. The visible earth was
+   * fine because the surface pass has its own shader, so this only ever showed up as "objects
+   * in that part of the sky cannot be hovered or selected".
+   */
+  disableObjectRangeUniformsForMesh(gl: WebGL2RenderingContext, uniforms: PickingRangeUniforms): void {
+    gl.uniform1i(uniforms.u_starIdx1, -1);
+    gl.uniform1i(uniforms.u_starIdx2, -1);
+    gl.uniform1i(uniforms.u_planetIdx1, -1);
+    gl.uniform1i(uniforms.u_planetIdx2, -1);
+    gl.uniform1i(uniforms.u_planetGlyph, 0);
+  }
+
+  /**
+   * The cursor-centred square of the picking framebuffer, in drawing-buffer pixels with
+   * y measured from the BOTTOM (GL convention). Every producer (the dots scissor, the
+   * picking-earth scissor) and the consumer (`InputManager.getSatIdFromCoord`) must use
+   * this one definition or the read lands outside what was rendered.
+   *
+   * `cx`/`cy` are the cursor itself inside that box, which stays put when the box is
+   * clamped against a screen edge - the decoder needs it to find the hit nearest the
+   * actual cursor rather than the box centre.
+   */
+  getPickBox(gl: WebGL2RenderingContext, mouseX: number, mouseY: number): PickBox {
+    // A canvas smaller than the box (unit tests, tiny embeds) would push readPixels out of range
+    const size = Math.max(1, Math.min(this.PICKING_READ_PIXEL_BUFFER_SIZE, gl.drawingBufferWidth, gl.drawingBufferHeight));
+    const half = size >> 1;
+    const cx = Math.round(mouseX);
+    const cy = Math.round(gl.drawingBufferHeight - mouseY);
+
+    return {
+      x0: Math.max(0, Math.min(gl.drawingBufferWidth - size, cx - half)),
+      y0: Math.max(0, Math.min(gl.drawingBufferHeight - size, cy - half)),
+      size,
+      cx,
+      cy,
+    };
   }
 
   /**
@@ -733,6 +938,10 @@ export class DotsManager {
       'u_starIdx2',
       'u_planetIdx1',
       'u_planetIdx2',
+      'u_planetGlyph',
+      'u_hiddenBodyIdx',
+      // NOTE: no 'u_bodyGlyph' - the picking shader only needs to know a dot IS a body
+      // (for the origin-cull exemption and the pick-size floor), never which glyph it draws.
     ]);
 
     // Assign polar view uniforms separately — some ANGLE backends strip these from conditional branches
@@ -1263,18 +1472,30 @@ export class DotsManager {
 
     // Stars use distance-based sizing (size 0) — at 3e10 km they naturally get u_minSize
 
-    // If a planet and we aren't centered on Earth or Moon
-    if (
-      i >= this.planetDot1 &&
-      i <= this.planetDot2 &&
-      // TODO: This is hacky. We need better logic for determining when to show planet dots
-      (settingsManager.maxZoomDistance > (2e6 as Kilometers) || (settingsManager.centerBody !== SolarBody.Earth && settingsManager.centerBody !== SolarBody.Moon))
-    ) {
+    if (this.isBodyDotBig_(i)) {
       return DotStatus.Big; // Big dot for planets, but no marker
     }
 
     // Default size for other satellites
     return DotStatus.None;
+  }
+
+  /**
+   * Whether dot `i` is a solar-system body that should render at the fixed big-dot size.
+   *
+   * The ONE definition of that rule. It used to live only inside {@link getSize}, which is the
+   * un-hover path, while {@link updateSizeBuffer} - the rebuild path - reset the whole buffer
+   * to `None` and never wrote `Big` back. So a body's glyph grew the first time the cursor
+   * left it and shrank again on the next search, deselect or right-click "clear screen", which
+   * is exactly the size flicker that looked like a glyph bug.
+   */
+  private isBodyDotBig_(i: number): boolean {
+    return (
+      i >= this.planetDot1 &&
+      i < this.planetDot2 &&
+      // TODO: This is hacky. We need better logic for determining when to show planet dots
+      (settingsManager.maxZoomDistance > (2e6 as Kilometers) || (settingsManager.centerBody !== SolarBody.Earth && settingsManager.centerBody !== SolarBody.Moon))
+    );
   }
 
   /**
@@ -1292,6 +1513,21 @@ export class DotsManager {
     // Stars stay at 0 — at 3e10 km they naturally get u_minSize in the shader.
     for (let i = 0; i < bufferLen; i++) {
       this.sizeData[i] = DotStatus.None;
+    }
+
+    /*
+     * Solar-system bodies render at the fixed big-dot size so their glyph is legible from
+     * across the solar system. This has to agree with getSize(), which is what the un-hover
+     * path writes back — if it does not, a body changes size the moment either path runs.
+     */
+    if (Number.isInteger(this.planetDot1) && Number.isInteger(this.planetDot2)) {
+      const bodyEnd = Math.min(this.planetDot2, bufferLen);
+
+      for (let i = this.planetDot1; i < bodyEnd; i++) {
+        if (this.isBodyDotBig_(i)) {
+          this.sizeData[i] = DotStatus.Big;
+        }
+      }
     }
 
     /*
@@ -1371,14 +1607,34 @@ export class DotsManager {
                 uniform int u_starIdx2;
                 uniform int u_planetIdx1;
                 uniform int u_planetIdx2;
+                uniform bool u_planetGlyph;
+                uniform int u_hiddenBodyIdx;
 
                 out vec3 vColor;
 
                 void main(void) {
-                // Planet dots are exempt from the near-origin cull below: Earth's
-                // own planet dot legitimately sits AT the ECI origin. Must match
-                // the visual dots shaders or Earth becomes unpickable.
-                float isPlanet = (gl_VertexID >= u_planetIdx1 && gl_VertexID <= u_planetIdx2) ? 1.0 : 0.0;
+                // Body dots (planets, moons, asteroids and the deep-space probes that share
+                // the block) are exempt from the near-origin cull below: Earth's own planet
+                // dot legitimately sits AT the ECI origin. Must match the visual dots shaders
+                // or Earth becomes unpickable. Picking does not care WHICH glyph a body draws,
+                // only that it draws one, so the packed glyph table stays out of this shader -
+                // but the center body draws none, and that it does have to know.
+                int bodySlot = (gl_VertexID >= u_planetIdx1 && gl_VertexID <= u_planetIdx2) ? gl_VertexID - u_planetIdx1 : -1;
+                float isPlanet = bodySlot >= 0 ? 1.0 : 0.0;
+                float hasGlyph = (bodySlot >= 0 && u_planetGlyph) ? 1.0 : 0.0;
+
+                // The center body's dot is not drawn while its mesh is on screen, so it must
+                // not be clickable either - an invisible click target on top of the mesh would
+                // steal every click aimed at the body itself. Must match the visual shaders,
+                // including comparing the ABSOLUTE vertex id rather than the slot (slots are
+                // -1 outside the body block, which made the -1 "nothing hidden" sentinel
+                // match every star and satellite in the catalog).
+                if (gl_VertexID == u_hiddenBodyIdx) {
+                    gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+                    gl_PointSize = 0.0;
+                    vColor = vec3(0.0);
+                    return;
+                }
 
                 // Skip objects with invalid positions:
                 // - NaN from failed propagation (NaN comparisons always false)
@@ -1487,14 +1743,17 @@ export class DotsManager {
                     float depthRatio = clamp(${settingsManager.satShader.distanceBeforeGrow} / camDist, 0.5, 1.0);
                     pickSize = ${settingsManager.pickingDotSize} * depthRatio;
                     /*
-                     * Planets draw a bold ringed glyph at star size (x1.4 in the visual
-                     * shaders), but the distance term above collapses their pick square to
-                     * half the base size at solar-system range - the visible glyph ends up
-                     * wider than the pickable area, so hovering the ring does nothing and
-                     * planet hover feels random. Never let a planet's pick target shrink
-                     * below what is drawn.
+                     * Bodies draw a bold glyph at star size (x1.4 in the visual shaders), but
+                     * the distance term above collapses their pick square to half the base
+                     * size at solar-system range - the visible glyph ends up wider than the
+                     * pickable area, so hovering the ring does nothing and planet hover feels
+                     * random. Never let a body's pick target shrink below what is drawn.
+                     *
+                     * Gated on hasGlyph, not isPlanet, for the same reason the floor exists:
+                     * a body that draws no glyph is an ordinary-sized dot, and an oversized
+                     * pick square around one is the invisible-but-clickable trap in reverse.
                      */
-                    pickSize = max(pickSize, isPlanet * ${settingsManager.satShader.starSize} * 1.4);
+                    pickSize = max(pickSize, hasGlyph * ${settingsManager.satShader.starSize} * 1.4);
                 }
                 gl_PointSize = pickSize * a_pickable;
                 vColor = a_color * a_pickable;
