@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import { cpSync, createReadStream, existsSync, watch } from 'node:fs';
 import { createServer, type ServerResponse } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
-import { dirname, extname, join, resolve } from 'node:path';
+import { dirname, extname, join, normalize, resolve, sep } from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { fileURLToPath } from 'node:url';
 import { ConsoleStyles, logWithStyle } from './lib/build-error';
@@ -52,6 +52,33 @@ const mimeTypes: Record<string, string> = {
 // SSE clients for livereload
 const sseClients = new Set<ServerResponse>();
 
+/**
+ * Map a request pathname to a file inside dist/, or null if it escapes.
+ *
+ * `join(distDir, decodeURIComponent(pathname))` is not enough: a decoded `..` segment
+ * (`/%2e%2e/`) walks out of dist/ and the server hands back any file the process can read.
+ * Normalizing against '/' collapses the traversal and the containment check is what every
+ * fs call in the handler relies on: pass only the returned path to stat/readFile/streams.
+ */
+function resolveInDist(pathname: string): string | null {
+  let decoded: string;
+
+  try {
+    decoded = decodeURIComponent(pathname);
+  } catch {
+    return null; // malformed percent-encoding
+  }
+
+  if (decoded.includes('\0')) {
+    return null;
+  }
+
+  const collapsed = normalize(`/${decoded}`);
+  const candidate = resolve(distDir, `.${collapsed}`);
+
+  return candidate === distDir || candidate.startsWith(`${distDir}${sep}`) ? candidate : null;
+}
+
 function startServer() {
   const server = createServer(async (req, res) => {
     // Swallow socket-level errors (client aborts, RST). Without this listener a
@@ -83,8 +110,17 @@ function startServer() {
       return;
     }
 
+    const safePath = resolveInDist(pathname === '/' ? '/index.html' : pathname);
+
+    if (!safePath) {
+      res.writeHead(404);
+      res.end('Not found');
+
+      return;
+    }
+
     try {
-      let filePath = join(distDir, decodeURIComponent(pathname === '/' ? '/index.html' : pathname));
+      let filePath = safePath;
       const fileStat = await stat(filePath).catch(() => null);
 
       if (fileStat?.isDirectory()) {
