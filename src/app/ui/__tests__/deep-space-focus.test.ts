@@ -33,11 +33,18 @@ describe('focusDeepSpaceSatellite', () => {
     expect(snapSpy).toHaveBeenCalledWith(0.084);
   });
 
-  it('falls back to the generic bus radius for a probe that states none', () => {
-    // Pioneer/New Horizons render the shared sat2 model rather than a bespoke mesh.
+  it('frames a small probe at the zoom floor rather than inside it', () => {
+    // Pioneer's 6.6 m boom -> 7 m radius -> 6x = 42 m, which is closer than the floor this
+    // view sets, and the camera would only clamp it back out.
     expect(focusDeepSpaceSatellite('Pioneer 10')).toBe(true);
 
-    expect(snapSpy).toHaveBeenCalledWith((6 * DEFAULT_PROBE_MESH_RADIUS_M) / 1000);
+    expect(snapSpy).toHaveBeenCalledWith(PROBE_MIN_ZOOM);
+  });
+
+  it('never frames closer than the fallback radius would, for a probe added without one', () => {
+    // The fallback is the generic sat2 bus (3.3 m), not a spacecraft-sized guess: a probe that
+    // omits meshRadiusM lands at the floor, never billions of times too far out.
+    expect((6 * DEFAULT_PROBE_MESH_RADIUS_M) / 1000).toBeLessThanOrEqual(PROBE_MIN_ZOOM);
   });
 
   it('still opens the zoom range from the mesh out to interplanetary', () => {

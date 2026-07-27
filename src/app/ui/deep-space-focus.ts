@@ -66,8 +66,12 @@ export function focusDeepSpaceSatellite(name: string): boolean {
    * arrive at interplanetary range instead, which put a 14 m spacecraft billions of times
    * smaller than a pixel and showed a dot - the 3D mesh, which is the whole reason these
    * probes have one, was only reachable by zooming in by hand from 62 million km.
+   *
+   * Never inside the floor this view just set: the smallest probes (New Horizons is a 2.5 m
+   * mesh) frame at 6x radius closer than PROBE_MIN_ZOOM, and the camera would clamp the ride
+   * back out anyway - so ask for the floor rather than for a distance it cannot honor.
    */
-  camera.snapZoomToDistance(initialFramingDistanceKm(probe.meshRadiusKm));
+  camera.snapZoomToDistance(Math.max(initialFramingDistanceKm(probe.meshRadiusKm), PROBE_MIN_ZOOM) as Kilometers);
 
   // The view starts at the mesh but the zoom ceiling reaches interplanetary range, and out
   // there the planet orbit ellipses are the only thing that makes the frame readable - draw
