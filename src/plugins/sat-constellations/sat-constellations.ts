@@ -204,11 +204,16 @@ export class SatConstellations extends KeepTrackPlugin {
       getEl('sc-filter-apply')?.addEventListener('click', () => this.applyFilters_());
       getEl('sc-filter-reset')?.addEventListener('click', () => this.resetFilters_());
 
-      // Restore last selected constellation
+      // Restore last selected constellation (best-effort - persisted slug may
+      // reference a runtime-registered group that no longer exists this session)
       const last = PersistenceManager.getInstance().getItem(StorageKey.LAST_CONSTELLATION);
 
       if (last) {
-        this.constellationMenuClick_(last, true);
+        try {
+          this.constellationMenuClick_(last, true);
+        } catch {
+          PersistenceManager.getInstance().saveItem(StorageKey.LAST_CONSTELLATION, '');
+        }
       }
     });
   }
