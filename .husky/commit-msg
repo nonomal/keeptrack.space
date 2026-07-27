@@ -8,9 +8,11 @@
 # reappears on every release (manual edits to the changelog never hold).
 #
 # Rules enforced (see CLAUDE.md "Git Commits"):
-#   <type>(<scope>): :<emoji>: <message>   (emoji optional)
-# When an emoji is present it must match the type. Merge/Revert/fixup!/squash!
-# subjects are exempt. Bypass in an emergency with: git commit --no-verify
+#   <type>[(<scope>)][!]: [:<emoji>:] <message>
+# Only the type and the message are required; the scope and the emoji are both
+# optional, and any emoji is accepted (no type/emoji pairing check).
+# Merge/Revert/fixup!/squash! subjects are exempt.
+# Bypass in an emergency with: git commit --no-verify
 
 msg_file="$1"
 
@@ -20,10 +22,10 @@ subject=$(grep -vE '^\s*#' "$msg_file" | grep -vE '^\s*$' | head -n1)
 fail() {
   echo "commit-msg: $1" >&2
   echo "  Subject: \"$subject\"" >&2
-  echo "  Expected: type(scope): :emoji: message (emoji optional)" >&2
-  echo "  types/emoji: feat=:sparkles: fix=:bug: refactor=:recycle: test=:white_check_mark:" >&2
-  echo "               chore=:wrench: docs=:memo: i18n=:globe_with_meridians: perf=:zap: style=:art:" >&2
-  echo "  Example: feat(filter-menu): :sparkles: add command palette commands" >&2
+  echo "  Expected: type[(scope)]: [:emoji:] message (scope and emoji optional)" >&2
+  echo "  types: feat fix refactor test chore docs style perf i18n build ci revert" >&2
+  echo "  Examples: feat(filter-menu): :sparkles: add command palette commands" >&2
+  echo "            fix: stop the timeline resetting on pause" >&2
   exit 1
 }
 
@@ -44,28 +46,10 @@ case "$subject" in
     ;;
 esac
 
-# Shape: type(scope): :emoji: message — the emoji is optional.
-if ! echo "$subject" | grep -qE '^(feat|fix|refactor|test|chore|docs|style|perf|i18n)\([A-Za-z0-9][A-Za-z0-9 .,/_-]*\): (:[a-z0-9_]+: )?.+'; then
+# Shape: type[(scope)][!]: [:emoji:] message; scope and emoji are both optional,
+# and any emoji is allowed (e.g. semantic-release's chore(release): :bookmark:).
+if ! echo "$subject" | grep -qE '^(feat|fix|refactor|test|chore|docs|style|perf|i18n|build|ci|revert)(\([A-Za-z0-9][A-Za-z0-9 .,/_-]*\))?!?: (:[a-z0-9_+-]+: )?[^ ].*'; then
   fail "subject does not match the conventional-commit format."
 fi
-
-# No emoji: nothing further to pair-check.
-if ! echo "$subject" | grep -qE '^[^:]+: :[a-z0-9_]+: '; then
-  exit 0
-fi
-
-type=$(echo "$subject" | sed -E 's/^([a-z0-9]+)\(.*/\1/')
-emoji=$(echo "$subject" | sed -E 's/^[^:]+: :([a-z0-9_]+):.*/\1/')
-
-case "$type:$emoji" in
-  feat:sparkles|fix:bug|refactor:recycle|test:white_check_mark|chore:wrench|docs:memo|style:art|perf:zap|i18n:globe_with_meridians)
-    ;;
-  chore:bookmark)
-    # semantic-release version bumps: chore(release): :bookmark: x.y.z [skip ci]
-    ;;
-  *)
-    fail "emoji :$emoji: does not match type '$type'."
-    ;;
-esac
 
 exit 0
