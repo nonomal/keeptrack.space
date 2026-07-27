@@ -640,12 +640,18 @@ export class SelectSatManager extends KeepTrackPlugin implements ISettingsContri
         colorSchemeManagerInstance.colorData[lastSelectedObject * 4 + 3] = newColor[3]; // A
         gl.bufferSubData(gl.ARRAY_BUFFER, lastSelectedObject * 4 * 4, new Float32Array(newColor));
 
-        // Restore the search status (not just "big") so the dot keeps its
-        // search ring after deselection; always write since the selected
-        // status code differs from the searched one
-        dotsManagerInstance.sizeData[lastSelectedObject] = settingsManager.lastSearchResults.includes(lastSelectedObject) ? DotStatus.Searched : DotStatus.None;
+        /*
+         * Restore the search status (not just "big") so the dot keeps its
+         * search ring after deselection; always write since the selected
+         * status code differs from the searched one. sizeData is an Int8Array,
+         * so the element index is also the byte offset - upload the one byte
+         * that changed rather than the whole catalog (see HoverManager).
+         */
+        const restoredStatus = settingsManager.lastSearchResults.includes(lastSelectedObject) ? DotStatus.Searched : DotStatus.None;
+
+        dotsManagerInstance.sizeData[lastSelectedObject] = restoredStatus;
         gl.bindBuffer(gl.ARRAY_BUFFER, dotsManagerInstance.buffers.size);
-        gl.bufferSubData(gl.ARRAY_BUFFER, 0, dotsManagerInstance.sizeData);
+        gl.bufferSubData(gl.ARRAY_BUFFER, lastSelectedObject, new Int8Array([restoredStatus]));
       }
     }
     // If New Select Sat Picked Color it
@@ -659,7 +665,7 @@ export class SelectSatManager extends KeepTrackPlugin implements ISettingsContri
 
       dotsManagerInstance.sizeData[i] = DotStatus.Selected;
       gl.bindBuffer(gl.ARRAY_BUFFER, dotsManagerInstance.buffers.size);
-      gl.bufferSubData(gl.ARRAY_BUFFER, 0, dotsManagerInstance.sizeData);
+      gl.bufferSubData(gl.ARRAY_BUFFER, i, new Int8Array([DotStatus.Selected]));
     }
   }
 
