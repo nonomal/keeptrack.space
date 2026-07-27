@@ -23,7 +23,8 @@
       "embed": "임베드",
       "offline": "Offline",
       "epfl": "EPFL",
-      "companion": "Companion"
+      "companion": "Companion",
+      "solar-system": "태양계"
     }
   },
   "errorMsgs": {

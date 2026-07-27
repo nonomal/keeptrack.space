@@ -60,6 +60,13 @@ export class WebGLRenderer {
   meshManager = new MeshManager();
   projectionCameraMatrix: mat4;
   postProcessingManager: PostProcessingManager;
+  /**
+   * Whether the GPU picking buffer should be (re)rendered this frame (WP4).
+   * Computed once per render pass from InputManager's pointer/camera-motion gate
+   * and read by the picking-FBO clear, the picking-earth draw, and the
+   * picking-dots draw so they can all be skipped together when idle.
+   */
+  shouldRenderPicking = true;
 
   private selectSatManager_: SelectSatManager;
   sensorPos: { x: number; y: number; z: number; lat: number; lon: number; gmst: GreenwichMeanSiderealTime } | null = null;
@@ -129,6 +136,10 @@ export class WebGLRenderer {
     // Apply the camera matrix (from the camera being rendered, not the singleton,
     // so multi-viewport passes each compose their own matrix)
     this.projectionCameraMatrix = mat4.mul(mat4.create(), camera.projectionMatrix, camera.matrixWorldInverse);
+
+    // Decide once per frame whether the GPU picking buffer needs redrawing
+    // (reads projectionCameraMatrix, just computed, for camera-motion detection).
+    this.shouldRenderPicking = ServiceLocator.getInputManager().isPickingRenderNeeded();
 
     scene.render(this, camera);
   }
@@ -723,6 +734,14 @@ export class WebGLRenderer {
       const deepSpaceSat = sceneInstance.deepSpaceSatellites?.[settingsManager.centerBody];
 
       if (deepSpaceSat) {
+        // Re-anchor the frame's world shift to the probe BEFORE baking the mesh
+        // matrix (same contract as the selected-satellite path above). Scene.update
+        // computes the shift before the probe's position steps, and that position
+        // only steps once per second (celestial-body 1000 ms reuse gate) by ~40 km
+        // (Earth's orbital motion dominates the relative rate), so baking against
+        // the stale shift left the mesh ~40 km off-origin for one frame per step -
+        // a 1 Hz blink at close zoom.
+        sceneInstance.setWorldShiftBase([-deepSpaceSat.position[0], -deepSpaceSat.position[1], -deepSpaceSat.position[2]]);
         this.meshManager.updateForBody(deepSpaceSat.position, deepSpaceSat.getModelName());
       }
     }

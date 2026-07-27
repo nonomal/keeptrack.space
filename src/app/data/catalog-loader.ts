@@ -2,7 +2,9 @@
 import { DetailedSensor } from '@app/app/sensors/DetailedSensor';
 import { rgbaArray, SolarBody } from '@app/engine/core/interfaces';
 import { ServiceLocator } from '@app/engine/core/service-locator';
+import { bodyGlyphFor } from '@app/engine/rendering/body-glyph';
 import { CelestialBody } from '@app/engine/rendering/draw-manager/celestial-bodies/celestial-body';
+import { allPlanetMoons } from '@app/engine/rendering/draw-manager/celestial-bodies/planet-moon-systems';
 import { errorManagerInstance } from '@app/engine/utils/errorManager';
 import { StringPad } from '@app/engine/utils/stringPad';
 import { CruncherSat } from '@app/webworker/positionCruncher';
@@ -869,6 +871,66 @@ export class CatalogLoader {
       });
     }
 
+    /*
+     * The four largest main-belt asteroids. Same reasoning as the moons below: 250-520 km
+     * across at 2-3 AU is a fraction of a pixel, so the dot is the only way to find or click
+     * one from anywhere but point-blank range.
+     */
+    const asteroidList = ServiceLocator.getScene().asteroids;
+
+    for (const asteroidKey of Object.keys(asteroidList ?? {}) as SolarBody[]) {
+      const asteroid = asteroidList[asteroidKey];
+
+      if (!asteroid) {
+        continue;
+      }
+
+      const asteroidDot = new Planet({
+        id: tempObjData.length,
+        name: asteroidKey,
+        type: asteroid.type,
+      });
+
+      asteroidDot.color = asteroid.color ?? ([1.0, 1.0, 1.0, 1.0] as rgbaArray);
+      asteroid.planetObject = asteroidDot;
+
+      tempObjData.push(asteroidDot);
+    }
+
+    /*
+     * Moons of the other planets. Earth's Moon is deliberately left out: it is drawn as a
+     * mesh whenever it is on screen and never needs a dot to stand in for it, whereas these
+     * are anywhere from 6 km to 2600 km across and sit hundreds of millions of kilometers
+     * away, so without a dot they would be unfindable and unselectable from anywhere but
+     * point-blank range.
+     */
+    const moonList = ServiceLocator.getScene().moons;
+
+    for (const moonKey of allPlanetMoons()) {
+      const moon = moonList?.[moonKey];
+
+      if (!moon) {
+        continue;
+      }
+
+      const moonDot = new Planet({
+        id: tempObjData.length,
+        name: moonKey,
+        type: moon.type,
+      });
+
+      moonDot.color = moon.color ?? ([1.0, 1.0, 1.0, 1.0] as rgbaArray);
+      moon.planetObject = moonDot;
+
+      tempObjData.push(moonDot);
+    }
+
+    /*
+     * Deep-space probes share the planet dot block but are spacecraft, not planets. They come
+     * last so the block stays "every body, then every probe", but nothing keys off the
+     * boundary any more: each dot's glyph class is published below, and the probes' is
+     * BodyGlyph.Spacecraft.
+     */
     const deepSpaceSatellites = ServiceLocator.getScene().deepSpaceSatellites;
 
     if (deepSpaceSatellites) {
@@ -890,6 +952,15 @@ export class CatalogLoader {
     }
 
     dotsManagerInstance.planetDot2 = tempObjData.length;
+
+    /*
+     * Tell the dot shaders what each body in the block actually is, so the solar-system-scale
+     * marker can be a rock for an asteroid and a spacecraft for Voyager instead of Saturn's
+     * rings for all of them.
+     */
+    dotsManagerInstance.setBodyGlyphs(
+      tempObjData.slice(dotsManagerInstance.planetDot1, dotsManagerInstance.planetDot2).map((obj) => ({ name: obj.name, glyph: bodyGlyphFor(obj.type, obj.name) }))
+    );
 
     for (const missileObj of catalogManagerInstance.missileSet) {
       tempObjData.push(missileObj);

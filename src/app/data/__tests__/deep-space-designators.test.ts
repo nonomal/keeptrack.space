@@ -1,4 +1,5 @@
 import { DeepSpaceDesignators } from '@app/app/data/deep-space-designators';
+import { SatelliteModels } from '@app/app/rendering/mesh/model-resolver';
 import { DEEP_SPACE_SATELLITE_CONFIGS } from '@app/engine/rendering/draw-manager/celestial-bodies/deep-space-satellite-catalog';
 
 describe('DeepSpaceDesignators', () => {
@@ -97,6 +98,25 @@ describe('DeepSpaceDesignators', () => {
       expect(config.intlDes, `${config.name} is missing intlDes`).toBeDefined();
       expect(config.sccNum).toMatch(/^\d{1,9}$/u);
       expect(config.intlDes).toMatch(/^\d{4}-\d{3}[A-Z]{1,3}$/u);
+    }
+  });
+
+  // Audit: probe models must be registered mesh names so the resolver's
+  // disk-consistency test covers them (an unregistered name would 404 at
+  // runtime when MeshManager.updateForBody tries to load it).
+  it('every deep-space probe config uses a registered mesh model', () => {
+    for (const config of DEEP_SPACE_SATELLITE_CONFIGS) {
+      if (config.model) {
+        expect(Object.values(SatelliteModels), `${config.name} model "${config.model}" is not registered`).toContain(config.model);
+      }
+    }
+  });
+
+  it('the Voyagers share the dedicated voyager mesh', () => {
+    for (const name of ['Voyager 1', 'Voyager 2']) {
+      const config = DEEP_SPACE_SATELLITE_CONFIGS.find((c) => c.name === name);
+
+      expect(config?.model).toBe(SatelliteModels.voyager);
     }
   });
 });

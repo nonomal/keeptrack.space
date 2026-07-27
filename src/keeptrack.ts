@@ -1,4 +1,5 @@
 import { ServiceLocator } from './engine/core/service-locator';
+import { registerSolarSystemContent } from './engine/rendering/draw-manager/celestial-bodies/solar-system-content';
 /**
  * /////////////////////////////////////////////////////////////////////////////
  *
@@ -362,6 +363,13 @@ theodore.kruczek at gmail dot com.
       // ServiceLocator.getMainCamera().init(settingsManager);
 
       SplashScreen.loadStr(SplashScreen.msg.science);
+
+      /*
+       * Solar-system bodies register before the plugins load, not with them: the Planets menu
+       * builds its whole side menu inside its own init(), so content contributed by a plugin
+       * would race it. See registerSolarSystemContent().
+       */
+      await registerSolarSystemContent();
 
       // Load all the plugins now that we have the API initialized
       await this.engine.pluginManager.loadPlugins(settingsManager.plugins);

@@ -580,7 +580,7 @@
     document.querySelector('#info .model-name').textContent = model.name;
     table.innerHTML = `
       <tr><td>file units</td><td>${dims.map((d) => fmt(d)).join(' x ')}</td></tr>
-      <tr><td>real meters</td><td>${dims.map((d) => fmt(d * 10, 1)).join(' x ')}</td></tr>
+      <tr><td>real meters</td><td>${dims.map((d) => fmt(d, 1)).join(' x ')}</td></tr>
       <tr><td>world km</td><td>${dims.map((d) => fmt(d * FILE_UNIT_TO_KM, 3)).join(' x ')}</td></tr>
       <tr><td>vertices</td><td>${model.vertexCount}</td></tr>
       <tr><td>triangles</td><td>${model.indexCount / 3}</td></tr>

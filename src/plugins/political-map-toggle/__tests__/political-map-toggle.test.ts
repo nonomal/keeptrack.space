@@ -30,22 +30,49 @@ describe('PoliticalMapToggle methods', () => {
     vi.restoreAllMocks();
   });
 
-  it('exposes its bottom-icon config and "l" shortcut and command', () => {
+  it('exposes its bottom-icon config and "l" shortcut and commands', () => {
     expect(plugin.getBottomIconConfig().elementName).toBe('political-map-toggle-bottom-icon');
     expect(plugin.getKeyboardShortcuts()[0].key).toBe('l');
     expect(() => plugin.getKeyboardShortcuts()[0].callback()).not.toThrow();
-    expect(plugin.getCommandPaletteCommands()[0].id).toBe('PoliticalMapToggle.toggle');
-    expect(() => plugin.getCommandPaletteCommands()[0].callback()).not.toThrow();
+    expect(plugin.getCommandPaletteCommands().map((c) => c.id)).toEqual(['PoliticalMapToggle.cycle', 'PoliticalMapToggle.toggle', 'PoliticalMapToggle.toggleLabels']);
+    plugin.getCommandPaletteCommands().forEach((c) => expect(() => c.callback()).not.toThrow());
   });
 
-  it('toggles the political map setting on and off', () => {
-    plugin.isMenuButtonActive = true;
-    plugin.onBottomIconClick();
-    expect(settingsManager.isDrawPoliticalMap).toBe(true);
+  it('cycles off -> borders -> borders+labels -> labels -> off', () => {
+    settingsManager.isDrawPoliticalMap = false;
+    settingsManager.isDrawPoliticalLabels = false;
 
-    plugin.isMenuButtonActive = false;
-    plugin.onBottomIconClick();
+    plugin.cycleMode();
+    expect(settingsManager.isDrawPoliticalMap).toBe(true);
+    expect(settingsManager.isDrawPoliticalLabels).toBe(false);
+
+    plugin.cycleMode();
+    expect(settingsManager.isDrawPoliticalMap).toBe(true);
+    expect(settingsManager.isDrawPoliticalLabels).toBe(true);
+
+    plugin.cycleMode();
     expect(settingsManager.isDrawPoliticalMap).toBe(false);
+    expect(settingsManager.isDrawPoliticalLabels).toBe(true);
+
+    plugin.cycleMode();
+    expect(settingsManager.isDrawPoliticalMap).toBe(false);
+    expect(settingsManager.isDrawPoliticalLabels).toBe(false);
+  });
+
+  it('toggles borders and labels independently via the palette commands', () => {
+    settingsManager.isDrawPoliticalMap = false;
+    settingsManager.isDrawPoliticalLabels = false;
+
+    plugin.toggleBorders();
+    expect(settingsManager.isDrawPoliticalMap).toBe(true);
+    expect(settingsManager.isDrawPoliticalLabels).toBe(false);
+
+    plugin.toggleCountryLabels();
+    expect(settingsManager.isDrawPoliticalLabels).toBe(true);
+
+    plugin.toggleBorders();
+    expect(settingsManager.isDrawPoliticalMap).toBe(false);
+    expect(settingsManager.isDrawPoliticalLabels).toBe(true);
   });
 
   it('bridges bottomIconCallback and syncs on uiManagerFinal', () => {

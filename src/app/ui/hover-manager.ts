@@ -7,6 +7,8 @@ import { ServiceLocator } from '@app/engine/core/service-locator';
 import { EventBus } from '@app/engine/events/event-bus';
 import { EventBusEvent } from '@app/engine/events/event-bus-events';
 import { ColorSchemeManager } from '@app/engine/rendering/color-scheme-manager';
+import { DotStatus } from '@app/engine/rendering/dots-shaders-base';
+import { CelestialBody } from '@app/engine/rendering/draw-manager/celestial-bodies/celestial-body';
 import { html } from '@app/engine/utils/development/formatter';
 import { t7e } from '@app/locales/keys';
 import { SelectSatManager } from '@app/plugins/select-sat-manager/select-sat-manager';
@@ -93,17 +95,46 @@ export class HoverManager {
     }
 
     const orbitInSeconds = planetEntity.orbitalPeriod;
-    const distanceFromSunInAU = planetEntity.meanDistanceToSun / KM_PER_AU;
-    const distanceFromSunInMillionKm = planetEntity.meanDistanceToSun / 1000000;
     const orbitPeriodInEarthDays = orbitInSeconds / 86400;
 
     this.satHoverBoxNode1.textContent = `${planetDot.name} - (${planetEntity.typeToString()})`;
-    this.satHoverBoxNode2.textContent = `Distance from Sun: ${(distanceFromSunInAU).toFixed(2)} AU (${(distanceFromSunInMillionKm).toFixed(2)} million km)`;
-    if (orbitPeriodInEarthDays < 1_000) {
+    this.satHoverBoxNode2.textContent = HoverManager.bodyDistanceText_(planetEntity);
+    this.satHoverBoxNode2.style.display = this.satHoverBoxNode2.textContent ? 'block' : 'none';
+
+    if (!Number.isFinite(orbitPeriodInEarthDays)) {
+      this.satHoverBoxNode3.textContent = '';
+      this.satHoverBoxNode3.style.display = 'none';
+    } else if (orbitPeriodInEarthDays < 1_000) {
       this.satHoverBoxNode3.textContent = `Orbit Period: ${(orbitPeriodInEarthDays).toFixed(1)} Earth Days`;
     } else {
       this.satHoverBoxNode3.textContent = `Orbit Period: ${(orbitPeriodInEarthDays / 365.25).toFixed(2)} Earth Years`;
     }
+  }
+
+  /**
+   * How far the body sits from whatever it orbits.
+   *
+   * A moon has no `meanDistanceToSun` - it is not a useful number for one, and reading it
+   * printed "Distance from Sun: NaN AU (NaN million km)" on every moon in the hover box - so
+   * moons report their orbital radius about their parent instead. The finite guard covers any
+   * body that ends up with neither, which is better than putting NaN on screen.
+   *
+   * TODO: these strings, and the rest of the hover box, are hardcoded English and need locales.
+   */
+  private static bodyDistanceText_(body: Pick<CelestialBody, 'meanDistanceToSun' | 'parentBody' | 'semiMajorAxisKm'>): string {
+    const { parentBody, semiMajorAxisKm } = body;
+
+    if (parentBody && Number.isFinite(semiMajorAxisKm)) {
+      return `Distance from ${parentBody}: ${Math.round(semiMajorAxisKm as number).toLocaleString()} km`;
+    }
+
+    const distanceFromSunInAU = body.meanDistanceToSun / KM_PER_AU;
+
+    if (!Number.isFinite(distanceFromSunInAU)) {
+      return '';
+    }
+
+    return `Distance from Sun: ${distanceFromSunInAU.toFixed(2)} AU (${(body.meanDistanceToSun / 1000000).toFixed(2)} million km)`;
   }
 
   private star_(star: Star): void {
@@ -373,6 +404,7 @@ export class HoverManager {
       obj.type === SpaceObjectType.GAS_GIANT ||
       obj.type === SpaceObjectType.ICE_GIANT ||
       obj.type === SpaceObjectType.DWARF_PLANET ||
+      obj.type === SpaceObjectType.ASTEROID ||
       obj.type === SpaceObjectType.MOON
     ) {
       this.planet_(obj as unknown as PlanetDot);
@@ -474,8 +506,9 @@ export class HoverManager {
     }
 
     if (isNewHHoverNeedsUpdate) {
+      dotsManagerInstance.sizeData[this.hoveringSat] = DotStatus.Hover;
       gl.bindBuffer(gl.ARRAY_BUFFER, dotsManagerInstance.buffers.size);
-      gl.bufferSubData(gl.ARRAY_BUFFER, this.hoveringSat, new Int8Array([1.0]));
+      gl.bufferSubData(gl.ARRAY_BUFFER, this.hoveringSat, new Int8Array([DotStatus.Hover]));
     }
   }
 }

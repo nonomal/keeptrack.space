@@ -10,6 +10,7 @@ import { ColorDataArrays } from '@app/engine/rendering/color-worker/color-data-a
 import { ColorWorkerMsgType, ColorWorkerOutMsg, FilterState, SettingsFlags } from '@app/engine/rendering/color-worker/color-worker-messages';
 import { WebWorkerThreadManager } from '@app/engine/threads/web-worker-thread';
 import { errorManagerInstance } from '@app/engine/utils/errorManager';
+import { FrameProfiler } from '@app/engine/utils/frame-profiler';
 
 export class ColorCruncherThreadManager extends WebWorkerThreadManager {
   readonly WEB_WORKER_CODE: string = 'js/colorCruncher.js';
@@ -29,6 +30,10 @@ export class ColorCruncherThreadManager extends WebWorkerThreadManager {
     const data = event.data as ColorWorkerOutMsg;
 
     if (data.colorData && data.pickableData) {
+      // Attribute this frame to the color-message beat, mirroring the
+      // position cruncher, so its share of the long frames is visible.
+      FrameProfiler.getInstance().tagFrame('color-msg');
+
       // Discard stale messages from old catalog
       if (data.seqNum < this.currentSeqNum_) {
         return;
@@ -87,23 +92,23 @@ export class ColorCruncherThreadManager extends WebWorkerThreadManager {
   }
 
   sendDynamicUpdate(inView: Int8Array | null, inSun: Int8Array | null, vel: Float32Array | null, dotsOnScreenVal?: number): void {
-    const inViewSnap = inView ? new Int8Array(inView) : null;
-    const inSunSnap = inSun ? new Int8Array(inSun) : null;
-    const velSnap = vel ? new Float32Array(vel) : null;
-
-    const transfer: Transferable[] = [];
-
-    if (inViewSnap) {
-      transfer.push(inViewSnap.buffer);
-    }
-    if (inSunSnap) {
-      transfer.push(inSunSnap.buffer);
-    }
-    if (velSnap) {
-      transfer.push(velSnap.buffer);
-    }
-
     try {
+      const inViewSnap = inView ? new Int8Array(inView) : null;
+      const inSunSnap = inSun ? new Int8Array(inSun) : null;
+      const velSnap = vel ? new Float32Array(vel) : null;
+
+      const transfer: Transferable[] = [];
+
+      if (inViewSnap) {
+        transfer.push(inViewSnap.buffer);
+      }
+      if (inSunSnap) {
+        transfer.push(inSunSnap.buffer);
+      }
+      if (velSnap) {
+        transfer.push(velSnap.buffer);
+      }
+
       this.postMessage(
         {
           typ: ColorWorkerMsgType.UPDATE_DYNAMIC,

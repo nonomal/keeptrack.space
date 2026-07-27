@@ -15,8 +15,12 @@ export interface SatShader {
   blurFactor2: string;
   blurFactor3: string;
   blurFactor4: string;
+  depthPullFactor: string;
+  depthPullMaxKm: string;
   distanceBeforeGrow: string;
+  dotStyle: number;
   dynamicSizeScalar: number;
+  isStatusMarkers: boolean;
   isUseDynamicSizing: boolean;
   largeObjectMaxZoom: number;
   largeObjectMinZoom: number;
@@ -288,6 +292,8 @@ export enum SolarBody {
   Earth = 'Earth',
   Moon = 'Moon',
   Mars = 'Mars',
+  Phobos = 'Phobos',
+  Deimos = 'Deimos',
   Jupiter = 'Jupiter',
   Saturn = 'Saturn',
   Uranus = 'Uranus',
@@ -302,14 +308,27 @@ export enum SolarBody {
   Orcus = 'Orcus',
   Gonggong = 'Gonggong',
   Charon = 'Charon',
+  // Main-belt asteroids. Ceres, listed above, is both the largest of these and a dwarf planet.
+  Vesta = 'Vesta',
+  Pallas = 'Pallas',
+  Juno = 'Juno',
+  Hygiea = 'Hygiea',
+  // Moons, grouped by parent and listed outward from it.
   Io = 'Io',
   Europa = 'Europa',
   Ganymede = 'Ganymede',
   Callisto = 'Callisto',
-  Titan = 'Titan',
-  Rhea = 'Rhea',
-  Iapetus = 'Iapetus',
-  Dione = 'Dione',
-  Tethys = 'Tethys',
+  Mimas = 'Mimas',
   Enceladus = 'Enceladus',
+  Tethys = 'Tethys',
+  Dione = 'Dione',
+  Rhea = 'Rhea',
+  Titan = 'Titan',
+  Iapetus = 'Iapetus',
+  Miranda = 'Miranda',
+  Ariel = 'Ariel',
+  Umbriel = 'Umbriel',
+  Titania = 'Titania',
+  Oberon = 'Oberon',
+  Triton = 'Triton',
 }

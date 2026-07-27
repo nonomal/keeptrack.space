@@ -1,7 +1,16 @@
-import { Configuration, DefinePlugin, DefinePluginOptions, HtmlRspackPlugin, LightningCssMinimizerRspackPlugin, ProgressPlugin, SwcJsMinimizerRspackPlugin } from '@rspack/core';
+import {
+  Configuration,
+  CopyRspackPlugin,
+  DefinePlugin,
+  DefinePluginOptions,
+  HtmlRspackPlugin,
+  LightningCssMinimizerRspackPlugin,
+  ProgressPlugin,
+  SwcJsMinimizerRspackPlugin,
+} from '@rspack/core';
 import { execSync } from 'node:child_process';
 import DotEnv from 'dotenv-webpack';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { BuildConfig } from './lib/config-manager';
@@ -11,6 +20,46 @@ export class WebpackManager {
   static readonly DEFAULT_WATCH = false;
   private static config: BuildConfig;
   private static versionDefine_: DefinePluginOptions;
+
+  /**
+   * Copies the Solar System Pack's textures and meshes into the build.
+   *
+   * Everything else the app loads at runtime lives in `public/` and is served straight from
+   * there, but these assets are Pro content and cannot sit in the OSS tree - so the pro build
+   * copies them into the same `textures/` and `meshes/` paths the free build serves from
+   * `public/`, which is what lets `CelestialBody` ask for `textures/europa4k.jpg` without
+   * knowing which build it is in.
+   *
+   * Returns nothing at all for an OSS build: no pack, no copy, and the bodies that would have
+   * used these assets are not registered either.
+   */
+  private static createSolarSystemPackAssetPlugins_(dirName: string): CopyRspackPlugin[] {
+    if (!this.config.isPro) {
+      return [];
+    }
+
+    const packAssets = `${dirName}/../src/plugins-pro/solar-system-pack/assets`;
+
+    if (!existsSync(packAssets)) {
+      reporter.warn('Solar System Pack assets not found - the pro build will render its bodies untextured.');
+
+      return [];
+    }
+
+    /*
+     * `to` is resolved relative to output.path, which is `<subFolder>/js` - NOT to the repo
+     * root. An absolute-looking path here is still treated as relative and silently writes
+     * outside the repo, which the build log reports as a successful copy.
+     */
+    return [
+      new CopyRspackPlugin({
+        patterns: [
+          { from: `${packAssets}/textures`, to: '../textures' },
+          { from: `${packAssets}/meshes`, to: '../meshes' },
+        ],
+      }),
+    ];
+  }
 
   static createConfig(config: BuildConfig, isWatch: boolean = false): Configuration[] {
     this.config = config;
@@ -291,6 +340,7 @@ export class WebpackManager {
         },
         plugins: [
           this.versionDefine_,
+          ...this.createSolarSystemPackAssetPlugins_(dirName),
           new HtmlRspackPlugin({
             filename: '../index.html',
             template: './public/index.html',

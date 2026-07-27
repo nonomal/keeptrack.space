@@ -68,6 +68,7 @@ describe('storage-scope registry', () => {
         StorageKey.SETTINGS_DRAW_BLACK_EARTH,
         StorageKey.SETTINGS_DRAW_ATMOSPHERE,
         StorageKey.SETTINGS_DRAW_MILKY_WAY,
+        StorageKey.SETTINGS_DRAW_ASTEROID_BELT,
         StorageKey.SETTINGS_GRAY_SKYBOX,
         StorageKey.SETTINGS_ECI_ON_HOVER,
         StorageKey.SETTINGS_HOS,

@@ -165,6 +165,7 @@ export class ShareMenuPlugin extends KeepTrackPlugin {
       .writeText(url)
       .then(() => {
         uiManagerInstance.toast(l('toasts.copied'), ToastMsgType.normal);
+        EventBus.getInstance().emit(EventBusEvent.shareAction, 'copy');
       })
       .catch(() => {
         uiManagerInstance.toast(l('toasts.copyFailed'), ToastMsgType.caution);
@@ -180,11 +181,16 @@ export class ShareMenuPlugin extends KeepTrackPlugin {
 
     const url = this.getShareUrlValue_();
 
-    navigator.share({ title: document.title, url }).catch((err: Error) => {
-      // AbortError is the user dismissing the share sheet — not a real failure.
-      if (err?.name !== 'AbortError') {
-        errorManagerInstance.debug(`Native share failed: ${err?.message ?? err}`);
-      }
-    });
+    navigator
+      .share({ title: document.title, url })
+      .then(() => {
+        EventBus.getInstance().emit(EventBusEvent.shareAction, 'native');
+      })
+      .catch((err: Error) => {
+        // AbortError is the user dismissing the share sheet — not a real failure.
+        if (err?.name !== 'AbortError') {
+          errorManagerInstance.debug(`Native share failed: ${err?.message ?? err}`);
+        }
+      });
   }
 }

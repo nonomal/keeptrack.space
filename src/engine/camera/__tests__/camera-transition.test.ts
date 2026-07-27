@@ -301,6 +301,108 @@ describe('CameraTransition', () => {
     }
   });
 
+  /** Camera-space coordinates (right, forward, up) of a point given in the shifted frame. */
+  const project = (V: mat4, p: number[]): number[] => [
+    V[0] * p[0] + V[4] * p[1] + V[8] * p[2] + V[12],
+    V[1] * p[0] + V[5] * p[1] + V[9] * p[2] + V[13],
+    V[2] * p[0] + V[6] * p[1] + V[10] * p[2] + V[14],
+  ];
+  /** Camera position in the view matrix's own input space: -R^T * t. */
+  const eyeOf = (V: mat4): number[] => [
+    -(V[0] * V[12] + V[1] * V[13] + V[2] * V[14]),
+    -(V[4] * V[12] + V[5] * V[13] + V[6] * V[14]),
+    -(V[8] * V[12] + V[9] * V[13] + V[10] * V[14]),
+  ];
+
+  describe('center-body transitions', () => {
+    /*
+     * Leaving a body at the ECI origin (Earth, standoff 50) for one at [1000, 0, 0] (standoff 20).
+     * Small numbers on purpose: the real values are ~1e8 km apart, where float32 rounding would
+     * swamp a centering assertion that is about the blend, not about precision.
+     */
+    const newBodyPos = [1000, 0, 0];
+    const wsNew = [-1000, 0, 0];
+    const fromView = lookAtOriginView([0, 0, 50], [0, 1, 0]);
+    const toView = lookAtOriginView([0, 0, 20], [0, 1, 0]);
+
+    it('starts from the outgoing view instead of jumping to the new body', () => {
+      transition.beginCenterBody(fromView, [0, 0, 0]);
+
+      fakeTime = 1001; // 1ms into the default 500ms
+      const V = transition.apply(toView, wsNew)!;
+
+      expect(V).not.toBeNull();
+
+      // The body being left is still centered, and the camera is still standing off it by 50.
+      const leftBody = project(V, wsNew);
+
+      expect(Math.abs(leftBody[0])).toBeLessThan(0.05);
+      expect(Math.abs(leftBody[2])).toBeLessThan(0.05);
+      expect(Math.hypot(...eyeOf(V).map((c, i) => c - wsNew[i]))).toBeCloseTo(50, 1);
+    });
+
+    it('arrives centered on the new body at the framing distance it was given', () => {
+      transition.beginCenterBody(fromView, [0, 0, 0]);
+
+      fakeTime = 1499; // 1ms before the end
+      const V = transition.apply(toView, wsNew)!;
+
+      expect(V).not.toBeNull();
+
+      // The new body is the origin of the shifted frame: dead center, standoff 20.
+      const arrived = project(V, [0, 0, 0]);
+
+      expect(Math.abs(arrived[0])).toBeLessThan(0.05);
+      expect(Math.abs(arrived[2])).toBeLessThan(0.05);
+      expect(Math.hypot(...eyeOf(V))).toBeCloseTo(20, 1);
+    });
+
+    it('travels along the line between the two bodies rather than arcing around the origin', () => {
+      transition.beginCenterBody(fromView, [0, 0, 0]);
+
+      /*
+       * The two bodies sit on the x axis, so a camera that hugs the point travelling between them
+       * never strays further off that axis than its own standoff. The rotation-slerp fallback
+       * instead arcs around the ECI origin and leaves the axis by a fraction of the whole 1000
+       * unit separation - which at solar system scale is what threw the camera 1.8e8 km off Mars.
+       */
+      for (const t of [1050, 1100, 1150, 1200, 1250]) {
+        fakeTime = t;
+        const eye = eyeOf(transition.apply(toView, wsNew)!);
+
+        expect(eye[0]).toBeGreaterThan(wsNew[0] - 1);
+        expect(eye[0]).toBeLessThan(1);
+        expect(Math.hypot(eye[1], eye[2])).toBeLessThanOrEqual(51);
+      }
+    });
+
+    it('is not mistaken for an object-anchored blend once it ends', () => {
+      transition.beginCenterBody(fromView, [0, 0, 0]);
+
+      fakeTime = 1500;
+      expect(transition.apply(toView, wsNew)).toBeNull();
+
+      // A plain begin() with no anchor must take the fallback path, not the center-body one.
+      transition.begin(fromView, [0, 0, 0]);
+      fakeTime = 1750;
+
+      const V = transition.apply(toView, wsNew)!;
+
+      expect(V).not.toBeNull();
+      // The fallback keeps the camera's distance from the ECI origin, so it does NOT stay
+      // parked next to the body that was left behind.
+      expect(Math.hypot(...eyeOf(V).map((c, i) => c - wsNew[i]))).not.toBeCloseTo(50, 1);
+    });
+
+    it('clears the center-body flag on cancel', () => {
+      transition.beginCenterBody(fromView, [0, 0, 0]);
+      transition.cancel();
+
+      expect(transition.isActive).toBe(false);
+      expect(transition.apply(toView, wsNew)).toBeNull();
+    });
+  });
+
   it('should converge to target view at end of transition', () => {
     const fromView = mat4.create();
     const toView = mat4.create();

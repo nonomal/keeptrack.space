@@ -41,6 +41,8 @@ export class Moon extends CelestialBody {
   protected readonly NUM_HEIGHT_SEGS = 128;
   protected readonly NUM_WIDTH_SEGS = 128;
   orbitalPeriod = (27.321661 * 24 * 3600) as Seconds;
+  readonly parentBody = SolarBody.Earth;
+  readonly semiMajorAxisKm = 384400;
   color = PlanetColors.MOON;
   rotation = [0, 0, Math.PI];
   textureQuality: MoonTextureQuality = MoonTextureQuality.POTATO;
@@ -65,10 +67,14 @@ export class Moon extends CelestialBody {
     this.updatePosition(simTime);
     this.modelViewMatrix_ = mat4.clone(this.mesh.geometry.localMvMatrix);
     if (settingsManager.centerBody !== this.getName() || (PluginRegistry.getPlugin(SelectSatManager)?.selectedSat ?? '-1') !== '-1') {
-      mat4.translate(this.modelViewMatrix_, this.modelViewMatrix_, this.position);
       const worldShift = Scene.getInstance().worldShift;
 
-      mat4.translate(this.modelViewMatrix_, this.modelViewMatrix_, vec3.fromValues(worldShift[0], worldShift[1], worldShift[2]));
+      // Summed in doubles before the single translate, for the reason CelestialBody.update explains.
+      mat4.translate(
+        this.modelViewMatrix_,
+        this.modelViewMatrix_,
+        vec3.fromValues(this.position[0] + worldShift[0], this.position[1] + worldShift[1], this.position[2] + worldShift[2])
+      );
     }
     mat4.rotateX(this.modelViewMatrix_, this.modelViewMatrix_, this.rotation[0]);
     mat4.rotateY(this.modelViewMatrix_, this.modelViewMatrix_, this.rotation[1]);

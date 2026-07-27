@@ -56,8 +56,15 @@ export class MeshRenderer {
       return;
     }
 
-    // Don't draw meshes if the camera is too far away
-    if (ServiceLocator.getMainCamera().state.camDistBuffer >= settingsManager.nearZoomLevel) {
+    // Don't draw meshes if the camera is too far away. camDistBuffer is the
+    // satellite-snap standoff and never updates while a deep-space probe is the
+    // centered body (nothing is selected), so use the camera's real distance
+    // from the center body there - same 25 km reveal as any other satellite.
+    const camera = ServiceLocator.getMainCamera();
+    const isDeepSpaceSatCentered = Boolean(ServiceLocator.getScene().deepSpaceSatellites?.[settingsManager.centerBody]);
+    const distToMesh = isDeepSpaceSatCentered ? camera.calcDistanceBasedOnZoom() : camera.state.camDistBuffer;
+
+    if (distToMesh >= settingsManager.nearZoomLevel) {
       return;
     }
     if (
@@ -80,7 +87,7 @@ export class MeshRenderer {
     gl.useProgram(this.program_);
     gl.bindFramebuffer(gl.FRAMEBUFFER, tgtBuffer);
 
-    gl.uniform3fv(this.uniforms_.uLightDirection, ServiceLocator.getScene().earth.lightDirection);
+    gl.uniform3fv(this.uniforms_.uLightDirection, this.meshManager_.lightDirection ?? ServiceLocator.getScene().earth.lightDirection);
     gl.uniformMatrix3fv(this.uniforms_.uNormalMatrix, false, this.meshManager_.nMatrix_);
     gl.uniformMatrix4fv(this.uniforms_.uMvMatrix, false, this.meshManager_.mvMatrix_);
     gl.uniformMatrix4fv(this.uniforms_.uPMatrix, false, pMatrix);

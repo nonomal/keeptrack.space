@@ -207,6 +207,7 @@ function isCelestialBody(obj: BaseObject): boolean {
     obj.type === SpaceObjectType.GAS_GIANT ||
     obj.type === SpaceObjectType.ICE_GIANT ||
     obj.type === SpaceObjectType.DWARF_PLANET ||
+    obj.type === SpaceObjectType.ASTEROID ||
     obj.type === SpaceObjectType.MOON
   );
 }

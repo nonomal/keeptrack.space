@@ -107,25 +107,42 @@ export abstract class GlUtils {
     let attempts = 0;
     let lastErr: Error | null = null;
     let resp: Response | null = null;
+    let blob: Blob | null = null;
+    /*
+     * Which step was in flight when it went wrong. `fetch` and `body` both surface as a bare
+     * TypeError("Failed to fetch"), and decode failures read similarly, so without this the
+     * failure message cannot distinguish "never connected" from "connected, body died" from
+     * "got the bytes, could not decode them" - which is the difference between a network
+     * problem, a truncated transfer, and an out-of-memory image.
+     */
+    let stage: 'fetch' | 'body' | 'decode' | 'img-fallback' = 'fetch';
 
     try {
       /* eslint-disable no-await-in-loop -- retry requires sequential awaits */
       while (attempts < TEXTURE_RETRY_MAX_ATTEMPTS) {
         attempts += 1;
         resp = null;
+        stage = 'fetch';
         try {
-          resp = await GlUtils.fetchTexture_(url);
+          resp = await GlUtils.fetchTexture_(url, attempts > 1);
           if (resp.ok) {
-            break;
-          }
-
-          // 4xx: don't retry, the asset isn't going to magically appear
-          if (resp.status >= 400 && resp.status < 500) {
-            lastErr = new Error(`Failed to fetch image: ${url} (${resp.status})`);
+            stage = 'body';
+            /*
+             * Read the body INSIDE the retry loop. A connection dropped mid-transfer, or a
+             * truncated entry already sitting in the HTTP cache, rejects here rather than at
+             * fetch() - and when this lived below the loop that was fatal on the first try,
+             * so a large texture could fail permanently ("Failed to fetch") with no recovery.
+             */
+            blob = await resp.blob();
             break;
           }
 
           lastErr = new Error(`Failed to fetch image: ${url} (${resp.status})`);
+
+          // 4xx: don't retry, the asset isn't going to magically appear
+          if (resp.status >= 400 && resp.status < 500) {
+            break;
+          }
         } catch (err) {
           if (err instanceof DOMException && err.name === 'AbortError') {
             throw err;
@@ -157,12 +174,24 @@ export abstract class GlUtils {
       }
       /* eslint-enable no-await-in-loop */
 
-      if (!resp || !resp.ok) {
-        throw lastErr ?? new Error(`Failed to fetch image: ${url}`);
-      }
+      let imgBitmap: ImageBitmap;
 
-      const blob = await resp.blob();
-      const imgBitmap = await createImageBitmap(blob, { premultiplyAlpha: 'none', imageOrientation: 'none' });
+      if (blob) {
+        stage = 'decode';
+        imgBitmap = await createImageBitmap(blob, { premultiplyAlpha: 'none', imageOrientation: 'none' });
+      } else {
+        /*
+         * Every fetch attempt failed, so try the element loader before giving up. MEASURED on
+         * a user's browser: same-origin responses over ~12 MB rejected at the body read on
+         * every attempt (12.5/15/17.8 MB all failed in <60 ms, everything under 1.5 MB was
+         * fine) while an <img> pointed at the identical URL decoded it in full. The element
+         * path never materializes the body as a JS Blob, so it survives whatever refuses it.
+         */
+        stage = 'img-fallback';
+        imgBitmap = await GlUtils.loadViaImageElement_(url).catch(() => {
+          throw lastErr ?? new Error(`Failed to fetch image: ${url}`);
+        });
+      }
 
       gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
       gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
@@ -201,18 +230,58 @@ export abstract class GlUtils {
 
       return texture;
     } catch (err) {
-      const wrapped = new Error(`Failed to load image: ${url} - ${err instanceof Error ? err.message : String(err)}`);
+      const cause = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+      const wrapped = new Error(`Failed to load image: ${url} [${stage} stage, ${attempts} attempt(s)] - ${cause}`);
 
       updateTextureStatus(url, { state: 'failed', attempts: Math.max(attempts, 1), lastError: wrapped.message });
       throw wrapped;
     }
   }
 
+  /** Give up on the element fallback after this long so a silent <img> can't stall a boot. */
+  private static readonly IMG_FALLBACK_TIMEOUT_MS = 30000;
+
+  /**
+   * Loads a texture through an `HTMLImageElement` instead of fetch + blob, then hands the
+   * decoded element to `createImageBitmap` so the caller's upload path is unchanged.
+   *
+   * This exists because the two routes are not equivalent in practice: an `<img>` is decoded
+   * by the browser internally and never exposes the body to script, so it keeps working in
+   * situations where reading the same response into a Blob is refused. `crossOrigin` is set
+   * because the result is uploaded to WebGL - a tainted image would throw on texImage2D.
+   */
+  private static loadViaImageElement_(url: string): Promise<ImageBitmap> {
+    return new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
+      const timer = setTimeout(() => {
+        img.src = '';
+        reject(new Error(`<img> load timed out for ${url}`));
+      }, GlUtils.IMG_FALLBACK_TIMEOUT_MS);
+
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        clearTimeout(timer);
+        resolve(img);
+      };
+      img.onerror = () => {
+        clearTimeout(timer);
+        reject(new Error(`<img> load failed for ${url}`));
+      };
+      img.src = url;
+    }).then((img) => createImageBitmap(img, { premultiplyAlpha: 'none', imageOrientation: 'none' }));
+  }
+
   /**
    * Internal fetch hook that respects the dev-only failure-injection rules from
    * texture-load-registry. In production this just forwards to global fetch.
+   *
+   * @param isRetry Retries re-request with `cache: 'reload'`. A texture that fails
+   *   repeatedly rather than transiently is usually a truncated or corrupt entry in the
+   *   browser's HTTP cache (a dev server rewriting `dist/` mid-transfer poisons the profile
+   *   for every later load, and that survives a hard reload). Retrying through the cache
+   *   would just re-read the same bad bytes, so the retry has to go to the network.
    */
-  private static fetchTexture_(url: string): Promise<Response> {
+  private static fetchTexture_(url: string, isRetry = false): Promise<Response> {
     const injected = getInjectedFailure(url);
 
     if (injected) {
@@ -223,7 +292,7 @@ export abstract class GlUtils {
       return Promise.resolve(new Response(`Synthetic failure for ${url}`, { status: injected.status, statusText: 'Synthetic Failure' }));
     }
 
-    return fetch(url);
+    return isRetry ? fetch(url, { cache: 'reload' }) : fetch(url);
   }
 
   /** Parse Retry-After header (delta-seconds or HTTP-date) to milliseconds, or null if absent/invalid. */

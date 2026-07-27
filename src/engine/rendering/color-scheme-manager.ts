@@ -23,6 +23,8 @@
  */
 
 import { DensityBin } from '@app/app/data/catalog-manager';
+import { OemSatellite } from '@app/app/objects/oem-satellite';
+import { Planet } from '@app/app/objects/planet';
 import { ColorCruncherThreadManager } from '@app/app/threads/color-cruncher-thread-manager';
 import { LayersManager } from '@app/app/ui/layers-manager';
 import { ColorRuleSet } from '@app/engine/core/interfaces';
@@ -117,6 +119,24 @@ export class ColorSchemeManager {
   pickableBuffer: WebGLBuffer | null = null;
   pickableBufferOneTime = false;
   pickableData = new Int8Array(0);
+  /**
+   * Bumped on every upload of {@link pickableData}, which overwrites the whole buffer.
+   *
+   * Anything that pokes a single dot's pickability outside the color scheme loses that write
+   * here, and cannot tell that it did. Watching this counter is how such a caller knows to
+   * reassert; see `Planet.setPickable` and `PlanetMoon.updateDotVisibility_`.
+   */
+  pickableUploadGeneration = 0;
+  /**
+   * Set on any mutation of {@link colorData}/{@link pickableData}; gates the
+   * per-frame GPU re-upload in {@link sendColorBufferToGpu}. In worker mode the
+   * update loop re-uploaded the whole ~1 MB buffer every frame even when nothing
+   * changed — this skips that on the ~99% of frames with no color change.
+   */
+  private isColorBufferDirty_ = true;
+  /** Selected/hover sats reflected in the last upload, to detect per-frame changes. */
+  private lastUploadedSelSat_ = -2;
+  private lastUploadedHovSat_ = -2;
   private hasRegisteredOffsetListener_ = false;
 
   // ─── Worker Mode ───────────────────────────────────────────────────────
@@ -159,6 +179,9 @@ export class ColorSchemeManager {
     this.pickableBufferOneTime = false;
     this.colorData = new Float32Array(0);
     this.pickableData = new Int8Array(0);
+    this.isColorBufferDirty_ = true;
+    this.lastUploadedSelSat_ = -2;
+    this.lastUploadedHovSat_ = -2;
     this.isReady = false;
     this.lastDotColored = 0;
     // Worker will receive new catalog on next onCruncherReady
@@ -271,6 +294,8 @@ export class ColorSchemeManager {
       }
       // If we don't do this then every time the color refreshes it will undo any effect being applied outside of this loop
       this.applyFovFadeOverlay_();
+      // The chunked recolor loop above rewrote a window of dots this frame.
+      this.isColorBufferDirty_ = true;
       this.setSelectedAndHoverBuffer_();
       this.sendColorBufferToGpu();
     } catch (e) {
@@ -310,6 +335,18 @@ export class ColorSchemeManager {
     this.colorBuffer = renderer.gl.createBuffer();
     this.pickableBuffer = renderer.gl.createBuffer();
 
+    /*
+     * `DotsManager.buffers` holds a copy of these references, taken once in setColorScheme.
+     * Creating fresh buffers here without re-pointing it leaves that copy addressing a buffer
+     * nothing reads, which is how per-dot pickability writes went silently nowhere.
+     */
+    const dotsManagerInstance = ServiceLocator.getDotsManager();
+
+    if (dotsManagerInstance?.buffers) {
+      dotsManagerInstance.buffers.color = this.colorBuffer;
+      dotsManagerInstance.buffers.pickability = this.pickableBuffer;
+    }
+
     // Initialize color worker if registry is provided
     if (threadsRegistry) {
       this.initColorWorker_(threadsRegistry);
@@ -335,6 +372,7 @@ export class ColorSchemeManager {
       // Generate some buffers
       this.colorData = new Float32Array(catalogManagerInstance.numObjects * 4);
       this.pickableData = new Int8Array(catalogManagerInstance.numObjects);
+      this.isColorBufferDirty_ = true;
 
       // Send catalog data to color worker
       if (this.colorCruncher_?.isReady) {
@@ -379,6 +417,7 @@ export class ColorSchemeManager {
       if (data && data.colorData.length === this.colorData.length) {
         this.colorData.set(data.colorData);
         this.pickableData.set(data.pickableData);
+        this.isColorBufferDirty_ = true;
         // Save clean copy before overlay so setFovFadeAlpha can reapply without compounding
         if (this.fovFadeAlpha_) {
           if (!this.cleanColorData_ || this.cleanColorData_.length !== this.colorData.length) {
@@ -879,8 +918,43 @@ export class ColorSchemeManager {
     }
   }
 
+  /**
+   * Blanks Earth-orbit traffic once the view is no longer about Earth orbit.
+   *
+   * `maxZoomDistance` past 2e6 km is the marker for that: it is only ever set by centering on
+   * a body other than Earth or the Moon. From Mars the whole GP catalog is a sub-pixel smear
+   * 2e8 km away, so drawing it is noise at best and a click target at worst.
+   *
+   * This lives here, ahead of the scheme, rather than inside each scheme's own early-exit
+   * chain, for two reasons the app has already been bitten by. Only 2 of the 18 schemes had
+   * the rule, so switching to Velocity or RCS put all 52,590 satellites back on screen at the
+   * Sun view (measured). And where it did exist it sat ABOVE the star check and took the
+   * entire 9,096-star sky with it. One rule, one place, and the three exemptions stated once.
+   */
+  private getColorIfHiddenAtSolarSystemScale_(obj: BaseObject): ColorInformation | null {
+    if (settingsManager.maxZoomDistance <= 2e6) {
+      return null;
+    }
+
+    /*
+     * Planets and OEM/deep-space objects are the whole point of these views, and the stars
+     * are the backdrop they are seen against - they are camera-anchored to a fixed shell and
+     * belong at every scale.
+     */
+    const oemSource = (obj as OemSatellite).source ?? '';
+
+    if (obj instanceof Planet || oemSource === 'OEM Import' || oemSource === 'KeepTrack' || obj.isStar()) {
+      return null;
+    }
+
+    return {
+      color: this.colorTheme.deselected,
+      pickable: Pickable.No,
+    };
+  }
+
   private calculateBufferData_(i: number, satData: BaseObject[], params: ColorSchemeParams) {
-    let colors = this.getColorIfDisabledSat_(satData, i);
+    let colors = this.getColorIfHiddenAtSolarSystemScale_(satData[i]) ?? this.getColorIfDisabledSat_(satData, i);
 
     if (this.isUseGroupColorScheme) {
       colors ??= this.currentColorScheme?.updateGroup(satData[i], params) ?? this.currentColorSchemeUpdate(satData[i], params);
@@ -987,6 +1061,8 @@ export class ColorSchemeManager {
       this.cleanColorData_ = null;
     }
 
+    // Restoring clean data and/or (re)applying the overlay rewrote colorData.
+    this.isColorBufferDirty_ = true;
     this.applyFovFadeOverlay_();
     this.setSelectedAndHoverBuffer_();
     this.sendColorBufferToGpu();
@@ -1002,6 +1078,7 @@ export class ColorSchemeManager {
     for (let i = 0; i < n; i++) {
       this.colorData[i * 4 + 3] *= this.fovFadeAlpha_[i];
     }
+    this.isColorBufferDirty_ = true;
   }
 
   /**
@@ -1009,6 +1086,8 @@ export class ColorSchemeManager {
    * colors directly (e.g. the optical-simulation capture's photometric pass).
    */
   uploadColorDataToGpu(): void {
+    // An external system wrote colorData directly, so force the upload.
+    this.isColorBufferDirty_ = true;
     this.sendColorBufferToGpu();
   }
 
@@ -1016,6 +1095,13 @@ export class ColorSchemeManager {
    * Sends the color buffer to the GPU
    */
   private sendColorBufferToGpu() {
+    // Nothing changed since the last upload and both buffers are already
+    // allocated on the GPU: skip the ~1 MB re-upload entirely. (An unallocated
+    // buffer — OneTime false — still needs its initial bufferData below.)
+    if (!this.isColorBufferDirty_ && this.colorBufferOneTime && this.pickableBufferOneTime) {
+      return;
+    }
+
     const gl = this.gl_;
 
     gl.bindBuffer(gl.ARRAY_BUFFER, this.colorBuffer);
@@ -1035,15 +1121,30 @@ export class ColorSchemeManager {
     } else {
       gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.pickableData);
     }
+    this.pickableUploadGeneration++;
+
+    this.isColorBufferDirty_ = false;
   }
 
   /** Plugin-provided override for selected satellite dot color (e.g. flat map uses red since mesh is hidden). */
   static selectedColorOverride: rgbaArray | null = null;
 
   private setSelectedAndHoverBuffer_() {
-    const selSat = PluginRegistry.getPlugin(SelectSatManager)?.selectedSat;
+    const selSat = PluginRegistry.getPlugin(SelectSatManager)?.selectedSat ?? -1;
+    const hovSatForDirty = ServiceLocator.getHoverManager().hoveringSat;
 
-    if (typeof selSat !== 'undefined' && selSat !== -1) {
+    // The selected/hover dots are re-written every frame with the same values
+    // while the selection is static, so treat only a *change* as a reason to
+    // re-upload. hover-manager also does its own targeted upload on hover change;
+    // marking dirty here keeps the CPU buffer and GPU consistent for the periodic
+    // full upload regardless.
+    if (selSat !== this.lastUploadedSelSat_ || hovSatForDirty !== this.lastUploadedHovSat_) {
+      this.isColorBufferDirty_ = true;
+      this.lastUploadedSelSat_ = selSat;
+      this.lastUploadedHovSat_ = hovSatForDirty;
+    }
+
+    if (selSat !== -1) {
       // Selected satellites are always one color so forget whatever we just did
       const selSatNum = selSat;
 

@@ -21,11 +21,28 @@ export interface DeepSpaceSatelliteConfig {
   meanDistanceToSun: Kilometers;
   dataFile: string;
   model?: string;
+  /**
+   * Bounding radius of the probe's 3D mesh, in METERS - what the camera has to clear to see
+   * the whole spacecraft. Selecting a probe frames it on this the way selecting a satellite
+   * frames on its estimated radius, so it must cover the deployed booms and antennas, not
+   * just the bus. Omitted probes fall back to {@link DEFAULT_PROBE_MESH_RADIUS_M}.
+   */
+  meshRadiusM?: number;
   /** NORAD catalog number, when assigned (resolves ?sat= URLs to this probe) */
   sccNum?: string;
   /** International designator (COSPAR), when assigned (resolves ?intldes= URLs to this probe) */
   intlDes?: string;
 }
+
+/**
+ * Mesh bounding radius (m) assumed for a probe whose config does not state one. This is the
+ * radius of the DRAWN mesh, not of the real spacecraft: the fallback model is the generic
+ * `sat2` bus, whose vertices reach 3.3 units, and OBJ units are real meters - the loader
+ * multiplies positions by 0.001 to reach world km, so a mesh renders at lifelike size (see
+ * docs-local/3d-model-authoring.md). Every probe that ships states its own radius; this is
+ * only the floor for a probe added without one.
+ */
+export const DEFAULT_PROBE_MESH_RADIUS_M = 3.3;
 
 interface ChebyshevJsonSegment {
   a: number;
@@ -119,10 +136,7 @@ export class DeepSpaceSatellite extends ChebyshevBody {
     }
 
     EventBus.getInstance().on(EventBusEvent.onLinesCleared, () => {
-      this.isDrawOrbitPath = false;
-      if (this.fullOrbitPath) {
-        this.fullOrbitPath.isGarbage = true;
-      }
+      this.hideFullOrbitPath();
       if (this.fullOrbitPathEarthCentered) {
         this.fullOrbitPathEarthCentered.isGarbage = true;
       }
@@ -154,6 +168,21 @@ export class DeepSpaceSatellite extends ChebyshevBody {
 
   getModelName(): string {
     return this.config_.model ?? 'sat2';
+  }
+
+  /** Bounding radius of this probe's 3D mesh, in kilometers. */
+  get meshRadiusKm(): Kilometers {
+    return ((this.config_.meshRadiusM ?? DEFAULT_PROBE_MESH_RADIUS_M) / 1000) as Kilometers;
+  }
+
+  /**
+   * The mesh, not `RADIUS`. A probe has no body to speak of - `RADIUS` is a 1 m placeholder
+   * that exists so the sphere machinery has a number - so anything sizing the camera or the
+   * dot against "how big is this thing on screen" has to measure the spacecraft that is
+   * actually drawn.
+   */
+  get zoomFloorRadiusKm(): number {
+    return this.meshRadiusKm;
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars

@@ -114,4 +114,30 @@ describe('code_snippet', () => {
     expect(orbitMgr.setHoverOrbit).not.toHaveBeenCalled();
     expect(orbitMgr.clearHoverOrbit).toHaveBeenCalled();
   });
+
+  /*
+   * Regression test for the hover box reading `meanDistanceToSun` on a moon, which no moon
+   * defines: hovering Iapetus printed "Distance from Sun: NaN AU (NaN million km)".
+   */
+  describe('celestial body distance line', () => {
+    // The method is private; the hover box is what it feeds, and NaN there is the bug.
+    const distanceText = (body: unknown) => (HoverManager as unknown as { bodyDistanceText_: (b: unknown) => string }).bodyDistanceText_(body);
+
+    it('reports a moon distance from its parent, not from the Sun', () => {
+      const iapetus = { parentBody: 'Saturn', semiMajorAxisKm: 3560820, meanDistanceToSun: undefined };
+
+      expect(distanceText(iapetus)).toBe('Distance from Saturn: 3,560,820 km');
+    });
+
+    it('still reports a planet distance from the Sun', () => {
+      const mars = { meanDistanceToSun: 227939200 };
+
+      expect(distanceText(mars)).toBe('Distance from Sun: 1.52 AU (227.94 million km)');
+    });
+
+    it('renders nothing rather than NaN when a body has neither distance', () => {
+      expect(distanceText({ meanDistanceToSun: undefined })).toBe('');
+      expect(distanceText({ parentBody: 'Saturn', semiMajorAxisKm: NaN })).toBe('');
+    });
+  });
 });

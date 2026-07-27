@@ -463,6 +463,7 @@ global.mocks.glMock = {
   texParameteri: vi.fn(),
   uniform1f: vi.fn(),
   uniform1i: vi.fn(),
+  uniform1iv: vi.fn(),
   uniform2f: vi.fn(),
   uniform3fv: vi.fn(),
   uniform4fv: vi.fn(),

@@ -123,6 +123,11 @@ export const SatelliteModels = {
   tiangong: 'tiangong',
   issmodel: 'issmodel',
   jwst: 'jwst',
+  voyager: 'voyager',
+  lucy: 'lucy',
+  'parker-solar-probe': 'parker-solar-probe',
+  pioneer: 'pioneer',
+  'new-horizons': 'new-horizons',
 } as const;
 
 enum SatelliteNumber {

@@ -102,6 +102,9 @@ export class KeyboardComponent {
             break;
           }
           shortcut.callback();
+          // Usage signal for telemetry: shortcut activations never pass through
+          // bottomMenuClick, so without this they are invisible to feature-usage stats.
+          EventBus.getInstance().emit(EventBusEvent.keyboardShortcutUsed, this.pluginId_, shortcut.key ?? shortcut.code ?? '');
           break;
         }
       }

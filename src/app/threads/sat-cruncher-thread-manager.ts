@@ -6,6 +6,7 @@ import { Degrees, Kilometers, SpaceObjectType } from '@app/engine/ootk/src/main'
 import { Satellite } from '@app/engine/ootk/src/objects';
 import { WebWorkerThreadManager } from '@app/engine/threads/web-worker-thread';
 import { errorManagerInstance } from '@app/engine/utils/errorManager';
+import { FrameProfiler } from '@app/engine/utils/frame-profiler';
 import { MarkerMode, PosCruncherMsgType } from '@app/webworker/position-cruncher-messages';
 
 export class SatCruncherThreadManager extends WebWorkerThreadManager {
@@ -87,6 +88,12 @@ export class SatCruncherThreadManager extends WebWorkerThreadManager {
     if (!mData) {
       return;
     }
+
+    // Attribute this frame to the cruncher-message beat: the structured-clone
+    // deserialization of the position/velocity buffers is paid before this
+    // handler runs and shows up in no profiler stage, so tag the frame it
+    // landed on to expose the long frames it causes (see FrameProfiler.tagFrame).
+    FrameProfiler.getInstance().tagFrame('cruncher-msg');
 
     // Discard stale messages from old catalog
     if (typeof mData.seqNum === 'number' && mData.seqNum < this.currentSeqNum_) {

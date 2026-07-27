@@ -207,11 +207,20 @@ describe('ModelResolver debris model selection across sccNum forms', () => {
 });
 
 describe('ModelResolver mesh registry disk consistency', () => {
-  // Registered names that intentionally ship no mesh: issmodel is an aspirational
-  // alias the resolver never returns, so it can't 404 at runtime. Every other
-  // registered name MUST have a matching OBJ+MTL so any resolved (or
-  // meshOverride) name loads.
-  const KNOWN_UNBACKED = new Set<string>(['issmodel']);
+  /*
+   * Registered names that intentionally ship no mesh in this repo.
+   *
+   * - `issmodel` is an aspirational alias the resolver never returns, so it can't 404.
+   * - `lucy` and `parker-solar-probe` are Solar System Pack assets, copied into the build
+   *   from the pro submodule. Only the pro `mission-catalog.ts` ever names them, so the free
+   *   build cannot resolve them either. The OSS probes that DO ship - voyager, pioneer,
+   *   new-horizons - are deliberately not in this list: they belong to bodies in the free
+   *   deep-space catalog, so a missing mesh there is a real 404 and this test should fail.
+   *
+   * Every other registered name MUST have a matching OBJ+MTL so any resolved (or
+   * meshOverride) name loads.
+   */
+  const KNOWN_UNBACKED = new Set<string>(['issmodel', 'lucy', 'parker-solar-probe']);
 
   it('has a matching OBJ and MTL in public/meshes for every registered model', () => {
     const meshDir = path.join(process.cwd(), 'public', 'meshes');

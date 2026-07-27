@@ -188,3 +188,73 @@ src/offline-tools
 scripts/**/*.png
 # ...but the scaffolder ships template icon assets that must be committed.
 !scripts/plugin/templates/**/*.png
+# Inspection-only exports of the procedural Mars-moon shapes (npm run mars-moons:mesh).
+# The app builds this geometry at runtime, so shipping the OBJs would just bloat the deploy.
+public/meshes/phobos.obj
+public/meshes/deimos.obj
+
+# ---------------------------------------------------------------------------
+# Solar System Pack — Pro content. Standing leak guard.
+#
+# These belong in src/plugins-pro/solar-system-pack/, not in this repo. The move
+# is done and none of them exist here any more; the block stays so that a stray
+# copy (a generator run pointed at the wrong tree, a bad merge) cannot reach
+# public history on a `git add -A`, where a filter-repo purge is the only undo.
+#
+# Only list paths that are Pro by nature. A pattern that could ever match a
+# legitimate OSS file does more harm than good: it hides that file from `git
+# status` too, and the build then works locally while a clean checkout fails to
+# compile. See docs-local/oss-pro-split-solar-system.md.
+# ---------------------------------------------------------------------------
+
+# Moon and asteroid textures (21 Pro bodies; Phobos/Deimos are OSS and stay tracked).
+public/textures/ariel*.jpg
+public/textures/callisto*.jpg
+public/textures/dione*.jpg
+public/textures/enceladus*.jpg
+public/textures/europa*.jpg
+public/textures/ganymede*.jpg
+public/textures/hygiea*.jpg
+public/textures/iapetus*.jpg
+public/textures/io*.jpg
+public/textures/juno*.jpg
+public/textures/mimas*.jpg
+public/textures/miranda*.jpg
+public/textures/oberon*.jpg
+public/textures/pallas*.jpg
+public/textures/rhea*.jpg
+public/textures/tethys*.jpg
+public/textures/titan*.jpg
+public/textures/triton*.jpg
+public/textures/umbriel*.jpg
+public/textures/vesta*.jpg
+
+# Probe meshes used only by the Pro mission catalog.
+#
+# Voyager, Pioneer and New Horizons are deliberately NOT here: those probes ship in the free
+# deep-space catalog, so their meshes have to ship with them or the OSS build 404s. Only Lucy
+# and Parker are named exclusively by plugins-pro/deep-space-missions-menu.
+public/meshes/lucy.*
+public/meshes/parker-solar-probe.*
+
+# Gated content modules.
+#
+# NOT listed, deliberately: `planet-moon-elements.ts` and anything matching
+# `__tests__/planet-moon-*.test.ts`. The propagator, the `MoonElements` shape and the Phobos
+# and Deimos constants are OSS - the free build imports them - and the thirteen gated sets
+# live in the pack's own `moons/outer-moon-elements.ts`. Ignoring them here made the OSS tree
+# uncompilable from a clean checkout while still building locally.
+src/engine/rendering/draw-manager/asteroid-belt.ts
+src/engine/rendering/draw-manager/asteroid-belt-population.ts
+src/engine/rendering/draw-manager/__tests__/asteroid-belt-*.test.ts
+src/engine/rendering/draw-manager/celestial-bodies/asteroid-shapes.ts
+src/engine/rendering/draw-manager/celestial-bodies/planet-moon-catalog.ts
+src/engine/rendering/draw-manager/celestial-bodies/hygiea*.ts
+src/engine/rendering/draw-manager/celestial-bodies/juno*.ts
+src/engine/rendering/draw-manager/celestial-bodies/pallas*.ts
+src/engine/rendering/draw-manager/celestial-bodies/vesta*.ts
+src/engine/rendering/draw-manager/celestial-bodies/horizons/asteroids/
+
+# Tier 0 generators — these move to src/plugins-pro/scripts/ and never ship publicly.
+scripts/moons/
+scripts/asteroids/

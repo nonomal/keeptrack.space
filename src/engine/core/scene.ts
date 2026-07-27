@@ -8,6 +8,7 @@ import { CameraType } from '../camera/camera-type';
 import { Engine } from '../engine';
 import { EventBus } from '../events/event-bus';
 import { EventBusEvent } from '../events/event-bus-events';
+import { createRegisteredBodies, RegisteredBodyKind, registeredDustField, SolarSystemDustField } from '../rendering/draw-manager/celestial-bodies/body-registry';
 import { CelestialBody } from '../rendering/draw-manager/celestial-bodies/celestial-body';
 import { Ceres } from '../rendering/draw-manager/celestial-bodies/ceres';
 import { Charon } from '../rendering/draw-manager/celestial-bodies/charon';
@@ -24,6 +25,7 @@ import { Mercury } from '../rendering/draw-manager/celestial-bodies/mercury';
 import { Moon } from '../rendering/draw-manager/celestial-bodies/moon';
 import { Neptune } from '../rendering/draw-manager/celestial-bodies/neptune';
 import { Orcus } from '../rendering/draw-manager/celestial-bodies/orcus';
+import { systemCompanionsOf } from '../rendering/draw-manager/celestial-bodies/planet-moon-systems';
 import { Pluto } from '../rendering/draw-manager/celestial-bodies/pluto';
 import { Quaoar } from '../rendering/draw-manager/celestial-bodies/quaoar';
 import { Saturn } from '../rendering/draw-manager/celestial-bodies/saturn';
@@ -31,12 +33,14 @@ import { Sedna } from '../rendering/draw-manager/celestial-bodies/sedna';
 import { Uranus } from '../rendering/draw-manager/celestial-bodies/uranus';
 import { Venus } from '../rendering/draw-manager/celestial-bodies/venus';
 import { ConeMeshFactory } from '../rendering/draw-manager/cone-mesh-factory';
+import { CountryLabelManager } from '../rendering/draw-manager/country-label-manager';
 import { Box } from '../rendering/draw-manager/cube';
 import { Earth } from '../rendering/draw-manager/earth';
 import { AtmosphereSettings } from '../rendering/draw-manager/earth-quality-enums';
 import { Ellipsoid } from '../rendering/draw-manager/ellipsoid';
 import { FrustumMeshFactory } from '../rendering/draw-manager/frustum-mesh-factory';
 import { Godrays } from '../rendering/draw-manager/godrays';
+import { PoliticalMap } from '../rendering/draw-manager/political-map';
 import { SensorFovMeshFactory } from '../rendering/draw-manager/sensor-fov-mesh-factory';
 import { SkyBoxSphere } from '../rendering/draw-manager/skybox-sphere';
 import { Sun } from '../rendering/draw-manager/sun';
@@ -68,19 +72,11 @@ export class Scene {
     [SolarBody.Uranus]: CelestialBody;
     [SolarBody.Neptune]: CelestialBody;
   };
-  moons: {
-    [SolarBody.Moon]: Moon;
-    [SolarBody.Io]?: CelestialBody;
-    [SolarBody.Europa]?: CelestialBody;
-    [SolarBody.Ganymede]?: CelestialBody;
-    [SolarBody.Callisto]?: CelestialBody;
-    [SolarBody.Titan]?: CelestialBody;
-    [SolarBody.Rhea]?: CelestialBody;
-    [SolarBody.Iapetus]?: CelestialBody;
-    [SolarBody.Dione]?: CelestialBody;
-    [SolarBody.Tethys]?: CelestialBody;
-    [SolarBody.Enceladus]?: CelestialBody;
-  };
+  /**
+   * Earth's Moon plus every moon of another planet. Only the Moon is guaranteed present -
+   * the rest come from {@link createPlanetMoons}, which owns the roster.
+   */
+  moons: { [SolarBody.Moon]: Moon } & Partial<Record<SolarBody, CelestialBody>>;
   dwarfPlanets: {
     [SolarBody.Makemake]?: DwarfPlanet;
     [SolarBody.Pluto]?: DwarfPlanet;
@@ -93,10 +89,25 @@ export class Scene {
     [SolarBody.Gonggong]?: DwarfPlanet;
     [SolarBody.Charon]?: DwarfPlanet;
   };
+  /**
+   * Main-belt asteroids rendered as real bodies, with Horizons ephemerides and measured
+   * shapes, unlike the procedural cloud in {@link asteroidBelt}. Contributed content - empty
+   * in a build that ships none.
+   */
+  asteroids: Partial<Record<SolarBody, CelestialBody>>;
   deepSpaceSatellites: Record<string, DeepSpaceSatellite>;
+  /**
+   * The procedural main belt, Hilda group and Jupiter Trojan swarms.
+   *
+   * Null in a build that ships no dust field, so every use site has to check. That is the
+   * point: the belt is contributed content and the scene has to render correctly without it.
+   */
+  asteroidBelt: SolarSystemDustField | null;
   sun: Sun;
   godrays: Godrays;
   worldMarkers: WorldMarkers;
+  /** Country name labels for the political map (borders live in Earth's political texture). */
+  countryLabels: CountryLabelManager;
   sensorFovFactory: SensorFovMeshFactory;
   coneFactory: ConeMeshFactory;
   frustumFactory: FrustumMeshFactory;
@@ -164,13 +175,21 @@ export class Scene {
       [SolarBody.Gonggong]: new Gonggong(),
       [SolarBody.Charon]: new Charon(),
     };
-    this.moons = {
-      [SolarBody.Moon]: new Moon(),
-    };
+    /*
+     * Earth's Moon is built here because it predates the planet-moon system and is not part
+     * of it; every other moon, and every asteroid, is contributed content (see
+     * `body-registry.ts`). Providers registered before the plugins loaded, so whatever this
+     * build ships is already known.
+     */
+    this.moons = { [SolarBody.Moon]: new Moon() };
+    Object.assign(this.moons, createRegisteredBodies(RegisteredBodyKind.Moon));
+    this.asteroids = createRegisteredBodies(RegisteredBodyKind.Asteroid);
     this.deepSpaceSatellites = createDeepSpaceSatellites();
+    this.asteroidBelt = registeredDustField();
     this.sun = new Sun();
     this.godrays = new Godrays();
     this.worldMarkers = new WorldMarkers();
+    this.countryLabels = new CountryLabelManager();
     this.searchBox = new Box();
     this.searchBox.setColor([1, 0, 0, 0.3]);
     this.primaryCovBubble = new Ellipsoid([0, 0, 0]);
@@ -184,7 +203,7 @@ export class Scene {
 
   update(simulationTime: Date) {
     this.sun.updateEci();
-    this.updateWorldShift();
+    this.updateWorldShift(simulationTime);
     this.sun.update();
     this.earth.update();
     for (const planet of Object.values(this.planets)) {
@@ -195,6 +214,9 @@ export class Scene {
     }
     for (const dwarfPlanet of Object.values(this.dwarfPlanets)) {
       dwarfPlanet.update(simulationTime);
+    }
+    for (const asteroid of Object.values(this.asteroids)) {
+      asteroid.update(simulationTime);
     }
     for (const deepSpaceSat of Object.values(this.deepSpaceSatellites)) {
       deepSpaceSat.update(simulationTime);
@@ -208,7 +230,25 @@ export class Scene {
     this.frustumFactory.updateAll();
   }
 
-  updateWorldShift() {
+  updateWorldShift(simulationTime?: Date) {
+    /*
+     * The shift is computed before every body updates, so without this the center body's
+     * position is a frame stale while the bodies drawn against the shift use the fresh
+     * one. That difference is normally invisible, but a body's position is only
+     * recomputed every 1000 ms of sim time - so the stale frame is a full 1000 ms of
+     * planetary motion, which for Mars is ~24,000 km. Anything rendered relative to Mars
+     * (its moons, their orbit rings and dots) jumped by that much for one frame, once a
+     * second. Refreshing the center body first costs nothing: the same cache that caused
+     * the problem makes the body's own update later in the frame a no-op.
+     */
+    if (simulationTime) {
+      const centerBodyEntity = this.getBodyById(settingsManager.centerBody);
+
+      if (centerBodyEntity instanceof CelestialBody) {
+        centerBodyEntity.updatePosition(simulationTime);
+      }
+    }
+
     this.updateWorldShiftBase_();
     this.applyWorldShiftForCamera(ServiceLocator.getMainCamera());
   }
@@ -237,42 +277,24 @@ export class Scene {
 
   private updateWorldShiftBase_() {
     switch (settingsManager.centerBody) {
-      case SolarBody.Mercury:
-      case SolarBody.Venus:
-      case SolarBody.Moon:
-      case SolarBody.Mars:
-      case SolarBody.Jupiter:
-      case SolarBody.Saturn:
-      case SolarBody.Uranus:
-      case SolarBody.Neptune:
-        this.worldShiftBase_ = (this.getBodyById(settingsManager.centerBody)!.position as [number, number, number]).map((coord: number) => -coord) as [number, number, number];
-        break;
-      case SolarBody.Pluto:
-      case SolarBody.Makemake:
-      case SolarBody.Ceres:
-      case SolarBody.Haumea:
-      case SolarBody.Eris:
-      case SolarBody.Sedna:
-      case SolarBody.Quaoar:
-      case SolarBody.Orcus:
-      case SolarBody.Gonggong:
-      case SolarBody.Charon:
-        this.worldShiftBase_ = (this.dwarfPlanets[settingsManager.centerBody]!.position as [number, number, number]).map((coord: number) => -coord) as [number, number, number];
-        break;
       case SolarBody.Sun:
         this.worldShiftBase_ = [this.sun.eci.x, this.sun.eci.y, this.sun.eci.z].map((coord: number) => -coord) as [number, number, number];
         break;
       case SolarBody.Earth:
         this.worldShiftBase_ = [0, 0, 0];
         break;
-      default:
-        if (this.deepSpaceSatellites?.[settingsManager.centerBody]) {
-          const sat = this.deepSpaceSatellites[settingsManager.centerBody];
+      default: {
+        /*
+         * Everything else - planets, dwarf planets, moons, deep-space probes - is just the
+         * negated position of whatever getBodyById resolves. This used to be three
+         * hand-maintained case lists, and a body missing from them fell through to
+         * [0, 0, 0], which draws the entire scene hundreds of millions of kilometers
+         * off-screen rather than failing in any way that points at the cause.
+         */
+        const centerBodyEntity = this.getBodyById(settingsManager.centerBody);
 
-          this.worldShiftBase_ = (sat.position as [number, number, number]).map((coord: number) => -coord) as [number, number, number];
-        } else {
-          this.worldShiftBase_ = [0, 0, 0];
-        }
+        this.worldShiftBase_ = centerBodyEntity ? ((centerBodyEntity.position as [number, number, number]).map((coord: number) => -coord) as [number, number, number]) : [0, 0, 0];
+      }
     }
 
     // Satellite position is ALWAYS relative to Earth center and selecting a
@@ -358,55 +380,69 @@ export class Scene {
         // its stale framebuffer would otherwise swallow the sun entirely.
         const fb = settingsManager.isDisableGodrays || !this.godrays ? null : this.frameBuffers.godrays;
 
-        // Draw the Sun to the Godrays Frame Buffer
-        profiler.beginGpu(GpuStage.sun);
-        this.sun.draw(this.earth.lightDirection, fb);
-        profiler.endGpu(GpuStage.sun);
+        // Off-screen sun gate: the sun/occlusion/godrays chain only reaches the
+        // canvas through the godrays composite, which emits rays solely for an
+        // on-screen sun. When godrays are live and the sun projects well outside
+        // the viewport the entire chain (a 132k-vert occlusion earth + a 40-tap
+        // fullscreen composite) is a visual no-op, so skip it. Only gated on the
+        // godrays path; the plain-sun path (fb === null) is already cheap.
+        const skipSunChain = fb !== null && !!this.godrays && !this.godrays.isSunPotentiallyVisible(camera.projectionMatrix, camera.matrixWorldInverse);
 
-        // Occlusion passes exist ONLY to mask the sun inside the godrays buffer.
-        // With godrays off/dead (fb === null) they must not run: binding the
-        // missing FBO falls back to the DEFAULT framebuffer and paints black
-        // occlusion meshes over the visible scene.
-        if (fb) {
-          const sceneManager = ServiceLocator.getScene();
-          const centerBodyEntity = sceneManager.getBodyById(settingsManager.centerBody);
+        if (skipSunChain) {
+          // Match the non-skipped path's post-processing target so the skybox /
+          // earth draws below composite to the canvas identically.
+          renderer.postProcessingManager.curBuffer = null;
+        } else {
+          // Draw the Sun to the Godrays Frame Buffer
+          profiler.beginGpu(GpuStage.sun);
+          this.sun.draw(this.earth.lightDirection, fb);
+          profiler.endGpu(GpuStage.sun);
 
-          profiler.beginGpu(GpuStage.occlusion);
+          // Occlusion passes exist ONLY to mask the sun inside the godrays buffer.
+          // With godrays off/dead (fb === null) they must not run: binding the
+          // missing FBO falls back to the DEFAULT framebuffer and paints black
+          // occlusion meshes over the visible scene.
+          if (fb) {
+            const sceneManager = ServiceLocator.getScene();
+            const centerBodyEntity = sceneManager.getBodyById(settingsManager.centerBody);
 
-          // Draw a black earth mesh on top of the sun in the godrays frame buffer
-          // Skip in astronomy mode since Earth is hidden
-          if (centerBodyEntity?.drawOcclusion && camera.cameraType !== CameraType.ASTRONOMY && camera.cameraType !== CameraType.PLANETARIUM) {
-            centerBodyEntity?.drawOcclusion(camera.projectionMatrix, camera.matrixWorldInverse, renderer?.postProcessingManager?.programs?.occlusion, this.frameBuffers.godrays);
+            profiler.beginGpu(GpuStage.occlusion);
+
+            // Draw a black earth mesh on top of the sun in the godrays frame buffer
+            // Skip in astronomy mode since Earth is hidden
+            if (centerBodyEntity?.drawOcclusion && camera.cameraType !== CameraType.ASTRONOMY && camera.cameraType !== CameraType.PLANETARIUM) {
+              centerBodyEntity?.drawOcclusion(camera.projectionMatrix, camera.matrixWorldInverse, renderer?.postProcessingManager?.programs?.occlusion, this.frameBuffers.godrays);
+            }
+
+            if (settingsManager.centerBody === SolarBody.Earth) {
+              sceneManager
+                .getBodyById(SolarBody.Moon)
+                ?.drawOcclusion(camera.projectionMatrix, camera.matrixWorldInverse, renderer?.postProcessingManager?.programs?.occlusion, this.frameBuffers.godrays);
+            }
+
+            if (settingsManager.centerBody === SolarBody.Moon) {
+              this.earth.drawOcclusion(camera.projectionMatrix, camera.matrixWorldInverse, renderer?.postProcessingManager?.programs?.occlusion, this.frameBuffers.godrays);
+            }
+
+            // Draw a black object mesh on top of the sun in the godrays frame buffer
+            if (
+              !settingsManager.modelsOnSatelliteViewOverride &&
+              Number(PluginRegistry.getPlugin(SelectSatManager)?.selectedSat ?? -1) > -1 &&
+              ServiceLocator.getMainCamera().state.camDistBuffer <= settingsManager.nearZoomLevel
+            ) {
+              renderer.meshManager.drawOcclusion(camera.projectionMatrix, camera.matrixWorldInverse, renderer.postProcessingManager.programs.occlusion, this.frameBuffers.godrays);
+            }
+            profiler.endGpu(GpuStage.occlusion);
           }
 
-          if (settingsManager.centerBody === SolarBody.Earth) {
-            sceneManager
-              .getBodyById(SolarBody.Moon)
-              ?.drawOcclusion(camera.projectionMatrix, camera.matrixWorldInverse, renderer?.postProcessingManager?.programs?.occlusion, this.frameBuffers.godrays);
-          }
-
-          if (settingsManager.centerBody === SolarBody.Moon) {
-            this.earth.drawOcclusion(camera.projectionMatrix, camera.matrixWorldInverse, renderer?.postProcessingManager?.programs?.occlusion, this.frameBuffers.godrays);
-          }
-
-          // Draw a black object mesh on top of the sun in the godrays frame buffer
-          if (
-            !settingsManager.modelsOnSatelliteViewOverride &&
-            Number(PluginRegistry.getPlugin(SelectSatManager)?.selectedSat ?? -1) > -1 &&
-            ServiceLocator.getMainCamera().state.camDistBuffer <= settingsManager.nearZoomLevel
-          ) {
-            renderer.meshManager.drawOcclusion(camera.projectionMatrix, camera.matrixWorldInverse, renderer.postProcessingManager.programs.occlusion, this.frameBuffers.godrays);
-          }
-          profiler.endGpu(GpuStage.occlusion);
+          // Add the godrays effect to the godrays frame buffer and then apply it to the postprocessing buffer two.
+          // Null-safe: a throw here used to abort renderBackground before the earth/
+          // atmosphere draws below — one godrays failure blanked the atmosphere.
+          renderer.postProcessingManager.curBuffer = null;
+          profiler.beginGpu(GpuStage.godrays);
+          this.godrays?.draw(camera.projectionMatrix, camera.matrixWorldInverse, renderer.postProcessingManager.curBuffer);
+          profiler.endGpu(GpuStage.godrays);
         }
-
-        // Add the godrays effect to the godrays frame buffer and then apply it to the postprocessing buffer two.
-        // Null-safe: a throw here used to abort renderBackground before the earth/
-        // atmosphere draws below — one godrays failure blanked the atmosphere.
-        renderer.postProcessingManager.curBuffer = null;
-        profiler.beginGpu(GpuStage.godrays);
-        this.godrays?.draw(camera.projectionMatrix, camera.matrixWorldInverse, renderer.postProcessingManager.curBuffer);
-        profiler.endGpu(GpuStage.godrays);
       }
 
       profiler.beginGpu(GpuStage.skybox);
@@ -417,6 +453,15 @@ export class Scene {
         if (settingsManager.centerBody !== SolarBody.Earth && settingsManager.centerBody !== SolarBody.Sun) {
           profiler.beginGpu(GpuStage.planets);
           this.getBodyById(settingsManager.centerBody)?.draw(this.sun.position, renderer.postProcessingManager.curBuffer);
+
+          /*
+           * Only the center body is drawn as a mesh; everything else is a dot. That leaves
+           * a planet's system looking empty from the inside, so its members draw each other
+           * the way Earth and the Moon already do below.
+           */
+          for (const companion of systemCompanionsOf(settingsManager.centerBody)) {
+            this.getBodyById(companion)?.draw(this.sun.position, renderer.postProcessingManager.curBuffer);
+          }
           profiler.endGpu(GpuStage.planets);
         }
       }
@@ -437,6 +482,22 @@ export class Scene {
         profiler.beginGpu(GpuStage.planets);
         this.getBodyById(SolarBody.Moon)?.draw(this.sun.position, renderer.postProcessingManager.curBuffer);
         profiler.endGpu(GpuStage.planets);
+      }
+
+      /*
+       * After the planets so the dust depth-tests against a planet in front of it, and before
+       * the dots/orbits of renderOpaque so those draw over it. Self-gating: nothing is
+       * submitted unless the camera is out at interplanetary range.
+       */
+      if (this.asteroidBelt) {
+        profiler.beginGpu(GpuStage.asteroidBelt);
+        this.asteroidBelt.draw(
+          renderer.projectionCameraMatrix,
+          ServiceLocator.getTimeManager().simulationTimeObj,
+          this.worldShift as [number, number, number],
+          renderer.postProcessingManager.curBuffer
+        );
+        profiler.endGpu(GpuStage.asteroidBelt);
       }
 
       profiler.beginGpu(GpuStage.scenery);
@@ -479,41 +540,53 @@ export class Scene {
       }
 
       let isSettingsLeftToDisable = true;
+      let disabledFeature: string | null = null;
 
       while (isSettingsLeftToDisable) {
         if (!settingsManager.isDisableGodrays) {
           settingsManager.isDisableGodrays = true;
           settingsManager.sizeOfSun = 1.65;
           settingsManager.isUseSunTexture = true;
+          disabledFeature = 'godrays';
           ServiceLocator.getUiManager().toast(t7e('errorMsgs.Scene.disablingGodrays'), ToastMsgType.caution);
           break;
         }
         if (settingsManager.isDrawAurora) {
           settingsManager.isDrawAurora = false;
+          disabledFeature = 'aurora';
           ServiceLocator.getUiManager().toast(t7e('errorMsgs.Scene.disablingAurora'), ToastMsgType.caution);
           break;
         }
         if (settingsManager.isDrawAtmosphere > 0) {
           settingsManager.isDrawAtmosphere = AtmosphereSettings.OFF;
+          disabledFeature = 'atmosphere';
           ServiceLocator.getUiManager().toast(t7e('errorMsgs.Scene.disablingAtmosphere'), ToastMsgType.caution);
           break;
         }
         if (!settingsManager.isDisablePlanets) {
           settingsManager.isDisablePlanets = true;
+          disabledFeature = 'planets';
           ServiceLocator.getUiManager().toast(t7e('errorMsgs.Scene.disablingMoon'), ToastMsgType.caution);
           break;
         }
         if (settingsManager.isDrawMilkyWay) {
           settingsManager.isDrawMilkyWay = false;
+          disabledFeature = 'milkyway';
           ServiceLocator.getUiManager().toast(t7e('errorMsgs.Scene.disablingMilkyWay'), ToastMsgType.caution);
           break;
         }
         if (settingsManager.isDrawSun) {
           settingsManager.isDrawSun = false;
+          disabledFeature = 'sun';
           ServiceLocator.getUiManager().toast(t7e('errorMsgs.Scene.disablingSun'), ToastMsgType.caution);
           break;
         }
         isSettingsLeftToDisable = false;
+      }
+
+      if (disabledFeature) {
+        // Telemetry signal: quantifies how many sessions actually hit degraded mode.
+        EventBus.getInstance().emit(EventBusEvent.performanceDowngrade, disabledFeature);
       }
 
       // Create a timer that has to expire before the next performance check
@@ -534,6 +607,12 @@ export class Scene {
     const hoverManagerInstance = ServiceLocator.getHoverManager();
     const profiler = FrameProfiler.getInstance();
 
+    // Political borders/labels share Natural Earth data; drive fetch + rasterization
+    // before the Earth binds the political texture this frame.
+    if (settingsManager.isDrawPoliticalMap || settingsManager.isDrawPoliticalLabels) {
+      PoliticalMap.getInstance().update(this.gl_);
+    }
+
     // Draw Earth (skip if plugin handles it; atmosphere-only in ground view modes; full draw otherwise)
     // GPU timing lives inside Earth.draw so surface and atmosphere profile separately
     if (EventBus.getInstance().methods.shouldSkipEarthDraw()) {
@@ -549,6 +628,7 @@ export class Scene {
          * (once per pass): dst + src + src === dst + 2·src under SRC_ALPHA/ONE.
          */
         this.earth.drawAtmospherePass(renderer.postProcessingManager.curBuffer, 2.0);
+        this.earth.drawAuroraPass(renderer.postProcessingManager.curBuffer);
       } else {
         this.earth.draw(renderer.postProcessingManager.curBuffer);
       }
@@ -576,6 +656,19 @@ export class Scene {
     // "You are here" + selected-sat glow markers (depth-occluded against the globe).
     // Cheap no-op unless observerMarkerLla / isDrawSelectionGlow are set (both off in OSS).
     this.worldMarkers.draw(renderer.projectionCameraMatrix, this.worldShift as [number, number, number], renderer.postProcessingManager.curBuffer);
+
+    // Country name labels (depth-occluded billboards). Only in 3D globe views —
+    // 2D projections and ground-view modes don't draw the globe surface here.
+    if (
+      settingsManager.isDrawPoliticalLabels &&
+      settingsManager.isDrawEarth !== false &&
+      camera.cameraType !== CameraType.PLANETARIUM &&
+      camera.cameraType !== CameraType.ASTRONOMY &&
+      !EventBus.getInstance().methods.shouldSkipEarthDraw()
+    ) {
+      this.countryLabels.update(camera.getDistFromEarth(), performance.now());
+      this.countryLabels.draw(renderer.projectionCameraMatrix, this.worldShift, ServiceLocator.getTimeManager().gmst, renderer.postProcessingManager.curBuffer);
+    }
 
     // Draw Satellite Model if a satellite is selected (or deep-space satellite is centered) and meshManager is loaded
     const hasSatSelected = Number(PluginRegistry.getPlugin(SelectSatManager)?.selectedSat ?? -1) > -1;
@@ -629,9 +722,10 @@ export class Scene {
      * (draws and readPixels are all gated), so skip its per-frame clear — a
      * render-target switch per frame that tiled mobile GPUs pay dearly for.
      * WebGL zero-initializes the attachment, so even a stray read decodes to
-     * "no object" (id -1).
+     * "no object" (id -1). WP4 also skips the clear on idle frames (no picking
+     * draws this frame), leaving the last-rendered buffer intact for readback.
      */
-    if (!settingsManager.isDisableGpuPicking) {
+    if (!settingsManager.isDisableGpuPicking && ServiceLocator.getRenderer().shouldRenderPicking) {
       gl.bindFramebuffer(gl.FRAMEBUFFER, this.frameBuffers.gpuPicking);
       gl.clearColor(0.0, 0.0, 0.0, 1.0);
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -667,8 +761,6 @@ export class Scene {
     switch (solarBody) {
       case SolarBody.Earth:
         return this.earth;
-      case SolarBody.Moon:
-        return this.moons[SolarBody.Moon] ?? null;
       case SolarBody.Mercury:
       case SolarBody.Venus:
       case SolarBody.Mars:
@@ -688,10 +780,16 @@ export class Scene {
       case SolarBody.Gonggong:
       case SolarBody.Charon:
         return this.dwarfPlanets[solarBody] ?? null;
+      case SolarBody.Vesta:
+      case SolarBody.Pallas:
+      case SolarBody.Juno:
+      case SolarBody.Hygiea:
+        return this.asteroids[solarBody] ?? null;
       case SolarBody.Sun:
         return this.sun as unknown as CelestialBody;
       default:
-        return this.deepSpaceSatellites?.[solarBody] ?? null;
+        // Earth's Moon, the nineteen planet moons, then the deep-space probes.
+        return this.moons?.[solarBody] ?? this.deepSpaceSatellites?.[solarBody] ?? null;
     }
   }
 
@@ -699,6 +797,7 @@ export class Scene {
     try {
       this.earth.init(this.gl_);
       this.worldMarkers.init(this.gl_);
+      this.countryLabels.init(this.gl_);
       EventBus.getInstance().emit(EventBusEvent.drawManagerLoadScene);
       await this.sun.init(this.gl_);
 
@@ -713,6 +812,17 @@ export class Scene {
         for (const dwarfPlanet of Object.values(this.dwarfPlanets)) {
           dwarfPlanet.init(this.gl_);
         }
+        for (const asteroid of Object.values(this.asteroids)) {
+          asteroid.init(this.gl_);
+        }
+
+        /*
+         * Always built, even with the belt currently switched off: the program and buffer are
+         * cheap, and this is what lets the setting be toggled live (the population itself is
+         * generated by the first draw that actually needs it). Absent entirely in a build
+         * that ships no dust field.
+         */
+        this.asteroidBelt?.init(this.gl_);
 
         // This doesn't belong under a disable planets flag
         await loadDeepSpaceSatelliteData(this.deepSpaceSatellites);

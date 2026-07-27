@@ -39,7 +39,7 @@ export abstract class Path extends Line {
       return;
     }
 
-    gl.uniform4fv(lineManager.uniforms_.u_color, this.color_);
+    gl.uniform4fv(lineManager.uniforms_.u_color, this.getDrawColor_());
 
     // Celestial/orbit paths are stored as absolute inertial positions
     // (heliocentric or ECI/TEME) and their dots render unrotated, so they must
@@ -56,8 +56,20 @@ export abstract class Path extends Line {
       gl.uniform3fv(lineManager.uniforms_.worldOffset, [0, 0, 0]);
     } else if (this.centerBody === SolarBody.Earth) {
       gl.uniform3fv(lineManager.uniforms_.worldOffset, sceneManager.worldShift);
-    } else {
+    } else if (this.centerBody === SolarBody.Sun) {
+      // The Sun is the one body whose `position` already carries the world shift.
       gl.uniform3fv(lineManager.uniforms_.worldOffset, centerBodyEntity.position);
+    } else {
+      /*
+       * Every other body stores an unshifted position, so the shift has to be added here.
+       * Summing in JS doubles first also keeps the uniform small when the camera is inside
+       * that body's system - a planet's absolute position only resolves to ~30 km in the
+       * float32 uniform, which is fatal for something like a 9375 km orbit around Mars.
+       */
+      const shift = sceneManager.worldShift;
+      const position = centerBodyEntity.position;
+
+      gl.uniform3fv(lineManager.uniforms_.worldOffset, [position[0] + shift[0], position[1] + shift[1], position[2] + shift[2]]);
     }
 
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vertBuf_);

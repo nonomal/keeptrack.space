@@ -43,6 +43,17 @@ export abstract class Line {
   referenceFrame: 'J2000' | 'TEME' = 'TEME';
   /** This flag is set to true when the line is no longer needed. The garbage collector will handle removing it */
   isGarbage = false;
+  /**
+   * Camera-anchored lines add the camera position instead of the pass world
+   * offset, pinning them to the celestial sphere so they never parallax
+   * (constellation figures must track the camera-anchored star dots).
+   */
+  isCameraAnchored = false;
+  /**
+   * 0-1 multiplier applied to this line's alpha at draw time, for fades that must not
+   * disturb the stored color (a proximity fade has to be able to come back exactly).
+   */
+  opacity = 1;
 
   constructor(dataPoints = 2) {
     const gl = ServiceLocator.getRenderer().gl;
@@ -59,12 +70,20 @@ export abstract class Line {
       return;
     }
 
-    gl.uniform4fv(lineManager.uniforms_.u_color, this.color_);
+    gl.uniform4fv(lineManager.uniforms_.u_color, this.getDrawColor_());
+
+    if (this.isCameraAnchored) {
+      gl.uniform3fv(lineManager.uniforms_.worldOffset, lineManager.cameraAnchorWorldOffset);
+    }
 
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vertBuf_);
     gl.vertexAttribPointer(lineManager.attribs.a_position.location, 4, gl.FLOAT, false, 0, 0);
 
     gl.drawArrays(gl.LINE_STRIP, 0, 2);
+
+    if (this.isCameraAnchored) {
+      gl.uniform3fv(lineManager.uniforms_.worldOffset, lineManager.passWorldOffset);
+    }
   }
 
   abstract update(): void;
@@ -87,5 +106,14 @@ export abstract class Line {
     if (color[0] < 0 || color[0] > 1 || color[1] < 0 || color[1] > 1 || color[2] < 0 || color[2] > 1 || color[3] < 0 || color[3] > 1) {
       throw new Error('Invalid color');
     }
+  }
+
+  /** This line's color with {@link opacity} folded into the alpha. */
+  protected getDrawColor_(): vec4 {
+    if (this.opacity >= 1) {
+      return this.color_;
+    }
+
+    return [this.color_[0], this.color_[1], this.color_[2], this.color_[3] * Math.max(this.opacity, 0)];
   }
 }

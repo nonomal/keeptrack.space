@@ -58,6 +58,7 @@ export class MouseInput {
     canvasDOM.addEventListener('mousemove', (e) => {
       this.canvasMouseMove_(e);
       settingsManager.lastInteractionTime = Date.now();
+      ServiceLocator.getInputManager().markPickActivity();
     });
 
     if (!settingsManager.disableUI) {
@@ -72,6 +73,7 @@ export class MouseInput {
         });
         canvasDOM.addEventListener('mousedown', (e: MouseEvent) => {
           this.canvasMouseDown_(e);
+          ServiceLocator.getInputManager().markPickActivity();
         });
         canvasDOM.addEventListener('mouseup', (e: MouseEvent) => {
           this.canvasMouseUp_(e);

@@ -198,6 +198,8 @@ export class SideMenuComponent {
         form.addEventListener('submit', (e) => {
           e.preventDefault();
           submitCallback();
+          // Usage signal for telemetry: form submit = tool actually run, not just opened.
+          EventBus.getInstance().emit(EventBusEvent.pluginFormSubmitted, this.pluginId);
         });
       }
     });

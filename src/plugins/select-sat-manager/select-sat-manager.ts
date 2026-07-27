@@ -14,6 +14,7 @@ import { ServiceLocator } from '@app/engine/core/service-locator';
 import { EventBus } from '@app/engine/events/event-bus';
 import { EventBusEvent } from '@app/engine/events/event-bus-events';
 import { IKeyboardShortcut, ISettingsContribution, ISettingsContributor } from '@app/engine/plugins/core/plugin-capabilities';
+import { DotStatus } from '@app/engine/rendering/dots-shaders-base';
 import { COVARIANCE_RADII_FALLBACK, covarianceDisplayRadii, ricSigmasFromCovarianceMatrix } from '@app/engine/rendering/draw-manager/covariance-radii';
 import { errorManagerInstance } from '@app/engine/utils/errorManager';
 import { getEl, hideEl, showEl } from '@app/engine/utils/get-el';
@@ -257,6 +258,7 @@ export class SelectSatManager extends KeepTrackPlugin implements ISettingsContri
         case SpaceObjectType.GAS_GIANT:
         case SpaceObjectType.ICE_GIANT:
         case SpaceObjectType.DWARF_PLANET:
+        case SpaceObjectType.ASTEROID:
         case SpaceObjectType.MOON:
           PluginRegistry.getPlugin(PlanetsMenuPlugin)?.changePlanet(obj.name as SolarBody);
 
@@ -353,6 +355,10 @@ export class SelectSatManager extends KeepTrackPlugin implements ISettingsContri
       // caps it at the GEO belt).
       if (wasOffEarth) {
         settingsManager.maxZoomDistance = 1.2e6 as Kilometers; // 1.2 million km
+        // The heliocentric orbit rings belong to the planet/probe view we just
+        // left; centering back on Earth has to drop them the same way pressing
+        // Home does, or they stay drawn around the selected satellite.
+        PluginRegistry.getPlugin(PlanetsMenuPlugin)?.clearHeliocentricOrbits();
       }
       PluginRegistry.getPlugin(PlanetsMenuPlugin)?.setAllPlanetsDotSize(0);
     }
@@ -634,11 +640,18 @@ export class SelectSatManager extends KeepTrackPlugin implements ISettingsContri
         colorSchemeManagerInstance.colorData[lastSelectedObject * 4 + 3] = newColor[3]; // A
         gl.bufferSubData(gl.ARRAY_BUFFER, lastSelectedObject * 4 * 4, new Float32Array(newColor));
 
-        if (!settingsManager.lastSearchResults.includes(lastSelectedObject)) {
-          dotsManagerInstance.sizeData[lastSelectedObject] = 0.0;
-          gl.bindBuffer(gl.ARRAY_BUFFER, dotsManagerInstance.buffers.size);
-          gl.bufferSubData(gl.ARRAY_BUFFER, 0, dotsManagerInstance.sizeData);
-        }
+        /*
+         * Restore the search status (not just "big") so the dot keeps its
+         * search ring after deselection; always write since the selected
+         * status code differs from the searched one. sizeData is an Int8Array,
+         * so the element index is also the byte offset - upload the one byte
+         * that changed rather than the whole catalog (see HoverManager).
+         */
+        const restoredStatus = settingsManager.lastSearchResults.includes(lastSelectedObject) ? DotStatus.Searched : DotStatus.None;
+
+        dotsManagerInstance.sizeData[lastSelectedObject] = restoredStatus;
+        gl.bindBuffer(gl.ARRAY_BUFFER, dotsManagerInstance.buffers.size);
+        gl.bufferSubData(gl.ARRAY_BUFFER, lastSelectedObject, new Int8Array([restoredStatus]));
       }
     }
     // If New Select Sat Picked Color it
@@ -650,9 +663,9 @@ export class SelectSatManager extends KeepTrackPlugin implements ISettingsContri
         throw new RangeError(`bufferSubData: Index out of bounds. Provided index: ${i}, valid range: 0 to ${colorSchemeManagerInstance.colorData.length / 4 - 1}`);
       }
 
-      dotsManagerInstance.sizeData[i] = 1.0;
+      dotsManagerInstance.sizeData[i] = DotStatus.Selected;
       gl.bindBuffer(gl.ARRAY_BUFFER, dotsManagerInstance.buffers.size);
-      gl.bufferSubData(gl.ARRAY_BUFFER, 0, dotsManagerInstance.sizeData);
+      gl.bufferSubData(gl.ARRAY_BUFFER, i, new Int8Array([DotStatus.Selected]));
     }
   }
 

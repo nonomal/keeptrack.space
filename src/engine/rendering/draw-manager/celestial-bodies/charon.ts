@@ -33,13 +33,22 @@ export enum CharonTextureQuality {
   HIGH = '4k',
 }
 
+/**
+ * Charon is carried as Pluto's moon: it declares a `parentBody`, wears the moon glyph, and the
+ * menu nests it under Pluto. It still rides its own heliocentric Chebyshev ephemeris rather
+ * than the planet-moon catalog - the Pluto-Charon system is near enough a binary that both
+ * bodies are fitted directly from Horizons, so the moon classification is taxonomy, not motion.
+ */
 export class Charon extends DwarfPlanet {
   readonly RADIUS = 606;
   protected readonly NUM_HEIGHT_SEGS = 64;
   protected readonly NUM_WIDTH_SEGS = 64;
   orbitalPeriod = (247.94 * 365.25 * 24 * 3600) as Seconds;
   meanDistanceToSun = (39.482 * KM_PER_AU) as Kilometers;
-  type: SpaceObjectType = SpaceObjectType.DWARF_PLANET;
+  type: SpaceObjectType = SpaceObjectType.MOON;
+  parentBody = SolarBody.Pluto;
+  /** Mean Pluto-Charon center-to-center separation. */
+  semiMajorAxisKm = 19596 as Kilometers;
   eci: TemeVec3;
   rotation = [0, 0, 0];
   color = PlanetColors.CHARON;
@@ -49,6 +58,18 @@ export class Charon extends DwarfPlanet {
 
   getName(): SolarBody {
     return 'Charon' as SolarBody;
+  }
+
+  /**
+   * Charon draws as a mesh beside Pluto (see `BINARY_COMPANIONS_` in planet-moon-systems.ts),
+   * so its dot follows the same rule as a catalog moon's: hidden and unpickable while the
+   * mesh is doing the job or once it collapses onto Pluto's pixel.
+   */
+  update(simTime: Date): void {
+    super.update(simTime);
+    if (this.isLoaded_) {
+      this.updateDotVisibility_();
+    }
   }
   getTexturePath(): string {
     return `${settingsManager.installDirectory}textures/pluto${this.textureQuality}.jpg`;

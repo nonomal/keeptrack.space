@@ -44,6 +44,7 @@ export const STORAGE_KEY_SCOPES: Record<StorageKey, StorageScope> = {
   [StorageKey.SETTINGS_DRAW_BLACK_EARTH]: StorageScope.Account,
   [StorageKey.SETTINGS_DRAW_ATMOSPHERE]: StorageScope.Account,
   [StorageKey.SETTINGS_DRAW_MILKY_WAY]: StorageScope.Account,
+  [StorageKey.SETTINGS_DRAW_ASTEROID_BELT]: StorageScope.Account,
   [StorageKey.SETTINGS_GRAY_SKYBOX]: StorageScope.Account,
   [StorageKey.SETTINGS_ECI_ON_HOVER]: StorageScope.Account,
   [StorageKey.SETTINGS_HOS]: StorageScope.Account,

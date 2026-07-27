@@ -65,6 +65,16 @@ export class LineManager {
     u_gmstSin: null as unknown as WebGLUniformLocation,
   };
 
+  /** World offset applied to the current line pass (zero in 2D projections); set in {@link setWorldUniforms}. */
+  passWorldOffset: [number, number, number] = [0, 0, 0];
+  /**
+   * World offset for camera-anchored lines (celestial-sphere geometry like
+   * constellation figures, which must never parallax). Equals the camera
+   * position in the render frame, or {@link passWorldOffset} in 2D projections
+   * where anchoring is meaningless.
+   */
+  cameraAnchorWorldOffset: [number, number, number] = [0, 0, 0];
+
   /** Polar view uniforms assigned separately — some ANGLE backends strip them from conditional branches. */
   private polarUniforms_ = {
     u_polarViewMode: null as WebGLUniformLocation | null,
@@ -682,6 +692,12 @@ export class LineManager {
     const worldShift = isFlatMap || isPolarView ? [0, 0, 0] : (Scene.getInstance().worldShift ?? [0, 0, 0]);
 
     gl.uniform3fv(this.uniforms_.worldOffset, worldShift);
+
+    // Per-line worldOffset overrides (camera-anchored constellation lines) restore
+    // the pass value from here after drawing. Camera anchoring is meaningless in
+    // the 2D projections, so it falls back to the pass offset there.
+    this.passWorldOffset = worldShift as [number, number, number];
+    this.cameraAnchorWorldOffset = isFlatMap || isPolarView ? this.passWorldOffset : (mainCamera.getCamPos() as [number, number, number]);
 
     // Always set u_gmst — needed by flat map, polar view, AND ECF mode
     const gmst = ServiceLocator.getTimeManager().gmst;

@@ -33,6 +33,36 @@
   flex-direction: column;
 }
 
+/* === Moons: indented under the body they orbit ===
+ * The list runs Sun-outward, so a moon has to read as belonging to the planet above it
+ * rather than as the next thing further out. Indent plus a hairline leading rule does that
+ * without an extra nested container per planet. */
+#planets-menu .planets-menu-satellite {
+  padding-left: var(--kt-space-6, 24px);
+  position: relative;
+}
+
+#planets-menu .planets-menu-satellite .kt-action-label {
+  color: var(--kt-text-secondary);
+  font-size: var(--kt-font-sm);
+}
+
+#planets-menu .planets-menu-satellite::before {
+  content: '';
+  position: absolute;
+  left: var(--kt-space-3, 12px);
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--kt-border-subtle, var(--kt-border-default));
+}
+
+/* An indented row that is the active body still needs its accent bar to read, so keep the
+ * label at full contrast there. */
+#planets-menu .planets-menu-satellite.planets-menu-active .kt-action-label {
+  color: var(--kt-text-primary);
+}
+
 /* === Active (currently centered) body === */
 /* Signal "active" with a brand-red left accent bar (a border, where the saturated
  * red reads cleanly) and keep the label near-white for contrast. Do NOT color the

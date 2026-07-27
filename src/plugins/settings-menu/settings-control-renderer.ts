@@ -21,6 +21,8 @@
 
 import { SoundNames } from '@app/engine/audio/sounds';
 import { ServiceLocator } from '@app/engine/core/service-locator';
+import { EventBus } from '@app/engine/events/event-bus';
+import { EventBusEvent } from '@app/engine/events/event-bus-events';
 import {
   ISettingButtonControl,
   ISettingControl,
@@ -138,12 +140,18 @@ ${controlsHtml}
       </section>`;
 };
 
+/** Usage signal for telemetry: which settings people actually touch. */
+const emitSettingChanged_ = (el: HTMLElement): void => {
+  EventBus.getInstance().emit(EventBusEvent.settingsChanged, el.id.replace(/^setting-/u, ''));
+};
+
 const attachToggleListeners_ = (c: ISettingToggleControl, el: HTMLInputElement): void => {
   el.addEventListener('change', () => {
     const next = el.checked;
 
     ServiceLocator.getSoundManager()?.play(next ? SoundNames.TOGGLE_ON : SoundNames.TOGGLE_OFF);
     c.set(next);
+    emitSettingChanged_(el);
   });
 };
 
@@ -157,6 +165,7 @@ const attachNumberListeners_ = (c: ISettingNumberControl, el: HTMLInputElement):
       return;
     }
     c.set(parsed);
+    emitSettingChanged_(el);
   });
 };
 
@@ -164,6 +173,7 @@ const attachSelectListeners_ = (c: ISettingSelectControl, el: HTMLSelectElement)
   el.addEventListener('change', () => {
     ServiceLocator.getSoundManager()?.play(SoundNames.CLICK);
     c.set(el.value);
+    emitSettingChanged_(el);
   });
 };
 
@@ -171,6 +181,7 @@ const attachButtonListeners_ = (c: ISettingButtonControl, el: HTMLButtonElement)
   el.addEventListener('click', () => {
     ServiceLocator.getSoundManager()?.play(SoundNames.BUTTON_CLICK);
     c.onClick();
+    emitSettingChanged_(el);
   });
 };
 

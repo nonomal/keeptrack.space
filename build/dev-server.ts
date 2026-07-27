@@ -1,18 +1,27 @@
 import { spawn } from 'node:child_process';
-import { cpSync, existsSync, watch } from 'node:fs';
+import { cpSync, createReadStream, existsSync, watch } from 'node:fs';
 import { createServer, type ServerResponse } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
-import { dirname, extname, join, resolve } from 'node:path';
+import { dirname, extname, join, normalize, resolve, sep } from 'node:path';
+import { pipeline } from 'node:stream/promises';
 import { fileURLToPath } from 'node:url';
 import { ConsoleStyles, logWithStyle } from './lib/build-error';
 import { handlePluginEndpoint } from './plugin-install-endpoint';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = resolve(__dirname, '..');
-const PORT = 5544;
+/**
+ * Overridable so a second instance can be run alongside a warm one (verifying a change to
+ * this file, a throwaway static serve) instead of restarting the shared :5544 server and its
+ * watch build - competing watch builds on one dist/ have corrupted it before.
+ */
+const PORT = Number(process.env.KEEPTRACK_DEV_PORT ?? 5544);
 const distDir = resolve(rootDir, 'dist');
 
 const RELOAD_SCRIPT = `<script>new EventSource("/__reload").onmessage=()=>location.reload()</script>`;
+
+/** Responses at or above this stream from disk instead of being buffered whole. */
+const STREAM_THRESHOLD_BYTES = 1024 * 1024;
 
 // Maps config directory filenames to their dist/ destinations
 const CONFIG_FILE_DESTINATIONS: Record<string, string> = {
@@ -42,6 +51,33 @@ const mimeTypes: Record<string, string> = {
 
 // SSE clients for livereload
 const sseClients = new Set<ServerResponse>();
+
+/**
+ * Map a request pathname to a file inside dist/, or null if it escapes.
+ *
+ * `join(distDir, decodeURIComponent(pathname))` is not enough: a decoded `..` segment
+ * (`/%2e%2e/`) walks out of dist/ and the server hands back any file the process can read.
+ * Normalizing against '/' collapses the traversal and the containment check is what every
+ * fs call in the handler relies on: pass only the returned path to stat/readFile/streams.
+ */
+function resolveInDist(pathname: string): string | null {
+  let decoded: string;
+
+  try {
+    decoded = decodeURIComponent(pathname);
+  } catch {
+    return null; // malformed percent-encoding
+  }
+
+  if (decoded.includes('\0')) {
+    return null;
+  }
+
+  const collapsed = normalize(`/${decoded}`);
+  const candidate = resolve(distDir, `.${collapsed}`);
+
+  return candidate === distDir || candidate.startsWith(`${distDir}${sep}`) ? candidate : null;
+}
 
 function startServer() {
   const server = createServer(async (req, res) => {
@@ -74,37 +110,94 @@ function startServer() {
       return;
     }
 
+    const safePath = resolveInDist(pathname === '/' ? '/index.html' : pathname);
+
+    if (!safePath) {
+      res.writeHead(404);
+      res.end('Not found');
+
+      return;
+    }
+
     try {
-      let filePath = join(distDir, decodeURIComponent(pathname === '/' ? '/index.html' : pathname));
+      let filePath = safePath;
       const fileStat = await stat(filePath).catch(() => null);
 
       if (fileStat?.isDirectory()) {
         filePath = join(filePath, 'index.html');
       }
 
-      let data = await readFile(filePath);
       const ext = extname(filePath).toLowerCase();
+      const isCode = ext === '.html' || ext === '.js' || ext === '.mjs';
 
-      // Inject livereload script into HTML responses
-      if (ext === '.html') {
-        const html = data.toString().replace('</body>', `${RELOAD_SCRIPT}</body>`);
+      /*
+       * Static assets (textures/meshes/wasm) get a validator so a reload costs a 304 instead
+       * of the full body. venus8k.jpg alone is 12.5 MB and was re-downloaded every time the
+       * camera moved to Venus. Answered before readFile so a revalidation never touches disk.
+       * Staleness is still impossible: `no-cache` forces the browser to ask every time, and a
+       * rebuild changes mtime, hence the ETag. Code stays `no-store` (see below).
+       */
+      const etag = !isCode && fileStat && !fileStat.isDirectory() ? `W/"${fileStat.size.toString(16)}-${Math.trunc(fileStat.mtimeMs).toString(16)}"` : null;
 
-        data = Buffer.from(html);
+      if (etag && req.headers['if-none-match'] === etag) {
+        res.writeHead(304, { ETag: etag, 'Cache-Control': 'no-cache' });
+        res.end();
+
+        return;
       }
 
-      // Never let the browser heuristically cache CODE in dev. Without this the
-      // dev server sends no Cache-Control, so a stale index.html (pointing at old
-      // chunks) or a stale worker script (workers don't reliably refetch on
-      // reload) silently wedges boot at "Building 3D Models…". HTML + JS are
-      // always refetched; large static assets (textures/meshes/wasm) stay cacheable.
-      const headers: Record<string, string> = { 'Content-Type': mimeTypes[ext] || 'application/octet-stream' };
+      /*
+       * Stream large assets straight from disk rather than buffering them. `readFile` holds
+       * the whole file in memory per request, so a handful of concurrent texture loads (this
+       * repo ships 12-18 MB JPEGs) costs tens of MB of short-lived allocation and delays the
+       * first byte until the entire file is resident. HTML can't stream - it gets the
+       * livereload script injected below - and small files aren't worth the stream setup.
+       */
+      const isStreamed = ext !== '.html' && !!fileStat && !fileStat.isDirectory() && fileStat.size >= STREAM_THRESHOLD_BYTES;
+      let data: Buffer | null = null;
+      let length = fileStat?.size ?? 0;
 
-      if (ext === '.html' || ext === '.js' || ext === '.mjs') {
+      if (!isStreamed) {
+        data = await readFile(filePath);
+
+        // Inject livereload script into HTML responses
+        if (ext === '.html') {
+          data = Buffer.from(data.toString().replace('</body>', `${RELOAD_SCRIPT}</body>`));
+        }
+
+        length = data.length;
+      }
+
+      /*
+       * Content-Length matters as much as the MIME type here. Without it Node falls back to
+       * chunked encoding, and a chunked body that is cut short (aborted socket, a rebuild
+       * restarting the server mid-transfer) has ALREADY sent its 200 - so the browser shows a
+       * 200 with an unreadable body and fetch() rejects at the body read with a bare
+       * "Failed to fetch", which is what made a 12.5 MB texture look like it loaded while
+       * erroring. A declared length makes a short transfer an unambiguous, retryable error.
+       */
+      const headers: Record<string, string> = {
+        'Content-Type': mimeTypes[ext] || 'application/octet-stream',
+        'Content-Length': String(length),
+      };
+
+      if (isCode) {
+        // Never let the browser heuristically cache CODE in dev: a stale index.html (pointing
+        // at old chunks) or a stale worker script (workers don't reliably refetch on reload)
+        // silently wedges boot at "Building 3D Models…".
         headers['Cache-Control'] = 'no-store, must-revalidate';
+      } else if (etag) {
+        headers.ETag = etag;
+        headers['Cache-Control'] = 'no-cache';
       }
 
       res.writeHead(200, headers);
-      res.end(data);
+
+      if (isStreamed) {
+        await pipeline(createReadStream(filePath), res);
+      } else {
+        res.end(data);
+      }
     } catch {
       // Guard against "headers already sent" when the response was partially
       // written before the failure — calling writeHead again would throw out of
@@ -115,6 +208,16 @@ function startServer() {
       res.end('Not found');
     }
   });
+
+  /*
+   * Node defaults keepAliveTimeout to 5 s, which is shorter than Chrome keeps a pooled socket
+   * open. That gap is a classic race: the browser sends on a connection the server is closing
+   * in the same instant and the request dies immediately (ERR_EMPTY_RESPONSE /
+   * ERR_CONNECTION_RESET, surfacing to fetch as a bare "Failed to fetch"). headersTimeout must
+   * stay above keepAliveTimeout or Node reaps the socket while headers are still arriving.
+   */
+  server.keepAliveTimeout = 65000;
+  server.headersTimeout = 66000;
 
   // A malformed request line / header from an aborted client must not crash the server.
   server.on('clientError', (_err, socket) => {

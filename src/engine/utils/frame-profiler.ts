@@ -56,6 +56,7 @@ export const GpuStage = {
   godrays: 'gpu:godrays',
   skybox: 'gpu:skybox',
   planets: 'gpu:planets',
+  asteroidBelt: 'gpu:asteroid-belt',
   earthBackground: 'gpu:earth-background',
   scenery: 'gpu:scenery',
   customBackground: 'gpu:custom-background',
@@ -101,6 +102,26 @@ export interface StageStat {
   samples: number;
 }
 
+/**
+ * Frame-time statistics for frames carrying a given tag (see
+ * {@link FrameProfiler.tagFrame}). Lets a discrete off-loop event (a cruncher
+ * message arriving on the main thread) be correlated with the frames it
+ * lands on, so the long-frame spikes it causes are visible even though the
+ * event itself runs before any profiler stage.
+ */
+export interface FrameTagStat {
+  /** Tag name, e.g. `cruncher-msg`, `color-msg`, or the `untagged` rest. */
+  tag: string;
+  /** Frames observed carrying this tag within the rolling window. */
+  samples: number;
+  /** Average frame delta (ms) across those frames. */
+  avg: number;
+  /** Slowest frame delta (ms) across those frames. */
+  max: number;
+  /** Cumulative frames slower than the 30fps budget carrying this tag. */
+  longFrames: number;
+}
+
 export interface ProfilerSnapshot {
   enabled: boolean;
   gpuSupported: boolean;
@@ -117,6 +138,12 @@ export interface ProfilerSnapshot {
   cpuTopAvgMs: number;
   /** Cumulative frames slower than the 30fps budget since profiling started. */
   longFrames: number;
+  /**
+   * Per-tag frame-time breakdown (see {@link tagFrame}), plus the `untagged`
+   * rest, biggest average first. Used to attribute long frames to off-loop
+   * events like cruncher-message arrival.
+   */
+  frameTags: FrameTagStat[];
   /** Count of GPU_DISJOINT events - high values mean GPU timings are unreliable. */
   disjointEvents: number;
 }
@@ -399,6 +426,14 @@ export class FrameProfiler {
   private readonly counterFrameSum_ = new Map<string, number>();
   /** Last frame each GPU stage pushed a sample for, to merge same-frame passes. */
   private readonly gpuLastFrame_ = new Map<string, number>();
+  /** Frame-delta samples per tag (see {@link tagFrame}); `untagged` is the rest. */
+  private readonly tagRings_ = new Map<string, Ring>();
+  /** Cumulative long-frame tally per tag (parallels {@link longFrames_}). */
+  private readonly tagLongFrames_ = new Map<string, number>();
+  /** Tags recorded for the frame currently in flight; flushed at {@link frameEnd}. */
+  private readonly frameTags_ = new Set<string>();
+  /** Delta (ms) of the frame in flight, captured at {@link frameStart}. */
+  private currentFrameDt_ = 0;
   private frames_ = 0;
   private longFrames_ = 0;
 
@@ -484,6 +519,10 @@ export class FrameProfiler {
     this.cpuFrameSum_.clear();
     this.counterFrameSum_.clear();
     this.gpuLastFrame_.clear();
+    this.tagRings_.clear();
+    this.tagLongFrames_.clear();
+    this.frameTags_.clear();
+    this.currentFrameDt_ = 0;
     this.frames_ = 0;
     this.longFrames_ = 0;
     this.gpu_.disjointEvents = 0;
@@ -494,6 +533,7 @@ export class FrameProfiler {
     if (!this.enabled_) {
       return;
     }
+    this.currentFrameDt_ = dt;
     if (dt > 0) {
       this.frameTime_.push(dt);
       if (dt > LONG_FRAME_MS) {
@@ -502,6 +542,21 @@ export class FrameProfiler {
     }
     this.frames_++;
     this.gpu_.frameId = this.frames_;
+  }
+
+  /**
+   * Tags the frame currently in flight. Meant for discrete off-loop events
+   * (a cruncher message deserializing on the main thread) whose cost is paid
+   * before {@link onMessage} runs and therefore never shows up in a CPU/GPU
+   * stage. At {@link frameEnd} the frame's delta is attributed to every tag
+   * recorded since the previous flush, so the long frames such events cause
+   * become visible in {@link getSnapshot}. Multiple tags per frame are allowed.
+   */
+  tagFrame(tag: string): void {
+    if (!this.enabled_) {
+      return;
+    }
+    this.frameTags_.add(tag);
   }
 
   /** Called once at the end of the frame: flush CPU sums, resolve GPU queries. */
@@ -530,6 +585,35 @@ export class FrameProfiler {
         this.gpuLastFrame_.set(stage, frameId);
       }
     });
+    this.flushFrameTags_();
+  }
+
+  /**
+   * Attributes the in-flight frame's delta to the tags recorded for it (or the
+   * `untagged` rest), then clears the set for the next frame. Cleared here
+   * rather than at {@link frameStart} so a tag set between one frame's end and
+   * the next frame's start lands on that next frame.
+   */
+  private flushFrameTags_(): void {
+    if (this.currentFrameDt_ > 0) {
+      const isLong = this.currentFrameDt_ > LONG_FRAME_MS;
+
+      if (this.frameTags_.size === 0) {
+        this.pushTagSample_('untagged', this.currentFrameDt_, isLong);
+      } else {
+        for (const tag of this.frameTags_) {
+          this.pushTagSample_(tag, this.currentFrameDt_, isLong);
+        }
+      }
+    }
+    this.frameTags_.clear();
+  }
+
+  private pushTagSample_(tag: string, dt: number, isLong: boolean): void {
+    this.ringFor_(this.tagRings_, tag).push(dt);
+    if (isLong) {
+      this.tagLongFrames_.set(tag, (this.tagLongFrames_.get(tag) ?? 0) + 1);
+    }
   }
 
   beginCpu(stage: string): void {
@@ -610,8 +694,30 @@ export class FrameProfiler {
       gpuTotalAvgMs,
       cpuTopAvgMs,
       longFrames: this.longFrames_,
+      frameTags: this.collectTagStats_(),
       disjointEvents: this.gpu_.disjointEvents,
     };
+  }
+
+  private collectTagStats_(): FrameTagStat[] {
+    const stats: FrameTagStat[] = [];
+
+    for (const [tag, ring] of this.tagRings_) {
+      if (ring.size === 0) {
+        continue;
+      }
+      stats.push({
+        tag,
+        samples: ring.size,
+        avg: ring.avg(),
+        max: ring.sorted().at(-1) ?? 0,
+        longFrames: this.tagLongFrames_.get(tag) ?? 0,
+      });
+    }
+    // Biggest average first - the tag with the worst frames on top.
+    stats.sort((a, b) => b.avg - a.avg);
+
+    return stats;
   }
 
   private collectStats_(map: Map<string, Ring>): StageStat[] {
