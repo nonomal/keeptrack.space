@@ -7,6 +7,8 @@ import { CameraType } from '@app/engine/camera/camera-type';
 import { SolarBody } from '@app/engine/core/interfaces';
 import { PluginRegistry } from '@app/engine/core/plugin-registry';
 import { ServiceLocator } from '@app/engine/core/service-locator';
+import { EventBus } from '@app/engine/events/event-bus';
+import { EventBusEvent } from '@app/engine/events/event-bus-events';
 import { initialFramingDistanceKm } from '@app/engine/utils/transforms';
 import { PlanetsMenuPlugin } from '@app/plugins/planets-menu/planets-menu';
 import { SelectSatManager } from '@app/plugins/select-sat-manager/select-sat-manager';
@@ -52,6 +54,9 @@ export function focusDeepSpaceSatellite(name: string): boolean {
   settingsManager.centerBody = name as SolarBody;
   settingsManager.minZoomDistance = PROBE_MIN_ZOOM;
   settingsManager.maxZoomDistance = INTERPLANETARY_MAX_ZOOM;
+
+  // Usage signal for telemetry: probe focus is a celestial-body selection too.
+  EventBus.getInstance().emit(EventBusEvent.celestialBodySelected, name);
 
   camera.cameraType = CameraType.FIXED_TO_EARTH;
 

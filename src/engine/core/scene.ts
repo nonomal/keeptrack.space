@@ -540,41 +540,53 @@ export class Scene {
       }
 
       let isSettingsLeftToDisable = true;
+      let disabledFeature: string | null = null;
 
       while (isSettingsLeftToDisable) {
         if (!settingsManager.isDisableGodrays) {
           settingsManager.isDisableGodrays = true;
           settingsManager.sizeOfSun = 1.65;
           settingsManager.isUseSunTexture = true;
+          disabledFeature = 'godrays';
           ServiceLocator.getUiManager().toast(t7e('errorMsgs.Scene.disablingGodrays'), ToastMsgType.caution);
           break;
         }
         if (settingsManager.isDrawAurora) {
           settingsManager.isDrawAurora = false;
+          disabledFeature = 'aurora';
           ServiceLocator.getUiManager().toast(t7e('errorMsgs.Scene.disablingAurora'), ToastMsgType.caution);
           break;
         }
         if (settingsManager.isDrawAtmosphere > 0) {
           settingsManager.isDrawAtmosphere = AtmosphereSettings.OFF;
+          disabledFeature = 'atmosphere';
           ServiceLocator.getUiManager().toast(t7e('errorMsgs.Scene.disablingAtmosphere'), ToastMsgType.caution);
           break;
         }
         if (!settingsManager.isDisablePlanets) {
           settingsManager.isDisablePlanets = true;
+          disabledFeature = 'planets';
           ServiceLocator.getUiManager().toast(t7e('errorMsgs.Scene.disablingMoon'), ToastMsgType.caution);
           break;
         }
         if (settingsManager.isDrawMilkyWay) {
           settingsManager.isDrawMilkyWay = false;
+          disabledFeature = 'milkyway';
           ServiceLocator.getUiManager().toast(t7e('errorMsgs.Scene.disablingMilkyWay'), ToastMsgType.caution);
           break;
         }
         if (settingsManager.isDrawSun) {
           settingsManager.isDrawSun = false;
+          disabledFeature = 'sun';
           ServiceLocator.getUiManager().toast(t7e('errorMsgs.Scene.disablingSun'), ToastMsgType.caution);
           break;
         }
         isSettingsLeftToDisable = false;
+      }
+
+      if (disabledFeature) {
+        // Telemetry signal: quantifies how many sessions actually hit degraded mode.
+        EventBus.getInstance().emit(EventBusEvent.performanceDowngrade, disabledFeature);
       }
 
       // Create a timer that has to expire before the next performance check

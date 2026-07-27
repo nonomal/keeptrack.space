@@ -312,6 +312,10 @@ export class PlanetsMenuPlugin extends KeepTrackPlugin implements ICommandPalett
      */
     const view = getBodyViewConfig(planetName, (selectedBody?.zoomFloorRadiusKm ?? 0) as Kilometers);
 
+    // Usage signal for telemetry: which bodies people actually visit. Emitted after the
+    // guards so rejected/unloaded bodies never count.
+    EventBus.getInstance().emit(EventBusEvent.celestialBodySelected, planetName);
+
     if (view.clearLines) {
       ServiceLocator.getLineManager().clear();
     }

@@ -1572,6 +1572,9 @@ export abstract class KeepTrackPlugin {
             // eslint-disable-next-line callback-return
             callback();
           }
+          // Usage signal for telemetry: a form submit means the tool was actually
+          // run, not just opened (bottomMenuClick only covers the open).
+          EventBus.getInstance().emit(EventBusEvent.pluginFormSubmitted, this.id);
         });
       } else {
         throw new Error(`Form not found for ${this.sideMenuElementName}`);

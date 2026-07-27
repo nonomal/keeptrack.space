@@ -231,4 +231,47 @@ export enum EventBusEvent {
    * this is the reliable "the user can see the app" signal.
    */
   splashScreenHidden = 'splashScreenHidden',
+  /**
+   * Emitted when a plugin keyboard shortcut fires (after any login gate approves).
+   * Parameters: (pluginId: string, key: string)
+   */
+  keyboardShortcutUsed = 'keyboardShortcutUsed',
+  /**
+   * Emitted when a plugin's auto-wired side-menu form is submitted — the "user
+   * actually ran the tool" signal, as opposed to merely opening the menu.
+   * Parameters: (pluginId: string)
+   */
+  pluginFormSubmitted = 'pluginFormSubmitted',
+  /**
+   * Emitted when a command palette command executes (excluding palette-internal
+   * navigation like "Browse all commands").
+   * Parameters: (commandId: string)
+   */
+  commandPaletteAction = 'commandPaletteAction',
+  /**
+   * Emitted each time the performance downgrade cascade disables one visual feature.
+   * Parameters: (disabledFeature: string)
+   */
+  performanceDowngrade = 'performanceDowngrade',
+  /**
+   * Emitted when the user selects a celestial body to focus (planets menu row,
+   * keyboard shortcut, or deep-space probe focus).
+   * Parameters: (bodyName: string)
+   */
+  celestialBodySelected = 'celestialBodySelected',
+  /**
+   * Emitted when the UI language is changed at runtime.
+   * Parameters: (language: string)
+   */
+  languageChanged = 'languageChanged',
+  /**
+   * Emitted when the user shares the app state from the Share menu.
+   * Parameters: (method: string) — 'copy' or 'native'
+   */
+  shareAction = 'shareAction',
+  /**
+   * Emitted when the user changes a settings-menu control (immediate-apply).
+   * Parameters: (controlId: string) — the DOM id without the 'setting-' prefix
+   */
+  settingsChanged = 'settingsChanged',
 }

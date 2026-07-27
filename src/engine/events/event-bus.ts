@@ -99,6 +99,14 @@ export interface EngineEventMap {
   [EventBusEvent.textureStatusChanged]: [TextureStatus];
   [EventBusEvent.settingsMenuRefresh]: [];
   [EventBusEvent.splashScreenHidden]: [];
+  [EventBusEvent.keyboardShortcutUsed]: [string, string]; // pluginId, key
+  [EventBusEvent.pluginFormSubmitted]: [string]; // pluginId
+  [EventBusEvent.commandPaletteAction]: [string]; // command id
+  [EventBusEvent.performanceDowngrade]: [string]; // disabled feature name
+  [EventBusEvent.celestialBodySelected]: [string]; // body name
+  [EventBusEvent.languageChanged]: [string]; // language code
+  [EventBusEvent.shareAction]: [string]; // 'copy' | 'native'
+  [EventBusEvent.settingsChanged]: [string]; // control id
 }
 
 export interface EventBusRegisterParams<T extends EventBusEvent> {
