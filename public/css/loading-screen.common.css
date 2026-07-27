@@ -206,10 +206,34 @@
   padding-left: 5%;
   padding-top: 5px;
   padding-bottom: 5px;
-  bottom: max(170px, 20%);
+  /* Top half of the screen - the bottom band is reserved for the responsive ad */
+  top: max(70px, 10%);
   text-shadow:
     0px 0px 8px rgb(0 0 0),
     0px 0px 8px rgb(0 0 0);
+}
+
+/*
+ * Reserved band for the responsive splash ad (shown to guests by the pro
+ * AdsController). Height must NEVER reach the start button: the logo/button
+ * stack is vertically centered and overflows below 50vh by up to ~180px on
+ * wide viewports, so the tall (250px) reservation only applies when
+ * 50vh - 260px allows it. Phones stack more compactly, hence the wider
+ * allowance under 800px so they can still fit a 300x250.
+ */
+#adsense-placeholder {
+  display: none;
+  position: absolute;
+  bottom: 50px;
+  width: min(970px, calc(100vw - 24px));
+  height: clamp(90px, 50vh - 260px, 250px);
+  margin: 16px 0;
+}
+
+@media (max-width: 800px) {
+  #adsense-placeholder {
+    height: clamp(90px, 50vh - 170px, 250px);
+  }
 }
 
 #mobile-start-button {
