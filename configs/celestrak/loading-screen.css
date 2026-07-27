@@ -18,7 +18,3 @@
   /* Deep blue for accents */
   --color-primary-dark: #023456 !important;
 }
-
-#loading-hint {
-  bottom: 15%;
-}
