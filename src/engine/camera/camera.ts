@@ -23,7 +23,7 @@
 
 import { MissileObject } from '@app/app/data/catalog-manager/MissileObject';
 import { OemSatellite } from '@app/app/objects/oem-satellite';
-import { ToastMsgType } from '@app/engine/core/interfaces';
+import { SolarBody, ToastMsgType } from '@app/engine/core/interfaces';
 import { RADIUS_OF_EARTH, ZOOM_EXP } from '@app/engine/utils/constants';
 import { SelectSatManager } from '@app/plugins/select-sat-manager/select-sat-manager';
 import {
@@ -2371,12 +2371,32 @@ export class Camera {
     this.state.zoomLevel = this.state.zoomLevel > 1 ? 1 : this.state.zoomLevel;
     this.state.zoomLevel = this.state.zoomLevel < 0.0001 ? 0.0001 : this.state.zoomLevel;
 
-    // Try to stay out of the center body
+    /*
+     * Try to stay out of the center body.
+     *
+     * The distance measured has to be the one the camera is actually orbiting. `getDistFromEarth()`
+     * is Earth-relative, which is what this rule wants for the Earth view and for a satellite orbit
+     * (the world shift sits on the satellite there, so the Earth distance is the only meaningful
+     * one). Centered on anything else it compares an interplanetary number against that body's
+     * radius, so it never fires on purpose - only by accident, on the first frame after a recenter
+     * while the world shift has not been re-based yet and the Earth distance momentarily reads ~0.
+     * That is what shoved a freshly focused deep-space probe (a 1 m placeholder `RADIUS` under a
+     * 30 km Earth-scale margin) out by 0.001 of zoom: a 50 m framing settled at 134 m.
+     *
+     * Centered on another body, the distance to it is exactly what the zoom curve encodes, and the
+     * keep-out is that body's own extent - `zoomFloorRadiusKm`, the long axis for an irregular
+     * shape. No margin is added: every non-Earth view already floors its zoom at 1.2x the radius
+     * (planets-core `surfaceZoomFloor`), so this can only ever catch a real dive into the mesh and
+     * can never fight the user's zoom near a small moon.
+     */
     if (this.cameraType === CameraType.FIXED_TO_EARTH || this.cameraType === CameraType.FIXED_TO_SAT_LVLH) {
-      const centerBody = ServiceLocator.getScene().getBodyById(settingsManager.centerBody);
-      const centerBodyRadius = centerBody?.RADIUS ?? RADIUS_OF_EARTH;
+      const centerBody = ServiceLocator.getScene().getBodyById(settingsManager.centerBody) as { RADIUS?: number; zoomFloorRadiusKm?: number } | null;
+      const isEarthRelative = this.cameraType === CameraType.FIXED_TO_SAT_LVLH || settingsManager.centerBody === SolarBody.Earth;
+      const isInsideCenterBody = isEarthRelative
+        ? this.getDistFromEarth() < (centerBody?.RADIUS ?? RADIUS_OF_EARTH) + 30
+        : this.calcDistanceBasedOnZoom() < (centerBody?.zoomFloorRadiusKm ?? centerBody?.RADIUS ?? RADIUS_OF_EARTH);
 
-      if (this.getDistFromEarth() < centerBodyRadius + 30) {
+      if (isInsideCenterBody) {
         this.state.zoomTarget = this.state.zoomLevel + 0.001;
       }
     }
