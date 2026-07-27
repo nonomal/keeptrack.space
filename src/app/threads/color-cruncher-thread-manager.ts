@@ -92,23 +92,23 @@ export class ColorCruncherThreadManager extends WebWorkerThreadManager {
   }
 
   sendDynamicUpdate(inView: Int8Array | null, inSun: Int8Array | null, vel: Float32Array | null, dotsOnScreenVal?: number): void {
-    const inViewSnap = inView ? new Int8Array(inView) : null;
-    const inSunSnap = inSun ? new Int8Array(inSun) : null;
-    const velSnap = vel ? new Float32Array(vel) : null;
-
-    const transfer: Transferable[] = [];
-
-    if (inViewSnap) {
-      transfer.push(inViewSnap.buffer);
-    }
-    if (inSunSnap) {
-      transfer.push(inSunSnap.buffer);
-    }
-    if (velSnap) {
-      transfer.push(velSnap.buffer);
-    }
-
     try {
+      const inViewSnap = inView ? new Int8Array(inView) : null;
+      const inSunSnap = inSun ? new Int8Array(inSun) : null;
+      const velSnap = vel ? new Float32Array(vel) : null;
+
+      const transfer: Transferable[] = [];
+
+      if (inViewSnap) {
+        transfer.push(inViewSnap.buffer);
+      }
+      if (inSunSnap) {
+        transfer.push(inSunSnap.buffer);
+      }
+      if (velSnap) {
+        transfer.push(velSnap.buffer);
+      }
+
       this.postMessage(
         {
           typ: ColorWorkerMsgType.UPDATE_DYNAMIC,
