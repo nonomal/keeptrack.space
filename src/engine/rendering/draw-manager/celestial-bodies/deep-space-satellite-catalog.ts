@@ -42,6 +42,8 @@ export const DEEP_SPACE_SATELLITE_CONFIGS: DeepSpaceSatelliteConfig[] = [
     meanDistanceToSun: (140 * KM_PER_AU) as Kilometers,
     dataFile: 'pioneer-10.json',
     model: 'pioneer',
+    // The 6.6 m magnetometer boom sets the extent of the `pioneer` mesh.
+    meshRadiusM: 7,
     sccNum: '5860',
     intlDes: '1972-012A',
   },
@@ -52,6 +54,8 @@ export const DEEP_SPACE_SATELLITE_CONFIGS: DeepSpaceSatelliteConfig[] = [
     meanDistanceToSun: (117 * KM_PER_AU) as Kilometers,
     dataFile: 'pioneer-11.json',
     model: 'pioneer',
+    // The 6.6 m magnetometer boom sets the extent of the `pioneer` mesh.
+    meshRadiusM: 7,
     sccNum: '6421',
     intlDes: '1973-019A',
   },
@@ -62,6 +66,8 @@ export const DEEP_SPACE_SATELLITE_CONFIGS: DeepSpaceSatelliteConfig[] = [
     meanDistanceToSun: (65 * KM_PER_AU) as Kilometers,
     dataFile: 'new-horizons.json',
     model: 'new-horizons',
+    // The 2.1 m high-gain dish is the widest thing on the model.
+    meshRadiusM: 2.5,
     sccNum: '28928',
     intlDes: '2006-001A',
   },

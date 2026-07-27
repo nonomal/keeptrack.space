@@ -36,12 +36,13 @@ export interface DeepSpaceSatelliteConfig {
 
 /**
  * Mesh bounding radius (m) assumed for a probe whose config does not state one. This is the
- * radius of the DRAWN mesh, not of the real spacecraft: the default model is the generic
- * `sat2` bus, whose vertices reach 3.24 model units and whose units are decameters (the mesh
- * generators author through `m(meters) = meters / 10`), so 33 m. A probe that renders a
- * different model should state its own.
+ * radius of the DRAWN mesh, not of the real spacecraft: the fallback model is the generic
+ * `sat2` bus, whose vertices reach 3.3 units, and OBJ units are real meters - the loader
+ * multiplies positions by 0.001 to reach world km, so a mesh renders at lifelike size (see
+ * docs-local/3d-model-authoring.md). Every probe that ships states its own radius; this is
+ * only the floor for a probe added without one.
  */
-export const DEFAULT_PROBE_MESH_RADIUS_M = 33;
+export const DEFAULT_PROBE_MESH_RADIUS_M = 3.3;
 
 interface ChebyshevJsonSegment {
   a: number;
