@@ -89,7 +89,12 @@ export class OemSatellite extends SpaceObject {
 
   header: OemHeader;
   OemDataBlocks: OemDataBlock[];
-  model: keyof typeof SatelliteModels = SatelliteModels.aehf;
+  /**
+   * Mesh model name, which must be one the resolver knows (`ModelResolver.isRegisteredModel`) -
+   * a plain string rather than `keyof typeof SatelliteModels` because a Pro mesh pack's models
+   * are registered at boot and so are not in the free list.
+   */
+  model: string = SatelliteModels.aehf;
   isStable = true;
   source: string;
   orbitPathCache_: Float32Array | null = null;
