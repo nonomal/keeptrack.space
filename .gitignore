@@ -265,3 +265,5 @@ src/engine/rendering/draw-manager/celestial-bodies/horizons/asteroids/
 # Tier 0 generators — these move to src/plugins-pro/scripts/ and never ship publicly.
 scripts/moons/
 scripts/asteroids/
+
+src/plugins-pro/data/optical/
