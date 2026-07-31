@@ -153,6 +153,14 @@ async function main(): Promise<void> {
         await page.mouse.wheel(0, step);
         await page.waitForTimeout(400);
       }
+      // Park the cursor over empty sky afterwards, or the hover tooltip for
+      // whatever sits at frame centre ends up in the published image. The
+      // tooltip only refreshes on canvas mousemove, so the parking spot must
+      // still be ON the canvas (UI chrome does not clear it), and a second
+      // nudge guarantees a fresh hover pick at the new position.
+      await page.mouse.move(Math.round(opts.width * 0.12), Math.round(opts.height * 0.22));
+      await page.waitForTimeout(500);
+      await page.mouse.move(Math.round(opts.width * 0.13), Math.round(opts.height * 0.23));
       await page.waitForTimeout(4000);
     }
 
