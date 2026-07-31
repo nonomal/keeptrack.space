@@ -231,7 +231,12 @@ public/textures/triton*.jpg
 public/textures/umbriel*.jpg
 public/textures/vesta*.jpg
 
-# Probe meshes used only by the Pro mission catalog.
+# Pro meshes that a stale local generator run may have left behind here.
+#
+# Every Pro model now lives in `src/plugins-pro/public/meshes/` (the mesh generator routes by
+# the model's `tier`, and the pro webpack config copies that directory into the build), so
+# nothing should write these paths anymore. The patterns stay as a backstop: a Pro mesh that
+# lands in the open-source `public/` must never be committable.
 #
 # Voyager, Pioneer and New Horizons are deliberately NOT here: those probes ship in the free
 # deep-space catalog, so their meshes have to ship with them or the OSS build 404s. Only Lucy
