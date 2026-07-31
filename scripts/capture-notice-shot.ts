@@ -30,6 +30,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { chromium } from 'playwright';
+import { stampPng } from './watermark/stamp';
 
 const DEFAULT_URL = 'https://app.keeptrack.space/';
 
@@ -159,6 +160,9 @@ async function main(): Promise<void> {
     await page.waitForTimeout(9000);
 
     await page.screenshot({ path: opts.out });
+    // Badge bottom-left, inset past the app's left icon rail (~80 CSS px before
+    // scaling) so it lands on the globe rather than on chrome.
+    stampPng(opts.out, { insetX: Math.round(80 * opts.scale) });
     console.log(`  wrote ${opts.out}`);
 
     if (opts.canvas) {
@@ -166,6 +170,8 @@ async function main(): Promise<void> {
       if (await canvas.count()) {
         const canvasOut = opts.out.replace(/\.png$/iu, '-canvas.png');
         await canvas.screenshot({ path: canvasOut });
+        // Canvas-only crop has no icon rail, so no inset.
+        stampPng(canvasOut);
         console.log(`  wrote ${canvasOut}`);
       }
     }
