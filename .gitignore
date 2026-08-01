@@ -267,3 +267,7 @@ scripts/moons/
 scripts/asteroids/
 
 src/plugins-pro/data/optical/
+# Local drop directory for rendered mesh media (GIF/PNG/WebM) awaiting R2 upload
+# via `npm run mesh:upload` (scripts/mesh-viewer/upload-media-r2.ts). Never committed:
+# the canonical copies live in the keeptrack R2 bucket under mesh-media/.
+/scripts/mesh-viewer/media-drop/

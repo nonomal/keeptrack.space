@@ -71,6 +71,7 @@
     "capture-shots": "tsx ./scripts/capture-verification-shots.ts",
     "inspect:profile": "tsx ./scripts/inspect-profile.ts",
     "mesh-viewer": "tsx ./scripts/mesh-viewer/server.ts",
+    "mesh:upload": "tsx ./scripts/mesh-viewer/upload-media-r2.ts",
     "locale-matrix": "tsx ./scripts/locale-matrix/locale-matrix.ts",
     "benchmark:sgp4": "tsx ./scripts/sgp4-benchmark/sgp4-benchmark.ts",
     "validate:sgp4-parity": "tsx ./scripts/sgp4-benchmark/validate-parity.ts",
