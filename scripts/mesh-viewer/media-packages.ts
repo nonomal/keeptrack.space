@@ -21,6 +21,12 @@
  * model in frame; a static backdrop contradicts it. Hence 'orbit' stars (pan
  * synced to yaw, bob synced to the pitch nod) and no animated lean in C - an
  * oscillating rotate applied to the model alone reads as object wobble.
+ * Round 2: stars and model still read as COUNTER-rotating. Measured the
+ * frames: both actually sweep the same screen direction - the false percept
+ * comes from the lean + pitch nod making the panel long-axis rotate in the
+ * IMAGE PLANE, which the eye pairs against the stars' linear pan as counter
+ * motion. A real camera orbit puts zero image-plane rotation on the target,
+ * so C now runs lean 0, nod 0, lower pitch, and a slower 10 s loop.
  *
  * TODO(tumble): rocket bodies and debris should get an end-over-end tumble
  * when the batch run happens. That needs model-space rotation in the viewer
@@ -108,11 +114,11 @@ export const MEDIA_PACKAGES: Record<string, MediaPackageSpec> = {
   c: {
     key: 'c',
     label: 'cinematic',
-    frames: 160,
-    fps: 20,
-    pitchBaseRad: 0.3,
-    pitchOscDeg: 6,
-    leanDeg: 8,
+    frames: 240,
+    fps: 24,
+    pitchBaseRad: 0.24,
+    pitchOscDeg: 0,
+    leanDeg: 0,
     leanOscDeg: 0,
     // Elevation 40: with the sun fixed in world azimuth, half the orbit views
     // the backlit side - a higher sun keeps the top surfaces lit through the
