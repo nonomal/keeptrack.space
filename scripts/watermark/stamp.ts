@@ -40,6 +40,11 @@ export interface StampOptions {
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const LOGO = path.join(HERE, 'assets', 'kts-text-logo.png');
 
+/** Badge asset path, for pipelines that overlay the badge inside their own
+ *  ffmpeg filtergraph (mesh-media post pipeline) instead of stamping a
+ *  finished file. */
+export const BADGE_LOGO_PATH = LOGO;
+
 /** Badge edge relative to image width, clamped so it stays legible on a 640-px
  *  GIF without dominating a 2400-px capture. Mirrors the constants in
  *  keeptrack-catalog-db's scripts/lib/watermark.ts: an 81-px badge on a
@@ -49,6 +54,14 @@ const LOGO_MIN = 44;
 const LOGO_MAX = 108;
 const MARGIN_FRACTION = 0.012;
 const OPACITY = 0.85;
+
+/** Badge geometry for a given output width, shared with external filtergraphs. */
+export function badgeLayout(width: number, opts: StampOptions = {}): { logo: number; margin: number; x: number; opacity: number } {
+  const logo = Math.round(Math.min(LOGO_MAX, Math.max(LOGO_MIN, width * LOGO_FRACTION)));
+  const margin = Math.max(10, Math.round(width * MARGIN_FRACTION));
+
+  return { logo, margin, x: margin + (opts.insetX ?? 0), opacity: OPACITY };
+}
 
 /** Image dimensions straight from the file header — saves an ffprobe spawn. */
 export function imageSize(file: string): { width: number; height: number } {
@@ -65,12 +78,10 @@ export function imageSize(file: string): { width: number; height: number } {
 
 /** Filter chain producing [marked] from [0:v] and the badge input [1:v]. */
 function buildFilter(width: number, opts: StampOptions): string {
-  const logo = Math.round(Math.min(LOGO_MAX, Math.max(LOGO_MIN, width * LOGO_FRACTION)));
-  const margin = Math.max(10, Math.round(width * MARGIN_FRACTION));
-  const x = margin + (opts.insetX ?? 0);
+  const { logo, margin, x, opacity } = badgeLayout(width, opts);
 
   return (
-    `[1:v]scale=${logo}:${logo},format=rgba,colorchannelmixer=aa=${OPACITY}[logo];` +
+    `[1:v]scale=${logo}:${logo},format=rgba,colorchannelmixer=aa=${opacity}[logo];` +
     `[0:v][logo]overlay=${x}:H-h-${margin}[marked]`
   );
 }

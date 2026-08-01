@@ -1,16 +1,25 @@
 /* eslint-disable no-sync, no-console */
 /**
- * Rotating-mesh media for KTOC notice articles: a full-revolution GIF of one
- * mesh on the viewer's black background, plus an optional wide static PNG for
- * the article hero (og:image and card grids want a PNG, not an animation).
+ * Rotating-mesh media: a full-revolution loop of one mesh, plus an optional
+ * wide static PNG hero (og:image and card grids want a PNG, not an animation).
  *
+ * Legacy mode (KTOC notice pipeline - behavior unchanged):
  *   npx tsx scripts/mesh-viewer/capture-rotation.ts dsp --gif out/dsp-mesh.gif --png out/dsp-mesh.png
  *
- * Flags: --frames 60, --fps 20, --size 640 (GIF canvas), --port 5599.
+ * Package mode (satellite-page media, look presets in media-packages.ts):
+ *   npx tsx scripts/mesh-viewer/capture-rotation.ts milstar --package b
+ *   npx tsx scripts/mesh-viewer/capture-rotation.ts milstar --package c --out-dir media-drop/proto
+ *
+ * Flags: --frames N, --fps N, --size N (canvas px), --port N override the
+ * legacy defaults or the package preset. --gif/--png force output paths in
+ * either mode; package mode otherwise writes
+ * <out-dir>/<mesh>-<package>.<fmt> (+ -hero.png) for every format the
+ * package specifies (out-dir defaults to scripts/mesh-viewer/media-drop).
  *
  * The mesh-viewer server is started in-process (same PORT env contract as
- * server.ts) and dies with this script. GIF assembly shells out to ffmpeg with
- * a two-pass palette, which keeps a mesh-on-black loop in the low megabytes.
+ * server.ts) and dies with this script. Legacy GIF assembly shells out to
+ * ffmpeg with a two-pass palette; package mode runs the media-post.ts look
+ * pipeline (lean, stars, earthshine, tonemap, bloom, grain, badge) instead.
  * Chromium runs with --disable-gpu (swiftshader) or the first composited WebGL
  * context is lost and every frame is black - same trap as capture-angles.ts.
  */
@@ -18,9 +27,13 @@ import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { stampGif, stampPng } from '../watermark/stamp';
+import { captureMarginFactor, MEDIA_PACKAGES, needsTransparentCapture } from './media-packages';
+import { encodeGif, encodeMp4, encodeWebm, processFrames } from './media-post';
 
+const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
 const meshName = args.find((a) => !a.startsWith('--'));
 
@@ -29,15 +42,23 @@ function flagValue(name: string): string | undefined {
   return idx >= 0 ? args[idx + 1] : undefined;
 }
 
+const packageKey = flagValue('--package');
+const spec = packageKey ? MEDIA_PACKAGES[packageKey] : undefined;
+
+if (packageKey && !spec) {
+  throw new Error(`unknown --package "${packageKey}" (have: ${Object.keys(MEDIA_PACKAGES).join(', ')})`);
+}
+
 const gifOut = flagValue('--gif');
 const pngOut = flagValue('--png');
-const frames = Number(flagValue('--frames') ?? 60);
-const fps = Number(flagValue('--fps') ?? 20);
+const outDir = flagValue('--out-dir') ?? path.join(scriptDir, 'media-drop');
+const frames = Number(flagValue('--frames') ?? spec?.frames ?? 60);
+const fps = Number(flagValue('--fps') ?? spec?.fps ?? 20);
 const size = Number(flagValue('--size') ?? 640);
 const port = Number(flagValue('--port') ?? process.env.PORT ?? 5599);
 
-if (!meshName || !gifOut) {
-  throw new Error('usage: capture-rotation.ts <meshName> --gif <out.gif> [--png <out.png>] [--frames N] [--fps N] [--size N] [--port N]');
+if (!meshName || (!spec && !gifOut)) {
+  throw new Error('usage: capture-rotation.ts <meshName> (--gif <out.gif> [--png <out.png>] | --package a|b|c [--out-dir d]) [--frames N] [--fps N] [--size N] [--port N]');
 }
 
 interface ViewerDebug {
@@ -57,8 +78,7 @@ interface ViewerDebug {
  *  horizontal extent (hypot of X and Z) against width/aspect, whichever binds.
  *  A single max-axis extent leaves wide winged spacecraft tiny on a 16:9 hero.
  *  Runs inside the page (page.evaluate serializes it): one args object. */
-const frameModel = ({ yaw, pitch, distMul, aspect }: { yaw: number; pitch: number; distMul: number; aspect: number }): void => {
-  const RAD2DEG = 180 / Math.PI;
+const frameModel = ({ yaw, pitch, distMul, aspect, sunAzDeg, sunElDeg }: { yaw: number; pitch: number; distMul: number; aspect: number; sunAzDeg: number; sunElDeg: number }): void => {
   const dbg = (globalThis as { __viewerDebug?: ViewerDebug }).__viewerDebug;
 
   if (!dbg?.state.model) {
@@ -77,10 +97,8 @@ const frameModel = ({ yaw, pitch, distMul, aspect }: { yaw: number; pitch: numbe
   dbg.state.cam.yaw = yaw;
   dbg.state.cam.pitch = pitch;
   dbg.state.cam.dist = extent * 0.001 * distMul;
-  // Turntable lighting: the sun orbits WITH the camera (fixed 40 deg offset),
-  // otherwise half the revolution shows only the near-black ambient floor.
-  dbg.state.sunAz = yaw * RAD2DEG + 40;
-  dbg.state.sunEl = 35;
+  dbg.state.sunAz = sunAzDeg;
+  dbg.state.sunEl = sunElDeg;
   dbg.renderFrame();
 };
 
@@ -104,16 +122,36 @@ const waitForServer = async (): Promise<void> => {
   }
 };
 
+/** Sun placement per frame: locked follows the camera yaw at a fixed offset
+ *  (lighting constant through the loop), fixed stays put in world azimuth so
+ *  the orbiting view sweeps through the terminator. Legacy = locked 40/35. */
+const sunFor = (yawRad: number): { azDeg: number; elDeg: number } => {
+  const RAD2DEG = 180 / Math.PI;
+
+  if (!spec || spec.sun.mode === 'locked') {
+    return { azDeg: yawRad * RAD2DEG + (spec?.sun.azDeg ?? 40), elDeg: spec?.sun.elDeg ?? 35 };
+  }
+
+  return { azDeg: spec.sun.azDeg, elDeg: spec.sun.elDeg };
+};
+
+const even = (n: number): number => 2 * Math.round(n / 2);
+
 const main = async (): Promise<void> => {
   process.env.PORT = String(port);
   process.argv.push('--no-open');
   await import('./server');
   await waitForServer();
 
-  const browser = await chromium.launch({ args: ['--disable-gpu', '--use-gl=swiftshader', '--ignore-gpu-blocklist'] });
-  const page = await browser.newPage({ viewport: { width: size, height: size } });
+  const transparent = spec ? needsTransparentCapture(spec) : false;
+  const margin = spec ? captureMarginFactor(spec) : 1;
+  const captureSize = even(size * margin);
 
-  await page.goto(`http://localhost:${port}/#${encodeURIComponent(meshName)}`, { waitUntil: 'load' });
+  const browser = await chromium.launch({ args: ['--disable-gpu', '--use-gl=swiftshader', '--ignore-gpu-blocklist'] });
+  const page = await browser.newPage({ viewport: { width: captureSize, height: captureSize } });
+  const query = transparent ? '?transparent=1' : '';
+
+  await page.goto(`http://localhost:${port}/${query}#${encodeURIComponent(meshName)}`, { waitUntil: 'load' });
   await page.waitForFunction(
     (n) => {
       const dbg = (globalThis as { __viewerDebug?: ViewerDebug }).__viewerDebug;
@@ -135,27 +173,111 @@ const main = async (): Promise<void> => {
 
   const frameDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mesh-rotation-'));
   const canvas = page.locator('#canvas');
+  const pitchBase = spec?.pitchBaseRad ?? 0.35;
+  const pitchOscRad = ((spec?.pitchOscDeg ?? 0) * Math.PI) / 180;
+  const distMul = 1.45 * margin;
 
   for (let i = 0; i < frames; i++) {
-    const yaw = 0.7 + (2 * Math.PI * i) / frames;
+    const t = i / frames;
+    const yaw = 0.7 + 2 * Math.PI * t;
+    const pitch = pitchBase + pitchOscRad * Math.sin(2 * Math.PI * t);
+    const sun = sunFor(yaw);
 
-    await page.evaluate(frameModel, { yaw, pitch: 0.35, distMul: 1.45, aspect: 1 });
-    await canvas.screenshot({ path: path.join(frameDir, `frame-${String(i).padStart(3, '0')}.png`) });
+    await page.evaluate(frameModel, { yaw, pitch, distMul, aspect: 1, sunAzDeg: sun.azDeg, sunElDeg: sun.elDeg });
+    await canvas.screenshot({ path: path.join(frameDir, `frame-${String(i).padStart(3, '0')}.png`), omitBackground: transparent });
   }
 
-  if (pngOut) {
-    // Wide hero frame: same oblique view the verification shots use, on a
-    // canvas shaped for social cards rather than the square GIF.
-    // Slightly looser than the GIF: a cropped hero reads as missing geometry.
-    await page.setViewportSize({ width: 1200, height: 675 });
-    await page.evaluate(frameModel, { yaw: 0.7, pitch: 0.35, distMul: 1.6, aspect: 1200 / 675 });
+  // Wide hero frame: same oblique view the verification shots use, on a
+  // canvas shaped for social cards rather than the square loop.
+  // Slightly looser than the loop: a cropped hero reads as missing geometry.
+  const heroW = 1200;
+  const heroH = 675;
+  const wantHero = Boolean(pngOut) || Boolean(spec);
+  let heroCapture: string | null = null;
+
+  if (wantHero) {
+    await page.setViewportSize({ width: even(heroW * margin), height: even(heroH * margin) });
+    const sun = sunFor(0.7);
+
+    await page.evaluate(frameModel, { yaw: 0.7, pitch: pitchBase, distMul: 1.6 * margin, aspect: heroW / heroH, sunAzDeg: sun.azDeg, sunElDeg: sun.elDeg });
     await page.waitForTimeout(120);
-    fs.mkdirSync(path.dirname(pngOut), { recursive: true });
-    await canvas.screenshot({ path: pngOut });
-    stampPng(pngOut);
+    heroCapture = path.join(frameDir, 'hero-capture.png');
+    await canvas.screenshot({ path: heroCapture, omitBackground: transparent });
   }
 
   await browser.close();
+
+  if (spec) {
+    const workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mesh-post-'));
+    const outBase = path.join(outDir, `${meshName}-${spec.key}`);
+    const written: string[] = [];
+
+    const procPattern = processFrames({
+      frameDir,
+      frames,
+      fps,
+      captureWidth: captureSize,
+      captureHeight: captureSize,
+      outWidth: size,
+      outHeight: size,
+      spec,
+      seed: meshName,
+      workDir,
+    });
+
+    // An explicit --gif forces a GIF even when the package omits it (packages
+    // with starfields default to video formats: stars make GIFs enormous).
+    const formats = gifOut && !spec.formats.includes('gif') ? [...spec.formats, 'gif' as const] : spec.formats;
+
+    for (const format of formats) {
+      const outFile = format === 'gif' && gifOut ? gifOut : `${outBase}.${format}`;
+
+      if (format === 'gif') {
+        encodeGif(procPattern, fps, outFile);
+      } else if (format === 'webm') {
+        encodeWebm(procPattern, fps, outFile);
+      } else {
+        encodeMp4(procPattern, fps, outFile);
+      }
+      written.push(outFile);
+    }
+
+    if (heroCapture) {
+      const heroFile = pngOut ?? `${outBase}-hero.png`;
+      const processedHero = processFrames({
+        frameDir,
+        stillPath: heroCapture,
+        frames: 1,
+        fps: 1,
+        captureWidth: even(heroW * margin),
+        captureHeight: even(heroH * margin),
+        outWidth: heroW,
+        outHeight: heroH,
+        spec,
+        seed: meshName,
+        workDir,
+      });
+
+      fs.mkdirSync(path.dirname(heroFile), { recursive: true });
+      fs.copyFileSync(processedHero, heroFile);
+      written.push(heroFile);
+    }
+
+    fs.rmSync(workDir, { recursive: true, force: true });
+    fs.rmSync(frameDir, { recursive: true, force: true });
+    console.log(`captured ${meshName} [package ${spec.key}/${spec.label}]: ${frames} frames -> ${written.join(', ')}`);
+    process.exit(0);
+  }
+
+  // ── Legacy path: plain turntable GIF (+ stamped hero PNG) ──
+  if (!gifOut) {
+    throw new Error('unreachable: legacy mode requires --gif');
+  }
+  if (pngOut && heroCapture) {
+    fs.mkdirSync(path.dirname(pngOut), { recursive: true });
+    fs.copyFileSync(heroCapture, pngOut);
+    stampPng(pngOut);
+  }
 
   fs.mkdirSync(path.dirname(gifOut), { recursive: true });
   execFileSync('ffmpeg', [

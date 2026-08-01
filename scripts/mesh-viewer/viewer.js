@@ -22,7 +22,15 @@
   const FILE_UNIT_TO_KM = 0.001;
 
   const canvas = document.getElementById('canvas');
-  const gl = canvas.getContext('webgl2', { antialias: true, alpha: false });
+  // ?transparent=1: render on a transparent backbuffer so headless captures can
+  // screenshot RGBA frames and composite their own backdrop (stars) in post.
+  const isTransparent = new URLSearchParams(globalThis.location.search).has('transparent');
+
+  if (isTransparent) {
+    document.body.style.background = 'transparent';
+    document.documentElement.style.background = 'transparent';
+  }
+  const gl = canvas.getContext('webgl2', { antialias: true, alpha: isTransparent });
 
   if (!gl) {
     document.getElementById('error').textContent = 'WebGL2 not available';
@@ -554,7 +562,7 @@
       canvas.height = h;
     }
     gl.viewport(0, 0, canvas.width, canvas.height);
-    gl.clearColor(0, 0, 0, 1);
+    gl.clearColor(0, 0, 0, isTransparent ? 0 : 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     updateCamera();
