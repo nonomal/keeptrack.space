@@ -36,6 +36,9 @@ const CONTENT_TYPES: Record<string, string> = {
   '.webp': 'image/webp',
   '.webm': 'video/webm',
   '.mp4': 'video/mp4',
+  // sat-map.json (sccNum <-> mesh mapping from media-map.ts) rides along with
+  // the media; the cumulative manifest.json is managed separately below.
+  '.json': 'application/json',
 };
 
 const args = process.argv.slice(2);
