@@ -14,6 +14,8 @@
  *   --wrangler-dir <path> repo whose wrangler install + OAuth session to use
  *                         (default ../workers/serve-keeptrack-api relative to this repo)
  *   --dry-run
+ *   --force               upload even when the remote manifest already has the
+ *                         same key at the same byte size (default: skip those)
  *
  * Uses `wrangler r2 object put`, which needs an interactive `wrangler login`
  * session in the wrangler dir (wrangler 3.x targets the remote bucket by
@@ -33,6 +35,8 @@ const BUCKET = 'keeptrack';
 const CONTENT_TYPES: Record<string, string> = {
   '.gif': 'image/gif',
   '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
   '.webp': 'image/webp',
   '.webm': 'video/webm',
   '.mp4': 'video/mp4',
@@ -54,6 +58,7 @@ const sourceDir = path.resolve(flagValue('--dir') ?? path.join(scriptDir, 'media
 const prefix = flagValue('--prefix') ?? 'mesh-media/';
 const wranglerDir = path.resolve(flagValue('--wrangler-dir') ?? path.join(repoRoot, '..', 'workers', 'serve-keeptrack-api'));
 const isDryRun = args.includes('--dry-run');
+const isForce = args.includes('--force');
 
 interface ManifestEntry {
   key: string;
@@ -96,6 +101,9 @@ const main = (): void => {
   const files = fs
     .readdirSync(sourceDir)
     .filter((f) => CONTENT_TYPES[path.extname(f).toLowerCase()])
+    // Batch-driver artifacts (batch-done.json, batch-log.txt) live in the drop
+    // dir but are not media; keep them out of the bucket.
+    .filter((f) => !f.startsWith('batch-'))
     .sort((a, b) => a.localeCompare(b));
 
   if (files.length === 0) {
@@ -106,13 +114,20 @@ const main = (): void => {
 
   console.log(`${isDryRun ? '[dry-run] ' : ''}${files.length} file(s) from ${sourceDir} -> r2://${BUCKET}/${prefix}`);
 
+  const remote = loadRemoteManifest();
   const uploaded: ManifestEntry[] = [];
+  let skipped = 0;
 
   for (const file of files) {
     const filePath = path.join(sourceDir, file);
     const contentType = CONTENT_TYPES[path.extname(file).toLowerCase()];
     const bytes = fs.statSync(filePath).size;
     const key = `${prefix}${file}`;
+
+    if (!isForce && remote.some((entry) => entry.key === key && entry.bytes === bytes)) {
+      skipped += 1;
+      continue;
+    }
 
     console.log(`  ${file} (${(bytes / 1024).toFixed(0)} KiB, ${contentType}) -> ${key}`);
     if (!isDryRun) {
@@ -121,12 +136,22 @@ const main = (): void => {
     }
   }
 
+  if (skipped > 0) {
+    console.log(`Skipped ${skipped} file(s) already in the manifest at the same size (use --force to re-upload).`);
+  }
+
   if (isDryRun) {
     return;
   }
 
+  if (uploaded.length === 0) {
+    console.log('Nothing uploaded; manifest left untouched.');
+
+    return;
+  }
+
   // Merge this run into the remote manifest (replace same-key entries).
-  const previous = loadRemoteManifest().filter((entry) => !uploaded.some((u) => u.key === entry.key));
+  const previous = remote.filter((entry) => !uploaded.some((u) => u.key === entry.key));
   const entries = [...previous, ...uploaded].sort((a, b) => a.key.localeCompare(b.key));
   const manifest = { generatedAt: new Date().toISOString(), entries };
   const manifestPath = path.join(os.tmpdir(), 'mesh-media-manifest.json');
