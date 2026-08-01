@@ -7,8 +7,11 @@
  *   npx tsx scripts/mesh-viewer/capture-rotation.ts dsp --gif out/dsp-mesh.gif --png out/dsp-mesh.png
  *
  * Package mode (satellite-page media, look presets in media-packages.ts):
- *   npx tsx scripts/mesh-viewer/capture-rotation.ts milstar --package b
+ *   npx tsx scripts/mesh-viewer/capture-rotation.ts milstar --package site
+ *     -> milstar.webm + milstar.mp4 (C orbit look), milstar.gif (C motion on
+ *        clean black), milstar-hero.png (B angle). The production set.
  *   npx tsx scripts/mesh-viewer/capture-rotation.ts milstar --package c --out-dir media-drop/proto
+ *     -> single-look comparison outputs, suffixed <mesh>-<package>.*
  *
  * Flags: --frames N, --fps N, --size N (canvas px), --port N override the
  * legacy defaults or the package preset. --gif/--png force output paths in
@@ -30,7 +33,7 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { stampGif, stampPng } from '../watermark/stamp';
-import { captureMarginFactor, MEDIA_PACKAGES, needsTransparentCapture } from './media-packages';
+import { captureMarginFactor, MEDIA_PACKAGES, MediaPackageSpec, needsTransparentCapture, SITE_COMPOSITE } from './media-packages';
 import { encodeGif, encodeMp4, encodeWebm, processFrames } from './media-post';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
@@ -43,11 +46,24 @@ function flagValue(name: string): string | undefined {
 }
 
 const packageKey = flagValue('--package');
-const spec = packageKey ? MEDIA_PACKAGES[packageKey] : undefined;
+// 'site' is the production composite: C-motion animations (webm/mp4), a
+// C-motion GIF on clean black, and the hero PNG at B's angle. Plain a|b|c
+// stay available for look experiments.
+const isSite = packageKey === 'site';
+let spec: MediaPackageSpec | undefined;
+
+if (isSite) {
+  spec = SITE_COMPOSITE.anim;
+} else if (packageKey) {
+  spec = MEDIA_PACKAGES[packageKey];
+}
 
 if (packageKey && !spec) {
-  throw new Error(`unknown --package "${packageKey}" (have: ${Object.keys(MEDIA_PACKAGES).join(', ')})`);
+  throw new Error(`unknown --package "${packageKey}" (have: site, ${Object.keys(MEDIA_PACKAGES).join(', ')})`);
 }
+
+/** The hero still uses B's camera in site mode, the active package otherwise. */
+const heroSpec: MediaPackageSpec | undefined = isSite ? SITE_COMPOSITE.hero : spec;
 
 const gifOut = flagValue('--gif');
 const pngOut = flagValue('--png');
@@ -125,14 +141,14 @@ const waitForServer = async (): Promise<void> => {
 /** Sun placement per frame: locked follows the camera yaw at a fixed offset
  *  (lighting constant through the loop), fixed stays put in world azimuth so
  *  the orbiting view sweeps through the terminator. Legacy = locked 40/35. */
-const sunFor = (yawRad: number): { azDeg: number; elDeg: number } => {
+const sunFor = (forSpec: MediaPackageSpec | undefined, yawRad: number): { azDeg: number; elDeg: number } => {
   const RAD2DEG = 180 / Math.PI;
 
-  if (!spec || spec.sun.mode === 'locked') {
-    return { azDeg: yawRad * RAD2DEG + (spec?.sun.azDeg ?? 40), elDeg: spec?.sun.elDeg ?? 35 };
+  if (!forSpec || forSpec.sun.mode === 'locked') {
+    return { azDeg: yawRad * RAD2DEG + (forSpec?.sun.azDeg ?? 40), elDeg: forSpec?.sun.elDeg ?? 35 };
   }
 
-  return { azDeg: spec.sun.azDeg, elDeg: spec.sun.elDeg };
+  return { azDeg: forSpec.sun.azDeg, elDeg: forSpec.sun.elDeg };
 };
 
 const even = (n: number): number => 2 * Math.round(n / 2);
@@ -181,7 +197,7 @@ const main = async (): Promise<void> => {
     const t = i / frames;
     const yaw = 0.7 + 2 * Math.PI * t;
     const pitch = pitchBase + pitchOscRad * Math.sin(2 * Math.PI * t);
-    const sun = sunFor(yaw);
+    const sun = sunFor(spec, yaw);
 
     await page.evaluate(frameModel, { yaw, pitch, distMul, aspect: 1, sunAzDeg: sun.azDeg, sunElDeg: sun.elDeg });
     await canvas.screenshot({ path: path.join(frameDir, `frame-${String(i).padStart(3, '0')}.png`), omitBackground: transparent });
@@ -190,26 +206,60 @@ const main = async (): Promise<void> => {
   // Wide hero frame: same oblique view the verification shots use, on a
   // canvas shaped for social cards rather than the square loop.
   // Slightly looser than the loop: a cropped hero reads as missing geometry.
+  // In site mode the hero uses B's camera (heroSpec), not the loop's.
   const heroW = 1200;
   const heroH = 675;
+  const heroMargin = heroSpec ? captureMarginFactor(heroSpec) : 1;
+  const heroTransparent = heroSpec ? needsTransparentCapture(heroSpec) : false;
   const wantHero = Boolean(pngOut) || Boolean(spec);
   let heroCapture: string | null = null;
 
   if (wantHero) {
-    await page.setViewportSize({ width: even(heroW * margin), height: even(heroH * margin) });
-    const sun = sunFor(0.7);
+    if (heroTransparent !== transparent) {
+      const heroQuery = heroTransparent ? '?transparent=1' : '';
 
-    await page.evaluate(frameModel, { yaw: 0.7, pitch: pitchBase, distMul: 1.6 * margin, aspect: heroW / heroH, sunAzDeg: sun.azDeg, sunElDeg: sun.elDeg });
+      await page.goto(`http://localhost:${port}/${heroQuery}#${encodeURIComponent(meshName)}`, { waitUntil: 'load' });
+      await page.waitForFunction(
+        (n) => {
+          const dbg = (globalThis as { __viewerDebug?: ViewerDebug }).__viewerDebug;
+
+          return dbg?.state.currentName === n && Boolean(dbg.state.model);
+        },
+        meshName,
+        { timeout: 20_000 },
+      );
+      await page.addStyleTag({ content: '#sidebar, .panel, #info, #materials, #controls, #cam, #hint, #error { display: none !important; }' });
+      await page.evaluate(() => {
+        const toggle = document.querySelector('#axes-toggle') as HTMLInputElement | null;
+
+        if (toggle?.checked) {
+          toggle.click();
+        }
+      });
+    }
+    await page.setViewportSize({ width: even(heroW * heroMargin), height: even(heroH * heroMargin) });
+    const sun = sunFor(heroSpec, 0.7);
+
+    await page.evaluate(frameModel, {
+      yaw: 0.7,
+      pitch: heroSpec?.pitchBaseRad ?? 0.35,
+      distMul: 1.6 * heroMargin,
+      aspect: heroW / heroH,
+      sunAzDeg: sun.azDeg,
+      sunElDeg: sun.elDeg,
+    });
     await page.waitForTimeout(120);
     heroCapture = path.join(frameDir, 'hero-capture.png');
-    await canvas.screenshot({ path: heroCapture, omitBackground: transparent });
+    await canvas.screenshot({ path: heroCapture, omitBackground: heroTransparent });
   }
 
   await browser.close();
 
   if (spec) {
-    const workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mesh-post-'));
-    const outBase = path.join(outDir, `${meshName}-${spec.key}`);
+    const workRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'mesh-post-'));
+    // site emits the production filenames (no package suffix): these are the
+    // exact keys that land in R2 under mesh-media/.
+    const outBase = isSite ? path.join(outDir, meshName) : path.join(outDir, `${meshName}-${spec.key}`);
     const written: string[] = [];
 
     const procPattern = processFrames({
@@ -222,12 +272,14 @@ const main = async (): Promise<void> => {
       outHeight: size,
       spec,
       seed: meshName,
-      workDir,
+      workDir: path.join(workRoot, 'anim'),
     });
 
     // An explicit --gif forces a GIF even when the package omits it (packages
     // with starfields default to video formats: stars make GIFs enormous).
-    const formats = gifOut && !spec.formats.includes('gif') ? [...spec.formats, 'gif' as const] : spec.formats;
+    // site mode ignores that: it always emits its own dedicated GIF below.
+    const forceGif = !isSite && gifOut && !spec.formats.includes('gif');
+    const formats = forceGif ? [...spec.formats, 'gif' as const] : spec.formats;
 
     for (const format of formats) {
       const outFile = format === 'gif' && gifOut ? gifOut : `${outBase}.${format}`;
@@ -242,20 +294,41 @@ const main = async (): Promise<void> => {
       written.push(outFile);
     }
 
-    if (heroCapture) {
+    if (isSite) {
+      // Same captured frames, backdrop-free grade, halved frame rate: the GIF
+      // keeps C's motion at a palette-survivable size.
+      const gifPattern = processFrames({
+        frameDir,
+        frames,
+        fps,
+        captureWidth: captureSize,
+        captureHeight: captureSize,
+        outWidth: size,
+        outHeight: size,
+        spec: SITE_COMPOSITE.gif,
+        seed: meshName,
+        workDir: path.join(workRoot, 'gif'),
+      });
+      const gifFile = gifOut ?? `${outBase}.gif`;
+
+      encodeGif(gifPattern, fps, gifFile, SITE_COMPOSITE.gifFramestep);
+      written.push(gifFile);
+    }
+
+    if (heroCapture && heroSpec) {
       const heroFile = pngOut ?? `${outBase}-hero.png`;
       const processedHero = processFrames({
         frameDir,
         stillPath: heroCapture,
         frames: 1,
         fps: 1,
-        captureWidth: even(heroW * margin),
-        captureHeight: even(heroH * margin),
+        captureWidth: even(heroW * heroMargin),
+        captureHeight: even(heroH * heroMargin),
         outWidth: heroW,
         outHeight: heroH,
-        spec,
+        spec: heroSpec,
         seed: meshName,
-        workDir,
+        workDir: path.join(workRoot, 'hero'),
       });
 
       fs.mkdirSync(path.dirname(heroFile), { recursive: true });
@@ -263,9 +336,9 @@ const main = async (): Promise<void> => {
       written.push(heroFile);
     }
 
-    fs.rmSync(workDir, { recursive: true, force: true });
+    fs.rmSync(workRoot, { recursive: true, force: true });
     fs.rmSync(frameDir, { recursive: true, force: true });
-    console.log(`captured ${meshName} [package ${spec.key}/${spec.label}]: ${frames} frames -> ${written.join(', ')}`);
+    console.log(`captured ${meshName} [package ${packageKey}/${spec.label}]: ${frames} frames -> ${written.join(', ')}`);
     process.exit(0);
   }
 

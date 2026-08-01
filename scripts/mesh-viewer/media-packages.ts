@@ -138,6 +138,33 @@ export const MEDIA_PACKAGES: Record<string, MediaPackageSpec> = {
   },
 };
 
+/**
+ * The production preset (Ted's hybrid pick, 2026-08-01): C's orbit motion for
+ * the animations, a GIF option sharing C's motion but on clean black (any
+ * starfield makes a GIF enormous - measured 12.65 MB vs 86 KB WebM), and the
+ * hero PNG shot with B's camera and look ("b's png files look better because
+ * of the angle"). Selected with --package site; emits <mesh>.webm/.mp4/.gif
+ * and <mesh>-hero.png with no package suffix.
+ */
+export const SITE_COMPOSITE = {
+  /** Animation capture + WebM/MP4 look. */
+  anim: MEDIA_PACKAGES.c,
+  /** GIF look: same frames as anim, backdrop-free so the palette survives. */
+  gif: {
+    ...MEDIA_PACKAGES.c,
+    key: 'site-gif',
+    label: 'site-gif',
+    stars: 'none',
+    grain: false,
+    vignette: false,
+    formats: ['gif'],
+  } as MediaPackageSpec,
+  /** Hero still: B's angle and grade. */
+  hero: MEDIA_PACKAGES.b,
+  /** Halve the GIF frame rate: 240 frames at 24 fps is palette poison. */
+  gifFramestep: 2,
+} as const;
+
 /** True when the capture needs RGBA frames (a backdrop goes underneath). */
 export function needsTransparentCapture(spec: MediaPackageSpec): boolean {
   return spec.stars !== 'none' || spec.earthshine;

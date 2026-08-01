@@ -96,6 +96,9 @@ export function processFrames(job: ProcessJob): string {
   let starsIdx = -1;
   let gradIdx = -1;
 
+  // Backdrops are written into workDir before ffmpeg runs, so create it first.
+  fs.mkdirSync(job.workDir, { recursive: true });
+
   if (job.stillPath) {
     inputs.push('-i', job.stillPath);
   } else {
@@ -250,12 +253,16 @@ export function processFrames(job: ProcessJob): string {
   return outPath;
 }
 
-/** Two-pass palette GIF, identical settings to the legacy path. */
-export function encodeGif(procPattern: string, fps: number, outFile: string): void {
+/** Two-pass palette GIF, identical settings to the legacy path. A framestep
+ *  above 1 drops frames (and playback rate with them, so wall-clock duration
+ *  holds) - long loops at full fps make heavy GIFs. */
+export function encodeGif(procPattern: string, fps: number, outFile: string, framestep = 1): void {
+  const stepFilter = framestep > 1 ? `framestep=${framestep},` : '';
+
   fs.mkdirSync(path.dirname(outFile), { recursive: true });
   ffmpeg([
     '-framerate', String(fps), '-i', procPattern,
-    '-vf', 'split[s0][s1];[s0]palettegen=stats_mode=diff[p];[s1][p]paletteuse=dither=bayer:bayer_scale=3',
+    '-vf', `${stepFilter}split[s0][s1];[s0]palettegen=stats_mode=diff[p];[s1][p]paletteuse=dither=bayer:bayer_scale=3`,
     '-loop', '0',
     outFile,
   ]);
