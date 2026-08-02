@@ -23,7 +23,17 @@ if (!pattern) {
 const full = flags.includes('--full');
 const limitFlag = flags.find((f) => f.startsWith('--limit='));
 const limit = limitFlag ? Number.parseInt(limitFlag.split('=')[1], 10) : 25;
-const re = new RegExp(pattern, 'iu');
+
+// The pattern arg IS a regex by design (see usage above); this only turns a bad
+// one into a readable one-liner instead of a raw SyntaxError stack. The 'u' flag
+// rejects more patterns than people expect (e.g. a lone '\-'), so this fires.
+let re: RegExp;
+
+try {
+  re = new RegExp(pattern, 'iu');
+} catch (e) {
+  throw new Error(`invalid <name-regex> /${pattern}/: ${(e as Error).message}`);
+}
 
 interface CatalogRecord {
   tle1?: string;

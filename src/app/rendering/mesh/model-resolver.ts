@@ -189,7 +189,8 @@ export class ModelResolver {
    * pack model is only offered once its pack has registered.
    */
   static isRegisteredModel(name: string): boolean {
-    return name in SatelliteModels || ModelResolver.packModelNames_.has(name);
+    // hasOwn, not `in`: prototype keys like 'toString' must not read as models.
+    return Object.hasOwn(SatelliteModels, name) || ModelResolver.packModelNames_.has(name);
   }
 
   /** Instance-side convenience for {@link ModelResolver.isRegisteredModel}. */

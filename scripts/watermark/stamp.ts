@@ -131,10 +131,17 @@ const isCli = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath
 if (isCli) {
   const args = process.argv.slice(2);
   const insetIdx = args.indexOf('--inset');
-  const insetX = Number(insetIdx >= 0 ? args[insetIdx + 1] : 0);
   // Guard the -1 case: without --inset, `insetIdx + 1` is 0 and would silently
   // swallow the first file argument.
   const valueIdx = insetIdx >= 0 ? insetIdx + 1 : -1;
+  const rawInset = valueIdx >= 0 ? args[valueIdx] : undefined;
+  const insetX = rawInset !== undefined ? Number(rawInset) : 0;
+
+  // `--inset` with a missing or non-numeric value (e.g. followed by a flag or a
+  // filename) would feed NaN into the ffmpeg overlay coordinates.
+  if (insetIdx >= 0 && (rawInset === undefined || Number.isNaN(insetX))) {
+    throw new Error('usage: stamp.ts [--inset px] <files...>');
+  }
   const files = args.filter((a, i) => !a.startsWith('--') && i !== valueIdx);
 
   if (!files.length) {
