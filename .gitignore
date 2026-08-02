@@ -267,6 +267,7 @@ scripts/moons/
 scripts/asteroids/
 scripts/video/
 scripts/missile-mesh/
+scripts/article-shots/
 scripts/generate-mmt-migration.ts
 scripts/generate-sdlcd-migration.ts
 
