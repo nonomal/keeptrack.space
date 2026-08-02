@@ -10,6 +10,7 @@ import { execSync } from 'node:child_process';
 import { readdirSync, readFileSync, rmSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { requireWranglerSession } from '../../scripts/lib/maintainer-only';
 import { ConsoleStyles, handleBuildError, logWithStyle } from './build-error';
 
 const BUCKET_NAME = 'keeptrack-sourcemaps';
@@ -39,6 +40,13 @@ function uploadToR2(filePath: string, key: string): void {
     stdio: 'pipe',
   });
 }
+
+requireWranglerSession({
+  script: 'upload:sourcemaps',
+  needs: 'an authenticated wrangler session',
+  howTo: 'Run `npx wrangler login`, or set CLOUDFLARE_API_TOKEN.',
+  why: `This ships build artifacts to the ${BUCKET_NAME} R2 bucket so production stack traces resolve. It is a release step for the hosted site; a local build does not need it.`,
+});
 
 try {
   const version = getVersion();
