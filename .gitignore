@@ -265,9 +265,24 @@ src/engine/rendering/draw-manager/celestial-bodies/horizons/asteroids/
 # Tier 0 generators — these move to src/plugins-pro/scripts/ and never ship publicly.
 scripts/moons/
 scripts/asteroids/
+scripts/video/
+scripts/missile-mesh/
+scripts/generate-mmt-migration.ts
+scripts/generate-sdlcd-migration.ts
+
+# The mesh VIEWER is open source (see your models in the engine's own pipeline);
+# the look development and publishing chain built on top of it is not. Listed by
+# name because the two live side by side in scripts/mesh-viewer/.
+scripts/mesh-viewer/media-packages.ts
+scripts/mesh-viewer/media-post.ts
+scripts/mesh-viewer/media-backdrops.ts
+scripts/mesh-viewer/media-map.ts
+scripts/mesh-viewer/capture-rotation.ts
+scripts/mesh-viewer/upload-media-r2.ts
+scripts/mesh-viewer/batch-site-media.mjs
+scripts/mesh-viewer/extract-posters.mjs
 
 src/plugins-pro/data/optical/
-# Local drop directory for rendered mesh media (GIF/PNG/WebM) awaiting R2 upload
-# via `npm run mesh:upload` (scripts/mesh-viewer/upload-media-r2.ts). Never committed:
-# the canonical copies live in the keeptrack R2 bucket under mesh-media/.
+# Belt and braces: the media drop moved into the submodule with its tooling, but
+# a stray render at the old path must never be committable either.
 /scripts/mesh-viewer/media-drop/

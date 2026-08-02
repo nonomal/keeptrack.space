@@ -19,7 +19,7 @@
  * The constants are NOT JPL's published mean elements - that table rounds the angles to
  * 0.1 deg and the period to four decimals, which is roughly a full revolution of Phobos
  * drift after five years. They are a least-squares fit of this exact model to JPL Horizons
- * state vectors taken about the planet's body center, produced by `npm run moons:fit`. Each
+ * state vectors taken about the planet's body center, produced by an offline fitting tool. Each
  * moon's doc comment carries the span its constants were fitted over and the residual
  * against Horizons across that span.
  *
