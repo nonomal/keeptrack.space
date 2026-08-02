@@ -67,6 +67,24 @@ describe('orbitCruncher worker', () => {
     expect(posted.at(-1)?.payload).toBe('ready');
   });
 
+  // Regression (issue #1420): the producer sent objData as undefined when INIT
+  // fired before the catalog populated. JSON.parse(undefined) threw "Unexpected
+  // identifier 'undefined'", killing the worker before postMessage('ready').
+  it('still posts "ready" when objData is undefined instead of a JSON string', () => {
+    expect(() =>
+      onMessage({
+        data: {
+          typ: MSG.INIT,
+          numSegs: NUM_SEGS,
+          objData: undefined,
+          seqNum: 1,
+        },
+      } as unknown as Parameters<typeof onMessage>[0])
+    ).not.toThrow();
+
+    expect(posted.at(-1)?.payload).toBe('ready');
+  });
+
   it('still posts "ready" when a TLE is malformed and createSatrec would throw', () => {
     expect(() =>
       onMessage({

@@ -68,6 +68,15 @@ describe('OrbitManager', () => {
       expect(parsed[2].tle1).toBeDefined();
     });
 
+    // Regression (issue #1420): an INIT sent before the catalog populated passed
+    // undefined here, and JSON.stringify(undefined) returned the VALUE undefined,
+    // which crashed the worker's JSON.parse. An empty cache must serialize to '[]'.
+    it('getObjDataString serializes an undefined cache to "[]", never undefined', () => {
+      const str = (OrbitManager as unknown as { getObjDataString: (d: unknown) => string }).getObjDataString(undefined);
+
+      expect(str).toBe('[]');
+    });
+
     it('checkColorBuffersValidity_ requires all four channels to be defined', () => {
       const C = OrbitManager as unknown as { checkColorBuffersValidity_: (id: number, d: Float32Array) => boolean };
 
