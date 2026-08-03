@@ -1,6 +1,5 @@
 import type { MissileObject } from '@app/app/data/catalog-manager/MissileObject';
 import { OemSatellite } from '@app/app/objects/oem-satellite';
-import type { MeshModel } from '@app/engine/rendering/mesh-manager';
 import { BaseObject, Satellite, SpaceObjectType } from '@ootk/src/main';
 
 export const SatelliteModels = {
@@ -130,6 +129,16 @@ export const SatelliteModels = {
   'new-horizons': 'new-horizons',
 } as const;
 
+/**
+ * One name-matched spacecraft rule: the first pattern whose `match` accepts the
+ * catalog name wins, so narrower patterns must be registered ahead of broader
+ * ones. See {@link ModelResolver.namedSpacecraft_}.
+ */
+export interface NamedSpacecraftPattern {
+  match: RegExp;
+  model: string;
+}
+
 enum SatelliteNumber {
   iss = '25544',
   tiangong = '48274',
@@ -138,8 +147,56 @@ enum SatelliteNumber {
 }
 
 export class ModelResolver {
-  /** One slot per registered model; existence of a key gates meshOverride. */
-  modelMap: Record<string, MeshModel | null> = Object.fromEntries(Object.values(SatelliteModels).map((name) => [name, null]));
+  /**
+   * Model names contributed by registered packs (see {@link registerModelPack}),
+   * on top of the free {@link SatelliteModels} set. Static because it has to
+   * survive a pack registering before or after any ModelResolver is built.
+   */
+  private static readonly packModelNames_ = new Set<string>();
+  /** Pack ids already registered, so a double registration is a no-op. */
+  private static readonly registeredPacks_ = new Set<string>();
+
+  /**
+   * Adds a content pack's name-matched spacecraft to the resolver.
+   *
+   * Pack rules are appended AFTER the built-in ones, so a built-in pattern always wins a
+   * collision - packs extend the roster, they never silently retarget a free model.
+   *
+   * Registration is expected at boot (see registerMeshPacks()), but late registration is
+   * harmless: the mesh manager re-resolves every frame, so an object already on screen picks
+   * up its pack model on the next one.
+   */
+  static registerModelPack(packId: string, entries: NamedSpacecraftPattern[]): void {
+    if (ModelResolver.registeredPacks_.has(packId)) {
+      return;
+    }
+    ModelResolver.registeredPacks_.add(packId);
+
+    for (const entry of entries) {
+      ModelResolver.namedSpacecraft_.push(entry);
+      ModelResolver.packModelNames_.add(entry.model);
+    }
+  }
+
+  /** Every model name this build can resolve: the free set plus any registered pack. */
+  static getAvailableModelNames(): string[] {
+    return [...Object.values(SatelliteModels), ...ModelResolver.packModelNames_];
+  }
+
+  /**
+   * This build knows the model, i.e. a mesh is expected to exist for it. Gates
+   * `settingsManager.meshOverride` and the model pickers in the ephemeris-import menus, so a
+   * pack model is only offered once its pack has registered.
+   */
+  static isRegisteredModel(name: string): boolean {
+    // hasOwn, not `in`: prototype keys like 'toString' must not read as models.
+    return Object.hasOwn(SatelliteModels, name) || ModelResolver.packModelNames_.has(name);
+  }
+
+  /** Instance-side convenience for {@link ModelResolver.isRegisteredModel}. */
+  isRegisteredModel(name: string): boolean {
+    return ModelResolver.isRegisteredModel(name);
+  }
 
   private readonly sccNumAehf_ = ['36868', '38254', '39256', '43651', '44481', '45465'];
   private readonly sccNumDsp_ = [
@@ -619,41 +676,45 @@ export class ModelResolver {
     return nameNumber >= 10000 ? SatelliteModels['starlink-v2mini'] : SatelliteModels.starlink;
   }
 
+  /**
+   * Name-matched spacecraft, checked IN ORDER - the first match wins, so put
+   * anything narrower ahead of a pattern that would also swallow it.
+   *
+   * Matching is case-insensitive on purpose: the catalog is not consistent about
+   * case ("STARLINK-1008" but "Vanguard 1"), so an uppercase-only test silently
+   * misses the older records.
+   *
+   * Names are the last resort for a family that carries no distinguishing `bus`
+   * or catalog-number signal. Where a spacecraft DOES have a usable bus value,
+   * route it in the bus switch instead - it survives renames.
+   *
+   * Content packs append to this table via {@link ModelResolver.registerModelPack} - the Pro
+   * hero-spacecraft pack is the big one. Anything not matched here (or by a registered pack)
+   * falls through to the bus/RCS/shape generics, which is exactly what a free build does for
+   * every pack-only spacecraft.
+   */
+  private static readonly namedSpacecraft_: NamedSpacecraftPattern[] = [
+    // --- constellations and comsats ---
+    { match: /^globalstar/iu, model: SatelliteModels.globalstar },
+    { match: /^iridium/iu, model: SatelliteModels.iridium },
+    { match: /^orbcomm/iu, model: SatelliteModels.orbcomm },
+    // The \b matters: without it "ULYSSES 1" contains "SES 1" and steals the SES mesh.
+    { match: /\bses\s\d+/iu, model: SatelliteModels.ses },
+    { match: /^o3b/iu, model: SatelliteModels.o3b },
+    { match: /^navstar/iu, model: SatelliteModels.gps },
+    { match: /^galileo/iu, model: SatelliteModels.galileo },
+    { match: /glonass/iu, model: SatelliteModels.glonass },
+    { match: /^sbirs/iu, model: SatelliteModels.sbirs },
+    { match: /^flock/iu, model: SatelliteModels.flock },
+    { match: /^lemur/iu, model: SatelliteModels.lemur },
+  ];
+
   private resolveByName_(name: string): string | null {
     // TODO: Currently all named models aim at nadir - that isn't always true
-
-    if (name.startsWith('GLOBALSTAR')) {
-      return SatelliteModels.globalstar;
-    }
-    if (name.startsWith('IRIDIUM')) {
-      return SatelliteModels.iridium;
-    }
-    if (name.startsWith('ORBCOMM')) {
-      return SatelliteModels.orbcomm;
-    }
-    if (new RegExp(/SES\s\d+/u, 'u').exec(name)) {
-      return SatelliteModels.ses;
-    }
-    if (name.startsWith('O3B')) {
-      return SatelliteModels.o3b;
-    }
-    if (name.startsWith('NAVSTAR')) {
-      return SatelliteModels.gps;
-    }
-    if (name.startsWith('GALILEO')) {
-      return SatelliteModels.galileo;
-    }
-    if (name.includes('GLONASS')) {
-      return SatelliteModels.glonass;
-    }
-    if (name.startsWith('SBIRS')) {
-      return SatelliteModels.sbirs;
-    }
-    if (name.startsWith('FLOCK')) {
-      return SatelliteModels.flock;
-    }
-    if (name.startsWith('LEMUR')) {
-      return SatelliteModels.lemur;
+    for (const { match, model } of ModelResolver.namedSpacecraft_) {
+      if (match.test(name)) {
+        return model;
+      }
     }
 
     return null;

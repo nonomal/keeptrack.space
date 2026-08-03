@@ -3,11 +3,13 @@ import { writeFileSync } from 'node:fs';
 import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// Verify current directory is scripts
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const TEST_DIR = join(__dirname, '..', 'test');
+// Anchored to the repo root (this file lives in build/utils/), so the script
+// works from any cwd. Shared test utilities live in test/; plugin tests belong
+// in src/plugins/<name>/__tests__/ and are not created by this tool.
+const TEST_DIR = join(__dirname, '..', '..', 'test');
 
 /**
  * Resolve the destination test file and ensure it stays inside TEST_DIR. The
@@ -27,16 +29,6 @@ const safeTestPath = (name: string): string => {
 
 // Get first argument from command line
 const fileName = process.argv[2];
-
-
-if (__dirname.split('\\').pop() !== 'scripts') {
-  const red = '\x1b[31m';
-  const reset = '\x1b[0m';
-
-  console.log(`${red}Please run this script using \`npm run createtest <filename>\`.${reset}`);
-  // eslint-disable-next-line no-process-exit
-  process.exit();
-}
 
 if (!fileName) {
   console.log('Enter file name: ');

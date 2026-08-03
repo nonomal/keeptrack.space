@@ -362,10 +362,7 @@ export class MeshManager {
       this.currentMeshObject.isRotationStable = false;
 
       if (settingsManager.meshOverride) {
-        if (typeof this.modelResolver_.modelMap[settingsManager.meshOverride] === 'undefined') {
-          errorManagerInstance.debug(`Mesh override not found: ${settingsManager.meshOverride}`);
-          settingsManager.meshOverride = null;
-        } else {
+        if (this.modelResolver_.isRegisteredModel(settingsManager.meshOverride)) {
           this.currentMeshObject.model = this.meshRegistry_.get(settingsManager.meshOverride) ?? {
             id: -1,
             name: settingsManager.meshOverride,
@@ -373,6 +370,9 @@ export class MeshManager {
 
           return;
         }
+
+        errorManagerInstance.debug(`Mesh override not found: ${settingsManager.meshOverride}`);
+        settingsManager.meshOverride = null;
       }
 
       const modelName = this.modelResolver_.resolve(obj);

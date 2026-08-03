@@ -152,6 +152,13 @@ pnpm start
 | `pnpm run sonar` | Run tests with coverage, then analyze against local SonarQube |
 | `pnpm run sonar:down` | Stop the local SonarQube server |
 
+Run `pnpm run` for the full list. Two groups in it are not contributor tasks, and both say so when you run them rather than failing with a stack trace:
+
+- **`pnpm run pro`** dispatches the commercial edition's tooling, which lives outside this repository, so the command just explains itself here. Nothing in the open-source build depends on it.
+- **Publishing steps** (`upload:sourcemaps`, `release`) push to infrastructure this project owns. They stop with a note about the missing credential. Point them at your own Cloudflare account if you want to run your own deployment.
+
+`pnpm run mesh-viewer` is worth knowing about: it serves a standalone viewer that renders any OBJ+MTL through the engine's exact mesh pipeline (layout, scale, shader, log depth), which is how models are checked before they ship. `scripts/mesh-viewer/capture-meshes.ts` and `capture-angles.ts` take headless verification shots through the same viewer.
+
 ### Offline Code Quality Analysis (SonarQube)
 
 Run the same static analysis we use, fully offline and self-hosted, with only **Docker** installed. No account setup, token juggling, or cloud service. See [docs-local/sonarqube.md](docs-local/sonarqube.md) for details. The whole thing is one command:

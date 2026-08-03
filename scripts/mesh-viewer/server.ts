@@ -1,9 +1,15 @@
 /**
  * Standalone mesh viewer server.
  *
- * Serves a small web tool that renders public/meshes OBJ+MTL files with the
- * exact KeepTrack mesh pipeline (layout, x0.001 scale, shader, log depth) so a
- * mesh can be validated without booting the full app.
+ * Serves a small web tool that renders OBJ+MTL files with the exact KeepTrack
+ * mesh pipeline (layout, x0.001 scale, shader, log depth) so a mesh can be
+ * validated without booting the full app.
+ *
+ * Both mesh directories are served as one flat namespace, exactly like a pro
+ * build does at runtime: the free models in `public/meshes/` plus, when the
+ * plugins-pro submodule is checked out, the Pro models in
+ * `src/plugins-pro/public/meshes/`. A missing submodule just means fewer entries
+ * in the list, never a broken viewer.
  *
  * Usage: npm run mesh-viewer [-- --port=5533 --no-open]
  */
@@ -15,7 +21,11 @@ import { fileURLToPath } from 'node:url';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, '..', '..');
-const meshesDir = path.join(repoRoot, 'public', 'meshes');
+/*
+ * Searched in order, so a name present in both resolves to the Pro copy - which is what the
+ * build does too (its copy plugin writes over `public/`'s output).
+ */
+const meshDirs = [path.join(repoRoot, 'src', 'plugins-pro', 'public', 'meshes'), path.join(repoRoot, 'public', 'meshes')].filter((d) => fs.existsSync(d));
 
 const portArg = process.argv.find((a) => a.startsWith('--port='));
 const port = portArg ? Number.parseInt(portArg.split('=')[1], 10) : Number.parseInt(process.env.PORT ?? '5533', 10);
@@ -57,17 +67,38 @@ const sendFile = (res: http.ServerResponse, filePath: string, noStore = false): 
   });
 };
 
-const listMeshes = (): { name: string; size: number }[] => fs
-  .readdirSync(meshesDir)
-  .filter((f) => f.endsWith('.obj'))
-  .sort((a, b) => a.localeCompare(b))
-  .map((f) => ({
-    name: f.replace(/\.obj$/u, ''),
-    size: fs.statSync(path.join(meshesDir, f)).size,
-  }));
+/** Absolute path of a mesh file, taking the first directory that has it. */
+const resolveMesh = (fileName: string): string | null => {
+  for (const dir of meshDirs) {
+    const candidate = path.join(dir, fileName);
+
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
+  }
+
+  return null;
+};
+
+const listMeshes = (): { name: string; size: number }[] => {
+  // First directory wins, so a Pro model shadows a same-named free one rather than listing twice.
+  const byName = new Map<string, { name: string; size: number }>();
+
+  for (const dir of meshDirs) {
+    for (const f of fs.readdirSync(dir)) {
+      const name = f.endsWith('.obj') ? f.slice(0, -'.obj'.length) : null;
+
+      if (name && !byName.has(name)) {
+        byName.set(name, { name, size: fs.statSync(path.join(dir, f)).size });
+      }
+    }
+  }
+
+  return [...byName.values()].sort((a, b) => a.name.localeCompare(b.name));
+};
 
 /*
- * SSE hot-reload plumbing: fs.watch on public/meshes, debounced per file
+ * SSE hot-reload plumbing: fs.watch on every mesh directory, debounced per file
  * (Windows fires duplicate change events), broadcast to connected clients.
  */
 const sseClients = new Set<http.ServerResponse>();
@@ -81,20 +112,22 @@ const broadcast = (payload: object): void => {
   }
 };
 
-fs.watch(meshesDir, (_event, filename) => {
-  if (!filename || !(/\.(?:obj|mtl)$/u).test(filename)) {
-    return;
-  }
-  const existing = debounceTimers.get(filename);
+for (const dir of meshDirs) {
+  fs.watch(dir, (_event, filename) => {
+    if (!filename || !(/\.(?:obj|mtl)$/u).test(filename)) {
+      return;
+    }
+    const existing = debounceTimers.get(filename);
 
-  if (existing) {
-    clearTimeout(existing);
-  }
-  debounceTimers.set(filename, setTimeout(() => {
-    debounceTimers.delete(filename);
-    broadcast({ file: filename });
-  }, 200));
-});
+    if (existing) {
+      clearTimeout(existing);
+    }
+    debounceTimers.set(filename, setTimeout(() => {
+      debounceTimers.delete(filename);
+      broadcast({ file: filename });
+    }, 200));
+  });
+}
 
 setInterval(() => {
   for (const client of sseClients) {
@@ -124,8 +157,15 @@ const server = http.createServer((req, res) => {
       sseClients.add(res);
       req.on('close', () => sseClients.delete(res));
     } else if (pathname.startsWith('/meshes/')) {
-      // basename() blocks path traversal; meshes are flat in one directory
-      sendFile(res, path.join(meshesDir, path.basename(pathname)), true);
+      // basename() blocks path traversal; meshes are flat within each directory
+      const meshPath = resolveMesh(path.basename(pathname));
+
+      if (meshPath) {
+        sendFile(res, meshPath, true);
+      } else {
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.end(`Not found: ${path.basename(pathname)}`);
+      }
     } else if (pathname.startsWith('/lib/')) {
       const lib = libFiles[path.basename(pathname)];
 
@@ -154,7 +194,7 @@ server.listen(port, () => {
   // eslint-disable-next-line no-console
   console.log(`Mesh viewer running at ${address}`);
   // eslint-disable-next-line no-console
-  console.log(`Serving ${listMeshes().length} meshes from ${meshesDir}`);
+  console.log(`Serving ${listMeshes().length} meshes from ${meshDirs.map((d) => path.relative(repoRoot, d)).join(' + ')}`);
 
   if (!noOpen) {
     const opener = process.platform === 'win32' ? `start "" "${address}"` : process.platform === 'darwin' ? `open "${address}"` : `xdg-open "${address}"`;

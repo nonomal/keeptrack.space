@@ -22,13 +22,17 @@ export class WebpackManager {
   private static versionDefine_: DefinePluginOptions;
 
   /**
-   * Copies the Solar System Pack's textures and meshes into the build.
+   * Copies the Solar System Pack's textures into the build.
    *
    * Everything else the app loads at runtime lives in `public/` and is served straight from
    * there, but these assets are Pro content and cannot sit in the OSS tree - so the pro build
-   * copies them into the same `textures/` and `meshes/` paths the free build serves from
-   * `public/`, which is what lets `CelestialBody` ask for `textures/europa4k.jpg` without
-   * knowing which build it is in.
+   * copies them into the same `textures/` path the free build serves from `public/`, which is
+   * what lets `CelestialBody` ask for `textures/europa4k.jpg` without knowing which build it
+   * is in.
+   *
+   * The pack's meshes (Lucy, Parker Solar Probe) moved to the one Pro mesh directory that
+   * {@link createProMeshAssetPlugins_} copies - two copy patterns writing the same
+   * `meshes/<name>.obj` was a collision waiting to happen.
    *
    * Returns nothing at all for an OSS build: no pack, no copy, and the bodies that would have
    * used these assets are not registered either.
@@ -53,10 +57,41 @@ export class WebpackManager {
      */
     return [
       new CopyRspackPlugin({
-        patterns: [
-          { from: `${packAssets}/textures`, to: '../textures' },
-          { from: `${packAssets}/meshes`, to: '../meshes' },
-        ],
+        patterns: [{ from: `${packAssets}/textures`, to: '../textures' }],
+      }),
+    ];
+  }
+
+  /**
+   * Copies the Pro satellite mesh packs into the build.
+   *
+   * Same arrangement as the Solar System Pack above, for the same reason: these OBJ/MTL pairs
+   * are Pro content so they cannot sit in `public/`, but the mesh manager loads every model
+   * from one flat `meshes/` path (`meshes/<name>.obj`) and must not care which build it is in.
+   * `src/plugins-pro/public/meshes` is the canonical home; `scripts/mesh-gen` writes every
+   * model tagged `tier: 'pro'` there.
+   *
+   * An OSS build copies nothing, and the pack that would route to these models is not
+   * registered either (see `mesh-packs.ts`), so those spacecraft keep their generic meshes
+   * rather than 404ing.
+   */
+  private static createProMeshAssetPlugins_(dirName: string): CopyRspackPlugin[] {
+    if (!this.config.isPro) {
+      return [];
+    }
+
+    const proMeshes = `${dirName}/../src/plugins-pro/public/meshes`;
+
+    if (!existsSync(proMeshes)) {
+      reporter.warn('Pro mesh pack not found - named hero spacecraft will fall back to generic models.');
+
+      return [];
+    }
+
+    // `to` is resolved relative to output.path (`<subFolder>/js`) - see the note above.
+    return [
+      new CopyRspackPlugin({
+        patterns: [{ from: proMeshes, to: '../meshes' }],
       }),
     ];
   }
@@ -341,6 +376,7 @@ export class WebpackManager {
         plugins: [
           this.versionDefine_,
           ...this.createSolarSystemPackAssetPlugins_(dirName),
+          ...this.createProMeshAssetPlugins_(dirName),
           new HtmlRspackPlugin({
             filename: '../index.html',
             template: './public/index.html',

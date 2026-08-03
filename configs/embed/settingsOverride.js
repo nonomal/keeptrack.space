@@ -296,8 +296,11 @@ const settingsOverride = {
       enabled: false,
       order: 1001,
     },
+    // The visible night sky: the milky-way skybox alone is a faint glow by
+    // design; the star field itself comes from StarsPlugin. Both on for the
+    // satellite-page embed wow factor.
     StarsPlugin: {
-      enabled: false,
+      enabled: true,
     },
     // Non-Menu plugins
     TooltipsPlugin: {
@@ -353,7 +356,7 @@ const settingsOverride = {
     },
     // Scene plugins
     EarthAtmosphere: {
-      enabled: false,
+      enabled: true,
     },
     // RMB plugins
     EarthPresetsPlugin: {
@@ -486,6 +489,11 @@ const settingsOverride = {
     vimpel: 'https://r2.keeptrack.space/vimpel.json',
     /** This determines if tle source is loaded to supplement externalTLEs  */
     isSupplementExternal: false,
+    // This override REPLACES the default dataSources object, so the star files
+    // must be restated or StarsPlugin falls back to a local path the embed
+    // build does not ship (fetch(undefined) -> /undefined -> 404 -> no stars).
+    stars: 'https://r2.keeptrack.space/data/star-catalog.json',
+    constellations: 'https://r2.keeptrack.space/data/constellations.json',
   },
   isShowSecondaryLogo: false,
   isEnableJscCatalog: false,
@@ -502,10 +510,11 @@ const settingsOverride = {
   // listed (including new ones added to the manifest later) is forced disabled.
   isStrictPluginList: true,
   isDisableBottomMenu: true,
-  isDrawSun: false,
-  isDrawMilkyWay: false,
-  isDisableGodrays: true,
-  godraysSamples: -1,
+  // Sky + sun enabled 2026-08-01 for the satellite-page embed wow factor; the
+  // GPU-gated performance downgrade cascade still sheds these on weak devices.
+  isDrawSun: true,
+  isDrawMilkyWay: true,
+  isDisableGodrays: false,
   isDisableMoon: true,
   earthDayTextureQuality: '2k',
   earthNightTextureQuality: '2k',
@@ -526,7 +535,7 @@ const settingsOverride = {
 
   initZoomLevel: 0.87,
 
-  isDisableSkybox: true,
+  isDisableSkybox: false,
   isDisablePlanets: true,
 
   maxZoomDistance: 170_000,

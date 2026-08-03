@@ -204,6 +204,22 @@ describe('ModelResolver debris model selection across sccNum forms', () => {
     expect(() => resolver.resolve(oem)).not.toThrow();
     expect(resolver.resolve(oem)).toBe(SatelliteModels.aehf);
   });
+
+  describe('isRegisteredModel', () => {
+    it('accepts built-in model names', () => {
+      expect(ModelResolver.isRegisteredModel('aehf')).toBe(true);
+      expect(ModelResolver.isRegisteredModel('deb-panel-01')).toBe(true);
+    });
+
+    it('rejects unknown names and prototype keys like toString', () => {
+      expect(ModelResolver.isRegisteredModel('not-a-model')).toBe(false);
+      // Regression: `name in SatelliteModels` walked the prototype chain, so
+      // Object.prototype keys read as registered models (meshes/toString.obj).
+      expect(ModelResolver.isRegisteredModel('toString')).toBe(false);
+      expect(ModelResolver.isRegisteredModel('constructor')).toBe(false);
+      expect(ModelResolver.isRegisteredModel('hasOwnProperty')).toBe(false);
+    });
+  });
 });
 
 describe('ModelResolver mesh registry disk consistency', () => {

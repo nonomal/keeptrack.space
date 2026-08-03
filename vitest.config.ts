@@ -6,6 +6,21 @@ import { defineConfig } from 'vitest/config';
 
 const packageJson = JSON.parse(readFileSync('./package.json', 'utf-8'));
 
+/*
+ * The plugins-pro submodule keeps developer tooling (generators, media
+ * pipelines, local datasets) alongside its plugin code. Those directories are
+ * not shipped app code and are excluded from the coverage ratchet via a list
+ * the submodule owns, so their names stay private. OSS checkouts have an
+ * empty submodule and get an empty list.
+ */
+let pluginsProCoverageExcludes: string[] = [];
+
+try {
+  pluginsProCoverageExcludes = JSON.parse(readFileSync('./src/plugins-pro/coverage-exclude.json', 'utf-8'));
+} catch {
+  pluginsProCoverageExcludes = [];
+}
+
 const PLUGINS_PRO_STUB_ID = '\0virtual:plugins-pro-stub';
 
 export default defineConfig({
@@ -62,6 +77,9 @@ export default defineConfig({
       include: ['src/**/*.{ts,tsx}'],
       exclude: [
         'node_modules/**',
+        // 'node_modules/**' is root-relative and misses the copy inside the
+        // plugins-pro submodule, which has its own package.json.
+        '**/node_modules/**',
         'src/lib/external/**',
         'test/**',
         'dist/**',
@@ -78,16 +96,19 @@ export default defineConfig({
         '**/*.stories.js',
         // Third-party external plugins are not held to the host coverage ratchet.
         'src/plugins-external/**',
+        // Pro developer tooling (list owned by the submodule; empty for OSS).
+        ...pluginsProCoverageExcludes,
       ],
       reportOnFailure: true,
-      // Re-baselined against the full src denominator (coverage.include now counts every
-      // src file, not just imported ones). Actuals: lines 66.97 / statements 66.86 /
-      // functions 70.59 / branches 52.86 — ratchet upward as coverage climbs.
+      // Re-baselined 2026-08-03 after excluding pro dev tooling from the denominator
+      // (it had dragged the gate below threshold as tooling moved under src/). Actuals:
+      // lines 72.41 / statements 72.39 / functions 73.37 / branches 58.86 — ratchet
+      // upward as coverage climbs.
       thresholds: {
-        statements: 66,
-        branches: 52,
-        functions: 70,
-        lines: 66,
+        statements: 72,
+        branches: 58,
+        functions: 73,
+        lines: 72,
       },
     },
     include: ['**/?(*.)+(test).?(m)[jt]s?(x)'],

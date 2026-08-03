@@ -1,3 +1,4 @@
+import { registerMeshPacks } from './app/rendering/mesh/mesh-packs';
 import { ServiceLocator } from './engine/core/service-locator';
 import { registerSolarSystemContent } from './engine/rendering/draw-manager/celestial-bodies/solar-system-content';
 /**
@@ -370,6 +371,12 @@ theodore.kruczek at gmail dot com.
        * would race it. See registerSolarSystemContent().
        */
       await registerSolarSystemContent();
+
+      /*
+       * Same reasoning for satellite mesh packs: the ephemeris-import menus build their model
+       * pickers inside their own init(), so the roster has to be complete first.
+       */
+      await registerMeshPacks();
 
       // Load all the plugins now that we have the API initialized
       await this.engine.pluginManager.loadPlugins(settingsManager.plugins);

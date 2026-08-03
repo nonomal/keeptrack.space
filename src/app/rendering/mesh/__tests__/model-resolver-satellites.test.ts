@@ -50,6 +50,27 @@ describe('ModelResolver satellite model selection', () => {
     });
   });
 
+  describe('pack-only spacecraft in a free build', () => {
+    /*
+     * These are routed by the Pro hero-spacecraft pack (plugins-pro/hero-meshes), which a free
+     * build never registers. They must fall through to the bus/RCS/shape generics: resolving a
+     * name whose mesh is not in this build would 404 and draw NO model at all, which is worse
+     * than the generic it used to get.
+     *
+     * `sat2` is the end of that fall-through for this bare fixture specifically. A real catalog
+     * record carries bus/RCS/shape data and lands on a shape-matched generic instead (LANDSAT 9
+     * resolves to `gen-cyl` in the app) - either way it is a mesh the free build actually ships.
+     */
+    const packOnlyNames = ['LANDSAT 9', 'SENTINEL-1A', 'CREW DRAGON 12', 'Vanguard 1', 'ICEYE-X7', 'USA 99 (MILSTAR-1 1)', 'PRC TEST SPACECRAFT 4', 'TDRS 13', 'SMAP', 'XRISM'];
+
+    it.each(packOnlyNames)('falls back to a generic model for %s', (name) => {
+      const model = resolver.resolve(makeSat({ name }));
+
+      expect(model).toBe(SatelliteModels.sat2);
+      expect(ModelResolver.isRegisteredModel(model)).toBe(true);
+    });
+  });
+
   describe('Starlink version routing', () => {
     it('routes v2 Mini bus variants to the starlink-v2mini model', () => {
       expect(resolver.resolve(makeSat({ name: 'STARLINK-30107', bus: 'Starlink V2M' }))).toBe(SatelliteModels['starlink-v2mini']);

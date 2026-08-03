@@ -335,7 +335,17 @@ const handleMsgInit_ = (data: OrbitCruncherInMsgInit) => {
     currentSeqNum = data.seqNum;
   }
 
-  const objData = JSON.parse(data.objData) as OrbitCruncherCachedObject[];
+  // A malformed payload (e.g. a producer sending undefined before the catalog
+  // loads, issue #1420) must never kill the worker mid-init - that skips
+  // postMessage('ready') and leaves the app with no orbit lines at all. Treat
+  // it as an empty catalog instead.
+  let objData: OrbitCruncherCachedObject[];
+
+  try {
+    objData = typeof data.objData === 'string' ? (JSON.parse(data.objData) as OrbitCruncherCachedObject[]) : [];
+  } catch {
+    objData = [];
+  }
   const sLen = objData.length - 1;
   let i = -1;
 

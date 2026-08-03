@@ -497,8 +497,12 @@ export class OrbitManager {
 
   private static getObjDataString(objData: BaseObject[]) {
     return JSON.stringify(
-      // TODO: objData should always be guaranteed
-      objData?.map((obj) => {
+      // objectCache has no initializer, so an INIT sent before the catalog
+      // populates arrives here as undefined. `objData?.map` would short-circuit
+      // and JSON.stringify(undefined) returns the VALUE undefined - which rode
+      // postMessage into the worker and blew up JSON.parse there (issue #1420).
+      // An empty catalog must serialize to '[]'.
+      (objData ?? []).map((obj) => {
         if (obj.isMissile()) {
           return { missile: true };
         }
