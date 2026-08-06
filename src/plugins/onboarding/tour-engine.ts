@@ -452,7 +452,7 @@ export class TourEngine {
     } else {
       const backHtml = this.index_ > 0 ? `<button type="button" class="kt-tour-btn" data-tour-action="back">${this.options_.texts.back}</button>` : '';
 
-      buttonsHtml = `${backHtml}${actionHtml}` + `<button type="button" class="kt-tour-btn kt-tour-btn-primary" data-tour-action="next">${this.options_.texts.next}</button>`;
+      buttonsHtml = `${backHtml}${actionHtml}<button type="button" class="kt-tour-btn kt-tour-btn-primary" data-tour-action="next">${this.options_.texts.next}</button>`;
     }
 
     const skipHtml = step.buttons ? '' : `<button type="button" class="kt-tour-skip-link" data-tour-action="skip">${this.options_.texts.skip}</button>`;

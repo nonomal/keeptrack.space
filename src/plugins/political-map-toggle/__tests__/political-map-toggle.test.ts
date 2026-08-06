@@ -35,7 +35,9 @@ describe('PoliticalMapToggle methods', () => {
     expect(plugin.getKeyboardShortcuts()[0].key).toBe('l');
     expect(() => plugin.getKeyboardShortcuts()[0].callback()).not.toThrow();
     expect(plugin.getCommandPaletteCommands().map((c) => c.id)).toEqual(['PoliticalMapToggle.cycle', 'PoliticalMapToggle.toggle', 'PoliticalMapToggle.toggleLabels']);
-    plugin.getCommandPaletteCommands().forEach((c) => expect(() => c.callback()).not.toThrow());
+    plugin.getCommandPaletteCommands().forEach((c) => {
+      expect(() => c.callback()).not.toThrow();
+    });
   });
 
   it('cycles off -> borders -> borders+labels -> labels -> off', () => {

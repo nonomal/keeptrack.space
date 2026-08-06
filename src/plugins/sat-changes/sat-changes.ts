@@ -82,9 +82,7 @@ const uiManagerFinal = () => {
     if (!(<HTMLElement>evt.target).classList.contains('satChng-object')) {
       return;
     }
-    // Might be better code for this.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const hiddenRow = (<any>evt.currentTarget).attributes.hiddenrow.value;
+    const hiddenRow = (evt.currentTarget as HTMLElement).attributes.getNamedItem('hiddenrow')!.value;
 
     if (hiddenRow !== null) {
       satChng(parseInt(hiddenRow));

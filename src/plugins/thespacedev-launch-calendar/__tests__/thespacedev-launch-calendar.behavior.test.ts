@@ -182,7 +182,7 @@ describe('TheSpaceDevLaunchCalendarPlugin behavior', () => {
     // The env may run with fake timers, so flush microtasks rather than using setTimeout.
     const flush = async () => {
       for (let i = 0; i < 12; i++) {
-        // eslint-disable-next-line no-await-in-loop
+        // biome-ignore lint/performance/noAwaitInLoops: microtask flushes must run sequentially
         await Promise.resolve();
       }
     };
@@ -213,10 +213,7 @@ describe('TheSpaceDevLaunchCalendarPlugin behavior', () => {
     it('warns and re-shows the fetch button when the request fails', async () => {
       const warn = vi.spyOn((await import('@app/engine/utils/errorManager')).errorManagerInstance, 'warn');
 
-      // eslint-disable-next-line require-await
-      global.fetch = vi.fn().mockImplementation(async () => {
-        throw new Error('network down');
-      }) as never;
+      global.fetch = vi.fn().mockImplementation(() => Promise.reject(new Error('network down'))) as never;
 
       p().fetchLaunchData_();
       await flush();

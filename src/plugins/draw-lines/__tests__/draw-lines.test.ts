@@ -37,7 +37,9 @@ describe('DrawLinesPlugin onContextMenuAction', () => {
   beforeEach(() => {
     setupStandardEnvironment();
     plugin = new DrawLinesPlugin();
-    LINE_METHODS.forEach((m) => vi.spyOn(lineManagerInstance, m).mockImplementation(() => undefined as never));
+    LINE_METHODS.forEach((m) => {
+      vi.spyOn(lineManagerInstance, m).mockImplementation(() => undefined as never);
+    });
     // A satellite-typed object exercises the instanceof guard when building the action context.
     vi.spyOn(ServiceLocator.getCatalogManager(), 'getObject').mockReturnValue(Object.create(Satellite.prototype));
     (ServiceLocator.getScene() as unknown as { moons: unknown }).moons = { Moon: { drawFullOrbitPathRelativeToEarth: vi.fn() } };

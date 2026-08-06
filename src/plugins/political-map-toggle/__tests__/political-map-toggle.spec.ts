@@ -34,6 +34,7 @@ test.describe('PoliticalMapToggle', () => {
 
     // Four clicks walk every mode and land back on the initial one
     for (let click = 0; click < 4; click++) {
+      // biome-ignore lint/performance/noAwaitInLoops: each click must finish before checking the next mode
       await utilityIcon.dispatchEvent('click');
       modeIdx = (modeIdx + 1) % MODES.length;
       const expected = MODES[modeIdx];

@@ -21,7 +21,7 @@ describe('SatInfoBoxOrbitGuard behavior', () => {
     document.getElementById(SECTIONS.MANEUVER)?.remove();
     document.body.insertAdjacentHTML(
       'beforeend',
-      `<div id="${SECTIONS.MANEUVER}" style="display:none;">` + `<span id="${EL.COLLAPSE}">expand_less</span>` + `<div id="${EL.DATA}"></div></div>`
+      `<div id="${SECTIONS.MANEUVER}" style="display:none;"><span id="${EL.COLLAPSE}">expand_less</span><div id="${EL.DATA}"></div></div>`
     );
     // createHistorical2dPlot_ builds echarts; isolate it.
     vi.spyOn(p(), 'createHistorical2dPlot_').mockImplementation(() => undefined);

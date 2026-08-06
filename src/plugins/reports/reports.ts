@@ -635,7 +635,7 @@ export class ReportsPlugin extends KeepTrackPlugin {
     const win = window.open('', data.filename);
 
     if (!win) {
-      // eslint-disable-next-line no-alert
+      // biome-ignore lint/suspicious/noAlert: blocking alert is deliberate so the popup-blocked message is seen even if the toast UI is unavailable; asserted by reports.test.ts
       alert(t7e('errorMsgs.Reports.popupBlocker'));
 
       return;

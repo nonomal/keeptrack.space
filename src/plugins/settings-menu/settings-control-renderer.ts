@@ -115,6 +115,7 @@ export const renderSettingControl = (control: ISettingControl, sectionId: string
     case 'button':
       return renderButton_(control, domId);
     default: {
+      // biome-ignore lint/suspicious/noUnusedExpressions: compile-time exhaustiveness check for the control type union
       control satisfies never;
 
       return '';
@@ -215,6 +216,7 @@ export const attachSettingControlListeners = (control: ISettingControl, sectionI
       attachButtonListeners_(control, el as HTMLButtonElement);
       break;
     default: {
+      // biome-ignore lint/suspicious/noUnusedExpressions: compile-time exhaustiveness check for the control type union
       control satisfies never;
     }
   }

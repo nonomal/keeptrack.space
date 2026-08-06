@@ -109,7 +109,7 @@ describe('ReportsPlugin_class', () => {
 
   describe('Report registry', () => {
     it('should have built-in reports registered', () => {
-      // Constructor registers built-in reports as a side effect
+      // biome-ignore lint/correctness/noUnusedInstantiation: constructor registers built-in reports the assertions read
       new ReportsPlugin();
       const reports = ReportsPlugin.getRegisteredReports();
 
@@ -117,6 +117,7 @@ describe('ReportsPlugin_class', () => {
     });
 
     it('should include all expected report IDs', () => {
+      // biome-ignore lint/correctness/noUnusedInstantiation: constructor registers built-in reports the assertions read
       new ReportsPlugin();
       const reports = ReportsPlugin.getRegisteredReports();
       const ids = reports.map((r) => r.id);
@@ -130,6 +131,7 @@ describe('ReportsPlugin_class', () => {
     });
 
     it('should register and unregister custom reports', () => {
+      // biome-ignore lint/correctness/noUnusedInstantiation: constructor registers built-in reports the assertions read
       new ReportsPlugin();
       const countBefore = ReportsPlugin.getRegisteredReports().length;
 
@@ -147,6 +149,7 @@ describe('ReportsPlugin_class', () => {
     });
 
     it('should mark sensor-requiring reports correctly', () => {
+      // biome-ignore lint/correctness/noUnusedInstantiation: constructor registers built-in reports the assertions read
       new ReportsPlugin();
       const reports = ReportsPlugin.getRegisteredReports();
 

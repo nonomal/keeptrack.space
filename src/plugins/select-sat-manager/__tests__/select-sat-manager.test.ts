@@ -30,9 +30,9 @@ describe('SelectSatManager_dots', () => {
 
     sat.position = { x: 10000, y: 10000, z: 10000 } as any;
     ServiceLocator.getCatalogManager().objectCache = [sat];
-    ServiceLocator.getColorSchemeManager().colorData = Array(100).fill(0) as unknown as Float32Array<ArrayBuffer>;
-    ServiceLocator.getDotsManager().sizeData = Array(100).fill(0) as unknown as Int8Array;
-    ServiceLocator.getDotsManager().positionData = Array(100).fill(0) as unknown as Float32Array;
+    ServiceLocator.getColorSchemeManager().colorData = new Array(100).fill(0) as unknown as Float32Array<ArrayBuffer>;
+    ServiceLocator.getDotsManager().sizeData = new Array(100).fill(0) as unknown as Int8Array;
+    ServiceLocator.getDotsManager().positionData = new Array(100).fill(0) as unknown as Float32Array;
 
     selectSatManager.selectSat(0);
     expect(selectSatManager.selectedSat).toBe(0);
@@ -47,7 +47,7 @@ describe('SelectSatManager_dots', () => {
 
     ServiceLocator.getColorSchemeManager().colorData = colorData as unknown as Float32Array<ArrayBuffer>;
     ServiceLocator.getDotsManager().sizeData = new Int8Array(5) as unknown as Int8Array;
-    ServiceLocator.getDotsManager().positionData = Array(20).fill(0) as unknown as Float32Array;
+    ServiceLocator.getDotsManager().positionData = new Array(20).fill(0) as unknown as Float32Array;
 
     const currentSat = new Satellite({ ...defaultSat, id: 0 });
 
@@ -82,9 +82,9 @@ describe('SelectSatManager_dots', () => {
     selectSatManager.init();
 
     websiteInit(new SatInfoBox());
-    ServiceLocator.getColorSchemeManager().colorData = Array(100).fill(0) as unknown as Float32Array<ArrayBuffer>;
-    ServiceLocator.getDotsManager().sizeData = Array(100).fill(0) as unknown as Int8Array;
-    ServiceLocator.getDotsManager().positionData = Array(100).fill(0) as unknown as Float32Array;
+    ServiceLocator.getColorSchemeManager().colorData = new Array(100).fill(0) as unknown as Float32Array<ArrayBuffer>;
+    ServiceLocator.getDotsManager().sizeData = new Array(100).fill(0) as unknown as Int8Array;
+    ServiceLocator.getDotsManager().positionData = new Array(100).fill(0) as unknown as Float32Array;
     ServiceLocator.getCatalogManager().objectCache = [defaultSensor as DetailedSensor];
     expect(() => selectSatManager.selectSat(0)).not.toThrow();
   });

@@ -39,7 +39,7 @@ describe('TimeMachine_class', () => {
     vi.useFakeTimers();
     websiteInit(timeMachinePlugin);
     ServiceLocator.getCatalogManager().getObject = vi.fn().mockReturnValue(defaultSat);
-    ServiceLocator.getCatalogManager().objectCache = Array(50).fill(defaultSat);
+    ServiceLocator.getCatalogManager().objectCache = new Array(50).fill(defaultSat);
     KeepTrack.getInstance().containerRoot.innerHTML += '<div id="search-results"></div>';
 
     settingsManager.timeMachineDelay = <Milliseconds>0;

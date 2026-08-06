@@ -128,7 +128,11 @@ describe('TimeSlider behavior', () => {
       )
       .map((c) => c[1] as () => void);
 
-    expect(() => handlers.forEach((h) => h())).not.toThrow();
+    expect(() =>
+      handlers.forEach((h) => {
+        h();
+      })
+    ).not.toThrow();
 
     // The uiManagerFinal handler wired the real slider callback; dragging exercises the
     // bounds check that picks sliderWithoutBounds vs sliderWithBounds.

@@ -47,10 +47,10 @@ test.describe('Onboarding Power Tour Hub', () => {
     await expect(popover.locator('.kt-tour-popover-title')).not.toHaveText('Speed up time', { timeout: 5_000 });
 
     // Walk the remaining steps with Next until the chapter hands back to the hub
-    /* eslint-disable no-await-in-loop -- steps must be clicked strictly in sequence */
     for (let i = 0; i < 10; i++) {
       const nextBtn = popover.locator('[data-tour-action="next"]');
 
+      // biome-ignore lint/performance/noAwaitInLoops: steps must be clicked strictly in sequence
       if ((await popover.locator('.kt-hub-rows').count()) > 0) {
         break;
       }
@@ -59,7 +59,6 @@ test.describe('Onboarding Power Tour Hub', () => {
       }
       await page.waitForTimeout(400);
     }
-    /* eslint-enable no-await-in-loop */
 
     // Back on the hub: the chapter is done and overall progress moved
     await expect(popover.locator('.kt-hub-rows')).toBeVisible();

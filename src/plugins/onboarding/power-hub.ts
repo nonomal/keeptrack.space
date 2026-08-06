@@ -95,7 +95,7 @@ export const buildHubStep = (options: PowerHubOptions): TourStep => {
     kind: 'card',
     title: l('hub.title'),
     body: isAllDone ? l('hub.allDone') : l('hub.body'),
-    extraHtml: `<div class="kt-hub-progress">${progressLabel}</div>` + `<div class="kt-hub-rows">${rows}</div>`,
+    extraHtml: `<div class="kt-hub-progress">${progressLabel}</div><div class="kt-hub-rows">${rows}</div>`,
     buttons: [{ id: 'close', label: l('hub.close'), isPrimary: true }],
     escButtonId: 'close',
     onRender: (popoverEl: HTMLElement) => {

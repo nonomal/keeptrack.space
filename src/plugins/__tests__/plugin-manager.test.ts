@@ -1,4 +1,4 @@
-/* eslint-disable max-classes-per-file */
+// biome-ignore-all lint/style/noExcessiveClassesPerFile: inline test double classes drive resolveModule_/initPlugin_ branches
 import type { PluginDescriptor } from '@app/plugins/plugin-descriptor';
 import { PluginManager } from '@app/plugins/plugins';
 
