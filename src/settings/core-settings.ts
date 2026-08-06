@@ -427,8 +427,9 @@ export class CoreSettings {
   /**
    * Callback function that is called when the settings are loaded.
    */
-  // eslint-disable-next-line no-empty-function
-  onLoadCb = () => {};
+  onLoadCb = () => {
+    // Intentional no-op default; profiles override this
+  };
 }
 
 export const defaultCoreSettings = new CoreSettings();

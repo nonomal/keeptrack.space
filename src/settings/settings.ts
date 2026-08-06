@@ -380,6 +380,7 @@ const PROPERTY_CATEGORY_MAP: Record<string, keyof SettingsManager> = {
  */
 export interface SettingsManager extends GraphicsSettings, UiSettings, CameraSettings, OrbitalSettings, DataSettings, PerformanceSettings, ColorSettings, CoreSettings {}
 
+// biome-ignore lint/suspicious/noUnsafeDeclarationMerging: intentional class-interface merge; settingsManager proxies the flattened category properties via Object.defineProperty accessors built from PROPERTY_CATEGORY_MAP
 export class SettingsManager {
   /**
    * Persisted-table keys explicitly forced via URL params, presets, or embed
@@ -513,8 +514,7 @@ export class SettingsManager {
      * Expose these to node if running in node
      */
     if (global) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (<any>global).settingsManager = this;
+      (global as unknown as { settingsManager: SettingsManager }).settingsManager = this;
     }
 
     this.pTime = [];
