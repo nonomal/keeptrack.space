@@ -191,6 +191,9 @@ export class ColorPick {
   static initColorPick(selector: string, options: Partial<ColorPick['options']> = {}) {
     const elements = document.querySelectorAll(selector);
 
-    elements.forEach((element) => new ColorPick(element as HTMLElement, options));
+    elements.forEach((element) => {
+      // biome-ignore lint/correctness/noUnusedInstantiation: the constructor wires the picker to the element; the instance lives on via its DOM listeners
+      new ColorPick(element as HTMLElement, options);
+    });
   }
 }

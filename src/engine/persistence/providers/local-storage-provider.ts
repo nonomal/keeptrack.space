@@ -1,3 +1,4 @@
+// biome-ignore-all lint/suspicious/useAwait: StorageProvider contract returns Promises; async keeps sync throws (quota/privacy-mode localStorage, error hooks) surfacing as rejections for .catch() callers
 import { errorManagerInstance } from '@app/engine/utils/errorManager';
 import { StorageKey } from '../storage-key';
 import type { StorageProvider, StorageProviderConfig } from '../storage-provider';
@@ -18,7 +19,6 @@ export class LocalStorageProvider implements StorageProvider {
     this.config_ = config;
   }
 
-  // eslint-disable-next-line require-await
   async initialize(): Promise<void> {
     // Set up cross-tab synchronization using storage events
     this.storageListener_ = (e: StorageEvent) => {
@@ -30,7 +30,6 @@ export class LocalStorageProvider implements StorageProvider {
     globalThis.addEventListener('storage', this.storageListener_);
   }
 
-  // eslint-disable-next-line require-await
   async readAll(): Promise<Map<string, string>> {
     const map = new Map<string, string>();
 
@@ -49,7 +48,6 @@ export class LocalStorageProvider implements StorageProvider {
     return map;
   }
 
-  // eslint-disable-next-line require-await
   async read(key: string): Promise<string | null> {
     try {
       return localStorage.getItem(key);
@@ -60,7 +58,6 @@ export class LocalStorageProvider implements StorageProvider {
     }
   }
 
-  // eslint-disable-next-line require-await
   async write(key: string, value: string): Promise<void> {
     try {
       localStorage.setItem(key, value);
@@ -69,7 +66,6 @@ export class LocalStorageProvider implements StorageProvider {
     }
   }
 
-  // eslint-disable-next-line require-await
   async writeBatch(entries: Map<string, string>): Promise<void> {
     for (const [key, value] of entries) {
       try {
@@ -80,7 +76,6 @@ export class LocalStorageProvider implements StorageProvider {
     }
   }
 
-  // eslint-disable-next-line require-await
   async remove(key: string): Promise<void> {
     try {
       localStorage.removeItem(key);
@@ -89,7 +84,6 @@ export class LocalStorageProvider implements StorageProvider {
     }
   }
 
-  // eslint-disable-next-line require-await
   async clear(): Promise<void> {
     for (const key of Object.values(StorageKey)) {
       try {
@@ -121,7 +115,6 @@ export class LocalStorageProvider implements StorageProvider {
     }
   }
 
-  // eslint-disable-next-line require-await
   async dispose(): Promise<void> {
     if (this.storageListener_) {
       globalThis.removeEventListener('storage', this.storageListener_);

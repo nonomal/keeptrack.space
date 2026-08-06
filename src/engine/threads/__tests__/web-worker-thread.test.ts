@@ -1,5 +1,4 @@
-/* eslint-disable max-classes-per-file */
-
+// biome-ignore-all lint/style/noExcessiveClassesPerFile: inline test doubles
 import { WebWorkerThreadManager } from '@app/engine/threads/web-worker-thread';
 import { errorManagerInstance } from '@app/engine/utils/errorManager';
 import * as isThisNodeMod from '@app/engine/utils/isThisNode';

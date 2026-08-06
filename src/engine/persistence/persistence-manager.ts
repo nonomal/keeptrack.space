@@ -6,9 +6,14 @@ import { StorageKey } from './storage-key';
 import type { StorageProvider } from './storage-provider';
 import { ACCOUNT_STORAGE_KEYS, getAccountMergeHook, isAccountKey } from './storage-scope';
 
-// Access settingsManager via global to avoid circular dependency with settings.ts
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- intentionally untyped to break the settings.ts circular import
-const getSettingsManager_ = (): any => (globalThis as any).settingsManager;
+/*
+ * Access settingsManager via the global to avoid a circular dependency with
+ * settings.ts. Only the properties this file reads are typed here; the full
+ * SettingsManager type lives in settings.ts.
+ */
+type SettingsManagerGlobal = { isBlockPersistence?: boolean; versionNumber?: string };
+
+const getSettingsManager_ = (): SettingsManagerGlobal | undefined => (globalThis as unknown as { settingsManager?: SettingsManagerGlobal }).settingsManager;
 
 export class PersistenceManager {
   private static instance_: PersistenceManager;

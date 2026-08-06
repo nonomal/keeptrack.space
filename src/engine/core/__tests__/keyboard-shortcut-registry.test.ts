@@ -468,7 +468,7 @@ describe('KeyboardShortcutRegistry', () => {
 
       if (conflicts.length > 0) {
         const details = conflicts.map(
-          (c) => `  "${KeyboardShortcutRegistry.formatShortcut(c.existing.shortcut)}" ` + `registered by "${c.existing.pluginId}" conflicts with "${c.incoming.pluginId}"`
+          (c) => `  "${KeyboardShortcutRegistry.formatShortcut(c.existing.shortcut)}" registered by "${c.existing.pluginId}" conflicts with "${c.incoming.pluginId}"`
         );
 
         throw new Error(`Found ${conflicts.length} keyboard shortcut conflict(s):\n${details.join('\n')}`);

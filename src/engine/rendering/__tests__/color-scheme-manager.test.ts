@@ -305,8 +305,7 @@ const listOfSatsToTest = [
 ] as Satellite[];
 
 const disableAllColorThemes = (colorSchemeManager: ColorSchemeManager) => {
-  // eslint-disable-next-line guard-for-in
-  for (const flag in colorSchemeManager.objectTypeFlags) {
+  for (const flag of Object.keys(colorSchemeManager.objectTypeFlags)) {
     colorSchemeManager.objectTypeFlags[flag] = false;
   }
 };
@@ -578,7 +577,7 @@ describe('ColorSchemeManager Block 2', () => {
     // Arrange
     const mockRenderer = { gl: { createBuffer: vi.fn().mockReturnValue({}), bindBuffer: vi.fn(), bufferData: vi.fn(), bufferSubData: vi.fn() } };
     const mockDotsManager = { buffers: { color: null, pickability: null }, inViewData: {} };
-    const mockCatalogManager = { numObjects: 10, objectCache: Array(10).fill({}), satCruncher: { postMessage: vi.fn() } };
+    const mockCatalogManager = { numObjects: 10, objectCache: new Array(10).fill({}), satCruncher: { postMessage: vi.fn() } };
     const mockSettingsManager = { dotsOnScreen: 10, dotsPerColor: 5, defaultColorScheme: 'DefaultColorScheme' };
 
     vi.spyOn(ServiceLocator, 'getRenderer').mockReturnValue(mockRenderer as unknown as WebGLRenderer);

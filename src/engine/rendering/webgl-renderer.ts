@@ -192,7 +192,7 @@ export class WebGLRenderer {
     }
   }
 
-  // eslint-disable-next-line require-await
+  // biome-ignore lint/suspicious/useAwait: public boot API returns a Promise; async keeps sync GL/context setup throws surfacing as rejections to awaiting callers
   async glInit(): Promise<WebGL2RenderingContext> {
     // Ensure the canvas is available
     this.domElement = <HTMLCanvasElement>getEl('keeptrack-canvas');
@@ -276,7 +276,7 @@ export class WebGLRenderer {
     return gl;
   }
 
-  // eslint-disable-next-line require-await
+  // biome-ignore lint/suspicious/useAwait: public boot API returns a Promise; async keeps sync setup throws (ServiceLocator, plugin lookups) surfacing as rejections to awaiting callers
   async init(settings: SettingsManager): Promise<void> {
     this.settings_ = settings;
     this.selectSatManager_ = PluginRegistry.getPlugin(SelectSatManager) as unknown as SelectSatManager; // this will be validated in KeepTrackPlugin constructor
@@ -773,7 +773,7 @@ export class WebGLRenderer {
     this.domElement.style.cursor = cursor;
   }
 
-  // eslint-disable-next-line require-await
+  // biome-ignore lint/suspicious/useAwait: fire-and-forget from init(); async keeps sync throws in group/color setup as rejections rather than propagating into the caller
   async startWithOrbits(): Promise<void> {
     if (this.settings_.startWithOrbitsDisplayed) {
       const groupsManagerInstance = ServiceLocator.getGroupsManager();

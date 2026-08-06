@@ -58,8 +58,9 @@ describe('UrlManager_class', () => {
     const uiManagerInstance = ServiceLocator.getUiManager();
     const timeManagerInstance = ServiceLocator.getTimeManager();
 
-    // eslint-disable-next-line no-empty-function
-    vi.spyOn(window.history, 'replaceState').mockImplementation(() => {});
+    vi.spyOn(window.history, 'replaceState').mockImplementation(() => {
+      // noop
+    });
     const selectedSatelliteManager = PluginRegistry.getPlugin(SelectSatManager);
 
     expect(selectedSatelliteManager).toBeDefined();
@@ -100,8 +101,9 @@ describe('UrlManager_class', () => {
     const catalogManagerInstance = ServiceLocator.getCatalogManager();
     const uiManagerInstance = ServiceLocator.getUiManager();
 
-    // eslint-disable-next-line no-empty-function
-    vi.spyOn(window.history, 'replaceState').mockImplementation(() => {});
+    vi.spyOn(window.history, 'replaceState').mockImplementation(() => {
+      // noop
+    });
     const selectedSatelliteManager = PluginRegistry.getPlugin(SelectSatManager);
 
     expect(selectedSatelliteManager).toBeDefined();
@@ -134,8 +136,9 @@ describe('UrlManager_class', () => {
     const catalogManagerInstance = ServiceLocator.getCatalogManager();
     const uiManagerInstance = ServiceLocator.getUiManager();
 
-    // eslint-disable-next-line no-empty-function
-    vi.spyOn(window.history, 'replaceState').mockImplementation(() => {});
+    vi.spyOn(window.history, 'replaceState').mockImplementation(() => {
+      // noop
+    });
     uiManagerInstance.toast = vi.fn();
     const selectedSatelliteManager = PluginRegistry.getPlugin(SelectSatManager);
 
@@ -168,8 +171,9 @@ describe('UrlManager_class', () => {
     const catalogManagerInstance = ServiceLocator.getCatalogManager();
     const uiManagerInstance = ServiceLocator.getUiManager();
 
-    // eslint-disable-next-line no-empty-function
-    vi.spyOn(window.history, 'replaceState').mockImplementation(() => {});
+    vi.spyOn(window.history, 'replaceState').mockImplementation(() => {
+      // noop
+    });
     uiManagerInstance.toast = vi.fn();
     const selectedSatelliteManager = PluginRegistry.getPlugin(SelectSatManager);
 
@@ -206,8 +210,9 @@ describe('UrlManager_class', () => {
     const uiManagerInstance = ServiceLocator.getUiManager();
     const timeManagerInstance = ServiceLocator.getTimeManager();
 
-    // eslint-disable-next-line no-empty-function
-    vi.spyOn(window.history, 'replaceState').mockImplementation(() => {});
+    vi.spyOn(window.history, 'replaceState').mockImplementation(() => {
+      // noop
+    });
     const selectedSatelliteManager = PluginRegistry.getPlugin(SelectSatManager);
 
     expect(selectedSatelliteManager).toBeDefined();
@@ -246,8 +251,9 @@ describe('UrlManager_class', () => {
     const uiManagerInstance = ServiceLocator.getUiManager();
     const timeManagerInstance = ServiceLocator.getTimeManager();
 
-    // eslint-disable-next-line no-empty-function
-    vi.spyOn(window.history, 'replaceState').mockImplementation(() => {});
+    vi.spyOn(window.history, 'replaceState').mockImplementation(() => {
+      // noop
+    });
     const selectedSatelliteManager = PluginRegistry.getPlugin(SelectSatManager);
 
     expect(selectedSatelliteManager).toBeDefined();

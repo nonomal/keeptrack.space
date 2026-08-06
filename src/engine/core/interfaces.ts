@@ -7,7 +7,7 @@ export type EciArr3 = Vec3Flat<number>;
 /** Array of ECF Coordinates [x, y, z] */
 export type EcfArr3 = Vec3Flat<number>;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// biome-ignore lint/suspicious/noExplicitAny: generic constructor helper must accept any argument list; unknown[] would reject concrete constructor signatures
 export type Constructor<I> = new (...args: any[]) => I;
 
 export interface SatShader {

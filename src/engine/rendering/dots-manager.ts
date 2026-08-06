@@ -1054,14 +1054,10 @@ export class DotsManager {
     this.pickingColorData = [];
     this.isReady = false;
     // Force updateCruncherBuffers to allocate new typed arrays
-    // eslint-disable-next-line no-void
-    this.positionData = void 0 as unknown as Float32Array;
-    // eslint-disable-next-line no-void
-    this.velocityData = void 0 as unknown as Float32Array;
-    // eslint-disable-next-line no-void
-    this.inViewData = void 0 as unknown as Int8Array;
-    // eslint-disable-next-line no-void
-    this.inSunData = void 0 as unknown as Int8Array;
+    this.positionData = undefined as unknown as Float32Array;
+    this.velocityData = undefined as unknown as Float32Array;
+    this.inViewData = undefined as unknown as Int8Array;
+    this.inSunData = undefined as unknown as Int8Array;
   }
 
   /**

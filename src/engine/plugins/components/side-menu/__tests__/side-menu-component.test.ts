@@ -53,8 +53,12 @@ describe('SideMenuComponent', () => {
     vi.clearAllMocks();
 
     // Setup spies for slide utilities
-    mockSlideInRight = vi.spyOn(slideUtils, 'slideInRight').mockImplementation(() => {});
-    mockSlideOutLeft = vi.spyOn(slideUtils, 'slideOutLeft').mockImplementation(() => {});
+    mockSlideInRight = vi.spyOn(slideUtils, 'slideInRight').mockImplementation(() => {
+      // noop
+    });
+    mockSlideOutLeft = vi.spyOn(slideUtils, 'slideOutLeft').mockImplementation(() => {
+      // noop
+    });
     mockClickAndDragWidth = vi.spyOn(dragUtils, 'clickAndDragWidth').mockImplementation(() => null);
   });
 

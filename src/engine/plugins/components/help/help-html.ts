@@ -53,7 +53,7 @@ const buildSectionHtml_ = (section: IHelpSection): string => {
 const buildTipsHtml_ = (tips: string[]): string => {
   const items = tips.map((tip) => `<li>${tip}</li>`).join('');
 
-  return `<section class="help-section help-tips"><h3 class="help-section-heading">${t7e('help.tips')}</h3>` + `<ul class="help-tips-list">${items}</ul></section>`;
+  return `<section class="help-section help-tips"><h3 class="help-section-heading">${t7e('help.tips')}</h3><ul class="help-tips-list">${items}</ul></section>`;
 };
 
 const buildShortcutsHtml_ = (shortcuts: IHelpShortcut[]): string => {
@@ -65,7 +65,7 @@ const buildShortcutsHtml_ = (shortcuts: IHelpShortcut[]): string => {
     })
     .join('');
 
-  return `<section class="help-section help-shortcuts"><h3 class="help-section-heading">${t7e('help.keyboardShortcuts')}</h3>` + `${rows}</section>`;
+  return `<section class="help-section help-shortcuts"><h3 class="help-section-heading">${t7e('help.keyboardShortcuts')}</h3>${rows}</section>`;
 };
 
 /**
