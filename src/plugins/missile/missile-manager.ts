@@ -493,6 +493,7 @@ const writeMissileToSlot_ = (
  * backward compatibility; PR 4 will switch callers to `MissileSpec` /
  * `MissileLaunchResult`.
  */
+// biome-ignore lint/complexity/useMaxParams: 14-positional signature kept for backward compatibility until PR 4 of #914 switches callers to MissileSpec
 export const Missile = (
   CurrentLatitude: number,
   CurrentLongitude: number,

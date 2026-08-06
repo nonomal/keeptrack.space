@@ -7,6 +7,63 @@ import { ToastMsgType } from '@app/engine/core/interfaces';
 import { Degrees, Kilometers } from '@ootk/src/main';
 import { MissileSimulationResult, MissileSpec } from './missile-types';
 
+/** Inputs for a single flight integration step ({@link MissileSimulation.launchDetailed_}). */
+interface LaunchDetailedParams {
+  FuelArea: number;
+  FuelMass: number;
+  RocketArea: number;
+  Altitude: number;
+  RocketCasingMass: number;
+  NozzleAltitude: number;
+  drdt: number;
+  dthetadt: number;
+  Distance: number;
+  ArcDistance: number;
+  MassIn: number;
+  AngleCoefficient: number;
+}
+
+/** Inputs for {@link MissileSimulation.calculateAngle_}. `_ArcLength` is kept for parity with the original signature but is unused. */
+interface CalculateAngleParams {
+  FuelArea1: number;
+  FuelArea2: number;
+  FuelMass: number;
+  FuelVolume: number;
+  RocketArea: number;
+  Altitude: number;
+  RocketCasingMass1: number;
+  RocketCasingMass2: number;
+  RocketCasingMass3: number;
+  NozzleAltitude1: number;
+  drdt: number;
+  dthetadt: number;
+  Distance: number;
+  ArcDistance: number;
+  MassIn: number;
+  _ArcLength: number;
+  GoalDistance: number;
+}
+
+/** Inputs for {@link MissileSimulation.launchSimple_}. */
+interface LaunchSimpleParams {
+  FuelArea1: number;
+  FuelArea2: number;
+  FuelMass: number;
+  FuelVolume: number;
+  RocketArea: number;
+  Altitude: number;
+  RocketCasingMass1: number;
+  RocketCasingMass2: number;
+  RocketCasingMass3: number;
+  NozzleAltitude1: number;
+  drdt: number;
+  dthetadt: number;
+  Distance: number;
+  ArcDistance: number;
+  MassIn: number;
+  AngleCoefficient: number;
+}
+
 /**
  * Per-call ballistic missile flight simulation.
  *
@@ -116,7 +173,7 @@ export class MissileSimulation {
     let NozzleAltitude2: number | undefined;
     let NozzleAltitude3: number | undefined;
 
-    const AngleCoefficient = this.calculateAngle_(
+    const AngleCoefficient = this.calculateAngle_({
       FuelArea1,
       FuelArea2,
       FuelMass,
@@ -132,25 +189,25 @@ export class MissileSimulation {
       Distance,
       ArcDistance,
       MassIn,
-      ArcLength,
-      GoalDistance
-    );
+      _ArcLength: ArcLength,
+      GoalDistance,
+    });
 
     while (FuelMass / this.fuelDensity_ / FuelVolume > 0.4 && Altitude >= 0) {
-      const out = this.launchDetailed_(
-        FuelArea1,
+      const out = this.launchDetailed_({
+        FuelArea: FuelArea1,
         FuelMass,
         RocketArea,
         Altitude,
-        RocketCasingMass1,
-        NozzleAltitude1,
+        RocketCasingMass: RocketCasingMass1,
+        NozzleAltitude: NozzleAltitude1,
         drdt,
         dthetadt,
         Distance,
         ArcDistance,
         MassIn,
-        AngleCoefficient
-      );
+        AngleCoefficient,
+      });
 
       FuelMass = out[0];
       drdt = out[12];
@@ -172,20 +229,20 @@ export class MissileSimulation {
     }
 
     while (FuelMass / this.fuelDensity_ / FuelVolume > 0.19 && Altitude >= 0) {
-      const out = this.launchDetailed_(
-        FuelArea1,
+      const out = this.launchDetailed_({
+        FuelArea: FuelArea1,
         FuelMass,
         RocketArea,
         Altitude,
-        RocketCasingMass2,
-        NozzleAltitude2!,
+        RocketCasingMass: RocketCasingMass2,
+        NozzleAltitude: NozzleAltitude2!,
         drdt,
         dthetadt,
         Distance,
         ArcDistance,
         MassIn,
-        AngleCoefficient
-      );
+        AngleCoefficient,
+      });
 
       FuelMass = out[0];
       drdt = out[12];
@@ -207,20 +264,20 @@ export class MissileSimulation {
     }
 
     while (FuelMass / this.fuelDensity_ / FuelVolume > 0 && Altitude >= 0) {
-      const out = this.launchDetailed_(
-        FuelArea2,
+      const out = this.launchDetailed_({
+        FuelArea: FuelArea2,
         FuelMass,
         RocketArea,
         Altitude,
-        RocketCasingMass3,
-        NozzleAltitude3!,
+        RocketCasingMass: RocketCasingMass3,
+        NozzleAltitude: NozzleAltitude3!,
         drdt,
         dthetadt,
         Distance,
         ArcDistance,
         MassIn,
-        AngleCoefficient
-      );
+        AngleCoefficient,
+      });
 
       FuelMass = out[0];
       drdt = out[12];
@@ -244,20 +301,20 @@ export class MissileSimulation {
     // at (near-)orbital velocity it never falls back and this loop would spin forever.
     while (Altitude > 0 && AltitudeList.length < MissileSimulation.MAX_FLIGHT_STEPS) {
       FuelMass = 0;
-      const out = this.launchDetailed_(
-        FuelArea2,
+      const out = this.launchDetailed_({
+        FuelArea: FuelArea2,
         FuelMass,
         RocketArea,
         Altitude,
-        RocketCasingMass3,
-        NozzleAltitude3!,
+        RocketCasingMass: RocketCasingMass3,
+        NozzleAltitude: NozzleAltitude3!,
         drdt,
         dthetadt,
         Distance,
         ArcDistance,
         MassIn,
-        AngleCoefficient
-      );
+        AngleCoefficient,
+      });
 
       FuelMass = out[0];
       drdt = out[12];
@@ -462,20 +519,9 @@ export class MissileSimulation {
     return [EstLatList, EstLongList, (Alpha1 * 180) / Math.PI, ArcLength, EstDistanceList, GoalDistance];
   }
 
-  private launchDetailed_(
-    FuelArea: number,
-    FuelMass: number,
-    RocketArea: number,
-    Altitude: number,
-    RocketCasingMass: number,
-    NozzleAltitude: number,
-    drdt: number,
-    dthetadt: number,
-    Distance: number,
-    ArcDistance: number,
-    MassIn: number,
-    AngleCoefficient: number
-  ): number[] {
+  private launchDetailed_(params: LaunchDetailedParams): number[] {
+    const { FuelArea, RocketArea, RocketCasingMass, NozzleAltitude, MassIn, AngleCoefficient } = params;
+    let { FuelMass, Altitude, drdt, dthetadt, Distance, ArcDistance } = params;
     let ThrustAngle: number;
 
     if (Altitude < 1_200_000) {
@@ -541,25 +587,8 @@ export class MissileSimulation {
     return [FuelMass, RocketMass, Tatm, Patm, AirDensity, c, M, cD, Thrust, DragForce, WeightForce, dr2dt, drdt, Altitude, Distance, ArcVelocity, ArcDistance, dtheta2dt, dthetadt];
   }
 
-  private calculateAngle_(
-    FuelArea1: number,
-    FuelArea2: number,
-    FuelMass: number,
-    FuelVolume: number,
-    RocketArea: number,
-    Altitude: number,
-    RocketCasingMass1: number,
-    RocketCasingMass2: number,
-    RocketCasingMass3: number,
-    NozzleAltitude1: number,
-    drdt: number,
-    dthetadt: number,
-    Distance: number,
-    ArcDistance: number,
-    MassIn: number,
-    _ArcLength: number,
-    GoalDistance: number
-  ): number {
+  private calculateAngle_(params: CalculateAngleParams): number {
+    const { GoalDistance } = params;
     const DistanceSteps: number[] = [];
     let AngleCoefficient = 0;
     let DistanceClosePossition = 0;
@@ -569,26 +598,7 @@ export class MissileSimulation {
 
     for (let i = 0; i < Steps; i++) {
       AngleCoefficient = (i * 1) / Steps / 2 + 0.5;
-      DistanceSteps.push(
-        this.launchSimple_(
-          FuelArea1,
-          FuelArea2,
-          FuelMass,
-          FuelVolume,
-          RocketArea,
-          Altitude,
-          RocketCasingMass1,
-          RocketCasingMass2,
-          RocketCasingMass3,
-          NozzleAltitude1,
-          drdt,
-          dthetadt,
-          Distance,
-          ArcDistance,
-          MassIn,
-          AngleCoefficient
-        )
-      );
+      DistanceSteps.push(this.launchSimple_({ ...params, AngleCoefficient }));
     }
 
     let DistanceClosest = DistanceSteps[0];
@@ -613,71 +623,13 @@ export class MissileSimulation {
     AC1 = (DistanceClosePossition - 2) / Steps / 2 + 0.5;
     AC2 = (DistanceClosePossition + 2) / Steps / 2 + 0.5;
     let ACNew = (AC1 + AC2) / 2;
-    const qRunACNew = this.launchSimple_(
-      FuelArea1,
-      FuelArea2,
-      FuelMass,
-      FuelVolume,
-      RocketArea,
-      Altitude,
-      RocketCasingMass1,
-      RocketCasingMass2,
-      RocketCasingMass3,
-      NozzleAltitude1,
-      drdt,
-      dthetadt,
-      Distance,
-      ArcDistance,
-      MassIn,
-      ACNew
-    );
+    const qRunACNew = this.launchSimple_({ ...params, AngleCoefficient: ACNew });
     let error = Math.abs((GoalDistance - qRunACNew) / GoalDistance) * 100;
 
     while (error > 0.01 && Math.abs(AC2 - AC1) >= 0.0001) {
       ACNew = (AC1 + AC2) / 2;
-      error =
-        Math.abs(
-          (GoalDistance -
-            this.launchSimple_(
-              FuelArea1,
-              FuelArea2,
-              FuelMass,
-              FuelVolume,
-              RocketArea,
-              Altitude,
-              RocketCasingMass1,
-              RocketCasingMass2,
-              RocketCasingMass3,
-              NozzleAltitude1,
-              drdt,
-              dthetadt,
-              Distance,
-              ArcDistance,
-              MassIn,
-              ACNew
-            )) /
-            GoalDistance
-        ) * 100;
-      if (
-        this.launchSimple_(
-          FuelArea1,
-          FuelArea2,
-          FuelMass,
-          FuelVolume,
-          RocketArea,
-          Altitude,
-          RocketCasingMass1,
-          RocketCasingMass2,
-          RocketCasingMass3,
-          NozzleAltitude1,
-          drdt,
-          dthetadt,
-          Distance,
-          ArcDistance,
-          MassIn,
-          ACNew
-        ) > GoalDistance
-      ) {
+      error = Math.abs((GoalDistance - this.launchSimple_({ ...params, AngleCoefficient: ACNew })) / GoalDistance) * 100;
+      if (this.launchSimple_({ ...params, AngleCoefficient: ACNew }) > GoalDistance) {
         AC2 = ACNew;
       } else {
         AC1 = ACNew;
@@ -688,30 +640,28 @@ export class MissileSimulation {
     return AngleCoefficient;
   }
 
-  private launchSimple_(
-    FuelArea1: number,
-    FuelArea2: number,
-    FuelMass: number,
-    FuelVolume: number,
-    RocketArea: number,
-    Altitude: number,
-    RocketCasingMass1: number,
-    RocketCasingMass2: number,
-    RocketCasingMass3: number,
-    NozzleAltitude1: number,
-    drdt: number,
-    dthetadt: number,
-    Distance: number,
-    ArcDistance: number,
-    MassIn: number,
-    AngleCoefficient: number
-  ): number {
+  private launchSimple_(params: LaunchSimpleParams): number {
+    const { FuelArea1, FuelArea2, FuelVolume, RocketArea, RocketCasingMass1, RocketCasingMass2, RocketCasingMass3, NozzleAltitude1, MassIn, AngleCoefficient } = params;
+    let { FuelMass, Altitude, drdt, dthetadt, Distance, ArcDistance } = params;
     let NozzleAltitude2: number | undefined;
     let NozzleAltitude3: number | undefined;
     let out: number[] = [];
 
     while (FuelMass / this.fuelDensity_ / FuelVolume > 0.4 && Altitude >= 0) {
-      out = this.launchDetailed_(FuelArea1, FuelMass, RocketArea, Altitude, RocketCasingMass1, NozzleAltitude1, drdt, dthetadt, Distance, ArcDistance, MassIn, AngleCoefficient);
+      out = this.launchDetailed_({
+        FuelArea: FuelArea1,
+        FuelMass,
+        RocketArea,
+        Altitude,
+        RocketCasingMass: RocketCasingMass1,
+        NozzleAltitude: NozzleAltitude1,
+        drdt,
+        dthetadt,
+        Distance,
+        ArcDistance,
+        MassIn,
+        AngleCoefficient,
+      });
       FuelMass = out[0];
       drdt = out[12];
       Altitude = out[13];
@@ -721,7 +671,20 @@ export class MissileSimulation {
       NozzleAltitude2 = Altitude;
     }
     while (FuelMass / this.fuelDensity_ / FuelVolume > 0.19 && Altitude >= 0) {
-      out = this.launchDetailed_(FuelArea1, FuelMass, RocketArea, Altitude, RocketCasingMass2, NozzleAltitude2!, drdt, dthetadt, Distance, ArcDistance, MassIn, AngleCoefficient);
+      out = this.launchDetailed_({
+        FuelArea: FuelArea1,
+        FuelMass,
+        RocketArea,
+        Altitude,
+        RocketCasingMass: RocketCasingMass2,
+        NozzleAltitude: NozzleAltitude2!,
+        drdt,
+        dthetadt,
+        Distance,
+        ArcDistance,
+        MassIn,
+        AngleCoefficient,
+      });
       FuelMass = out[0];
       drdt = out[12];
       Altitude = out[13];
@@ -731,7 +694,20 @@ export class MissileSimulation {
       NozzleAltitude3 = Altitude;
     }
     while (FuelMass / this.fuelDensity_ / FuelVolume > 0 && Altitude >= 0) {
-      out = this.launchDetailed_(FuelArea2, FuelMass, RocketArea, Altitude, RocketCasingMass3, NozzleAltitude3!, drdt, dthetadt, Distance, ArcDistance, MassIn, AngleCoefficient);
+      out = this.launchDetailed_({
+        FuelArea: FuelArea2,
+        FuelMass,
+        RocketArea,
+        Altitude,
+        RocketCasingMass: RocketCasingMass3,
+        NozzleAltitude: NozzleAltitude3!,
+        drdt,
+        dthetadt,
+        Distance,
+        ArcDistance,
+        MassIn,
+        AngleCoefficient,
+      });
       FuelMass = out[0];
       drdt = out[12];
       Altitude = out[13];
@@ -745,7 +721,20 @@ export class MissileSimulation {
 
     while (Altitude > 0 && coastSteps < MissileSimulation.MAX_FLIGHT_STEPS) {
       FuelMass = 0;
-      out = this.launchDetailed_(FuelArea2, FuelMass, RocketArea, Altitude, RocketCasingMass3, NozzleAltitude3!, drdt, dthetadt, Distance, ArcDistance, MassIn, AngleCoefficient);
+      out = this.launchDetailed_({
+        FuelArea: FuelArea2,
+        FuelMass,
+        RocketArea,
+        Altitude,
+        RocketCasingMass: RocketCasingMass3,
+        NozzleAltitude: NozzleAltitude3!,
+        drdt,
+        dthetadt,
+        Distance,
+        ArcDistance,
+        MassIn,
+        AngleCoefficient,
+      });
       FuelMass = out[0];
       drdt = out[12];
       Altitude = out[13];

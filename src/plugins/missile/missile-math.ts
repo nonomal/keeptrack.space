@@ -43,6 +43,72 @@ interface MissileFlightFixed {
   hList: number[];
 }
 
+/** Inputs for a single flight integration step ({@link Missile.iterationFun_}). */
+interface IterationFunParams {
+  FuelArea: number;
+  FuelMass: number;
+  RocketArea: number;
+  Altitude: number;
+  RocketCasingMass: number;
+  NozzleAltitude: number;
+  drdt: number;
+  dthetadt: number;
+  Distance: number;
+  ArcDistance: number;
+  MassIn: number;
+  AngleCoefficient: number;
+  FuelDensity: number;
+  BurnRate: number;
+  WarheadMass: number;
+}
+
+/** Inputs for {@link Missile.testTrajectory_}. Field meanings match the JSDoc on that method. */
+interface TestTrajectoryParams {
+  FuelArea1: number;
+  FuelArea2: number;
+  FuelMass: number;
+  FuelVolume: number;
+  RocketArea: number;
+  Altitude: number;
+  RocketCasingMass1: number;
+  RocketCasingMass2: number;
+  RocketCasingMass3: number;
+  NozzleAltitude1: number;
+  drdt: number;
+  dthetadt: number;
+  Distance: number;
+  ArcDistance: number;
+  MassIn: number;
+  AngleCoefficient: number;
+  FuelDensity: number;
+  BurnRate: number;
+  WarheadMass: number;
+}
+
+/** Inputs for {@link Missile.calcBisection}. `_ArcLength` is kept for parity with the original signature but is unused. */
+interface CalcBisectionParams {
+  FuelArea1: number;
+  FuelArea2: number;
+  FuelMass: number;
+  FuelVolume: number;
+  RocketArea: number;
+  Altitude: number;
+  RocketCasingMass1: number;
+  RocketCasingMass2: number;
+  RocketCasingMass3: number;
+  NozzleAltitude1: number;
+  drdt: number;
+  dthetadt: number;
+  Distance: number;
+  ArcDistance: number;
+  MassIn: number;
+  _ArcLength: number;
+  GoalDistance: number;
+  FuelDensity: number;
+  BurnRate: number;
+  WarheadMass: number;
+}
+
 export class Missile {
   static EarthMass = 5.9726 * 10 ** 24; // (kg)
   static R = 287; // (J * K^-1 * kg^-1)
@@ -201,67 +267,51 @@ export class Missile {
    * The output for this function is:
    * ArcDistance:       The total distance traveled by the missile along the surface of the earth
    * var RocketMass, Tatm, Patm, AirDensity, c, M, cD, Thrust, DragForce, WeightForce, dr2dt, ArcVelocity, theta2dt;
-   * @param FuelArea1
-   * @param FuelArea2
-   * @param FuelMass
-   * @param FuelVolume
-   * @param RocketArea
-   * @param Altitude
-   * @param RocketCasingMass1
-   * @param RocketCasingMass2
-   * @param RocketCasingMass3
-   * @param NozzleAltitude1
-   * @param drdt
-   * @param dthetadt
-   * @param Distance
-   * @param ArcDistance
-   * @param MassIn
-   * @param AngleCoefficient
+   * @param params See {@link TestTrajectoryParams}; field meanings are listed above.
    * @returns
    */
-  private static testTrajectory_(
-    FuelArea1: any,
-    FuelArea2: any,
-    FuelMass: number,
-    FuelVolume: number,
-    RocketArea: any,
-    Altitude: number,
-    RocketCasingMass1: any,
-    RocketCasingMass2: any,
-    RocketCasingMass3: any,
-    NozzleAltitude1: any,
-    drdt: any,
-    dthetadt: any,
-    Distance: number,
-    ArcDistance: any,
-    MassIn: any,
-    AngleCoefficient: number,
-    FuelDensity,
-    BurnRate,
-    WarheadMass
-  ) {
-    let NozzleAltitude2, NozzleAltitude3;
-    let iterationFunOutput: any[] = [];
+  private static testTrajectory_(params: TestTrajectoryParams) {
+    const { FuelArea1, FuelArea2, FuelVolume, RocketArea, RocketCasingMass1, RocketCasingMass2, RocketCasingMass3, NozzleAltitude1, MassIn, AngleCoefficient } = params;
+    const { FuelDensity, BurnRate, WarheadMass } = params;
+    let { FuelMass, Altitude, drdt, dthetadt, Distance, ArcDistance } = params;
+    let NozzleAltitude2: number | undefined, NozzleAltitude3: number | undefined;
+    let iterationFunOutput: number[] = [];
     const MaxAltitude: number[] = [];
 
+    /*
+     * Reused for every integration step: iterationFun_ reads all fields up front, so
+     * mutating this single object between calls avoids allocating a fresh options
+     * object for each of the ~10^6 steps the 500-trajectory angle sweep runs per solve.
+     */
+    const step: IterationFunParams = {
+      FuelArea: FuelArea1,
+      FuelMass,
+      RocketArea,
+      Altitude,
+      RocketCasingMass: RocketCasingMass1,
+      NozzleAltitude: NozzleAltitude1,
+      drdt,
+      dthetadt,
+      Distance,
+      ArcDistance,
+      MassIn,
+      AngleCoefficient,
+      FuelDensity,
+      BurnRate,
+      WarheadMass,
+    };
+    const syncStep = () => {
+      step.FuelMass = FuelMass;
+      step.Altitude = Altitude;
+      step.drdt = drdt;
+      step.dthetadt = dthetadt;
+      step.Distance = Distance;
+      step.ArcDistance = ArcDistance;
+    };
+
     while (FuelMass / FuelDensity / FuelVolume > 0.4 && Altitude >= 0) {
-      iterationFunOutput = Missile.iterationFun_(
-        FuelArea1,
-        FuelMass,
-        RocketArea,
-        Altitude,
-        RocketCasingMass1,
-        NozzleAltitude1,
-        drdt,
-        dthetadt,
-        Distance,
-        ArcDistance,
-        MassIn,
-        AngleCoefficient,
-        FuelDensity,
-        BurnRate,
-        WarheadMass
-      );
+      syncStep();
+      iterationFunOutput = Missile.iterationFun_(step);
       FuelMass = iterationFunOutput[0];
       drdt = iterationFunOutput[12];
       Altitude = iterationFunOutput[13];
@@ -271,24 +321,11 @@ export class Missile {
       dthetadt = iterationFunOutput[18];
       NozzleAltitude2 = Altitude;
     }
+    step.RocketCasingMass = RocketCasingMass2;
+    step.NozzleAltitude = NozzleAltitude2;
     while (FuelMass / FuelDensity / FuelVolume > 0.19 && Altitude >= 0) {
-      iterationFunOutput = Missile.iterationFun_(
-        FuelArea1,
-        FuelMass,
-        RocketArea,
-        Altitude,
-        RocketCasingMass2,
-        NozzleAltitude2,
-        drdt,
-        dthetadt,
-        Distance,
-        ArcDistance,
-        MassIn,
-        AngleCoefficient,
-        FuelDensity,
-        BurnRate,
-        WarheadMass
-      );
+      syncStep();
+      iterationFunOutput = Missile.iterationFun_(step);
       FuelMass = iterationFunOutput[0];
       drdt = iterationFunOutput[12];
       Altitude = iterationFunOutput[13];
@@ -298,24 +335,12 @@ export class Missile {
       dthetadt = iterationFunOutput[18];
       NozzleAltitude3 = Altitude;
     }
+    step.FuelArea = FuelArea2;
+    step.RocketCasingMass = RocketCasingMass3;
+    step.NozzleAltitude = NozzleAltitude3;
     while (FuelMass / FuelDensity / FuelVolume > 0 && Altitude >= 0) {
-      iterationFunOutput = Missile.iterationFun_(
-        FuelArea2,
-        FuelMass,
-        RocketArea,
-        Altitude,
-        RocketCasingMass3,
-        NozzleAltitude3,
-        drdt,
-        dthetadt,
-        Distance,
-        ArcDistance,
-        MassIn,
-        AngleCoefficient,
-        FuelDensity,
-        BurnRate,
-        WarheadMass
-      );
+      syncStep();
+      iterationFunOutput = Missile.iterationFun_(step);
       FuelMass = iterationFunOutput[0];
       drdt = iterationFunOutput[12];
       Altitude = iterationFunOutput[13];
@@ -326,23 +351,8 @@ export class Missile {
     }
     while (Altitude > 0) {
       FuelMass = 0;
-      iterationFunOutput = Missile.iterationFun_(
-        FuelArea2,
-        FuelMass,
-        RocketArea,
-        Altitude,
-        RocketCasingMass3,
-        NozzleAltitude3,
-        drdt,
-        dthetadt,
-        Distance,
-        ArcDistance,
-        MassIn,
-        AngleCoefficient,
-        FuelDensity,
-        BurnRate,
-        WarheadMass
-      );
+      syncStep();
+      iterationFunOutput = Missile.iterationFun_(step);
       FuelMass = iterationFunOutput[0];
       drdt = iterationFunOutput[12];
       Altitude = iterationFunOutput[13];
@@ -391,47 +401,12 @@ export class Missile {
    * ArcLength:         Distance from the starting point to the target along the surface of the earth
    * The functions output it:
    * AngleCoefficient:  The angle coefficient which directs the missile directly to it's target
-   * @param FuelArea1
-   * @param FuelArea2
-   * @param FuelMass
-   * @param FuelVolume
-   * @param RocketArea
-   * @param Altitude
-   * @param RocketCasingMass1
-   * @param RocketCasingMass2
-   * @param RocketCasingMass3
-   * @param NozzleAltitude1
-   * @param drdt
-   * @param dthetadt
-   * @param Distance
-   * @param ArcDistance
-   * @param MassIn
-   * @param _ArcLength
-   * @param GoalDistance
+   * @param params See {@link CalcBisectionParams}; field meanings are listed above.
    * @returns
    */
-  private static calcBisection(
-    FuelArea1: number,
-    FuelArea2: number,
-    FuelMass: number,
-    FuelVolume: number,
-    RocketArea: number,
-    Altitude: number,
-    RocketCasingMass1: number,
-    RocketCasingMass2: number,
-    RocketCasingMass3: number,
-    NozzleAltitude1: number,
-    drdt: number,
-    dthetadt: number,
-    Distance: number,
-    ArcDistance: number,
-    MassIn: number,
-    _ArcLength: number,
-    GoalDistance: number,
-    FuelDensity,
-    BurnRate,
-    WarheadMass
-  ) {
+  private static calcBisection(params: CalcBisectionParams) {
+    const { FuelArea1, FuelArea2, FuelMass, FuelVolume, RocketArea, Altitude, RocketCasingMass1, RocketCasingMass2, RocketCasingMass3, NozzleAltitude1 } = params;
+    const { drdt, dthetadt, Distance, ArcDistance, MassIn, GoalDistance, FuelDensity, BurnRate, WarheadMass } = params;
     const DistanceSteps: number[] = [];
     let AngleCoefficient = 0;
     let DistanceClosePossition = 0;
@@ -442,7 +417,7 @@ export class Missile {
     for (let i = 0; i < Steps; i++) {
       AngleCoefficient = (i * 1) / Steps / 2 + 0.5;
       DistanceSteps.push(
-        Missile.testTrajectory_(
+        Missile.testTrajectory_({
           FuelArea1,
           FuelArea2,
           FuelMass,
@@ -461,8 +436,8 @@ export class Missile {
           AngleCoefficient,
           FuelDensity,
           BurnRate,
-          WarheadMass
-        )
+          WarheadMass,
+        })
       );
     }
     let DistanceClosest = DistanceSteps[0];
@@ -488,7 +463,7 @@ export class Missile {
     AC1 = (DistanceClosePossition - 2) / Steps / 2 + 0.5;
     AC2 = (DistanceClosePossition + 2) / Steps / 2 + 0.5;
     let ACNew: number = (AC1 + AC2) / 2;
-    const qRunACNew = Missile.testTrajectory_(
+    const qRunACNew = Missile.testTrajectory_({
       FuelArea1,
       FuelArea2,
       FuelMass,
@@ -504,11 +479,11 @@ export class Missile {
       Distance,
       ArcDistance,
       MassIn,
-      ACNew,
+      AngleCoefficient: ACNew,
       FuelDensity,
       BurnRate,
-      WarheadMass
-    );
+      WarheadMass,
+    });
     let error = Math.abs((GoalDistance - qRunACNew) / GoalDistance) * 100;
 
     while (error > 0.01 && Math.abs(AC2 - AC1) >= 0.0001) {
@@ -516,7 +491,7 @@ export class Missile {
       error =
         Math.abs(
           (GoalDistance -
-            Missile.testTrajectory_(
+            Missile.testTrajectory_({
               FuelArea1,
               FuelArea2,
               FuelMass,
@@ -532,15 +507,15 @@ export class Missile {
               Distance,
               ArcDistance,
               MassIn,
-              ACNew,
+              AngleCoefficient: ACNew,
               FuelDensity,
               BurnRate,
-              WarheadMass
-            )) /
+              WarheadMass,
+            })) /
             GoalDistance
         ) * 100;
       if (
-        Missile.testTrajectory_(
+        Missile.testTrajectory_({
           FuelArea1,
           FuelArea2,
           FuelMass,
@@ -556,11 +531,11 @@ export class Missile {
           Distance,
           ArcDistance,
           MassIn,
-          ACNew,
+          AngleCoefficient: ACNew,
           FuelDensity,
           BurnRate,
-          WarheadMass
-        ) > GoalDistance
+          WarheadMass,
+        }) > GoalDistance
       ) {
         AC2 = ACNew;
       } else {
@@ -706,7 +681,7 @@ export class Missile {
    * @param NozzleAltitude
    * @returns
    */
-  private static calcThrustForce_(MassOut: number, Altitude: any, FuelArea: number, NozzleAltitude: any) {
+  private static calcThrustForce_(MassOut: number, Altitude: number, FuelArea: number, NozzleAltitude: number) {
     const k = 1.2; // Heat Ratio
     const Ru = 8314.4621; // Universal Gas Constant (m^3 Pa / K mol)
     const Tc = 3700; // (K)
@@ -772,23 +747,9 @@ export class Missile {
    *
    * This governs the thrust angle as a function of altitude
    */
-  private static iterationFun_(
-    FuelArea: number,
-    FuelMass: number,
-    RocketArea: number,
-    Altitude: number,
-    RocketCasingMass: number,
-    NozzleAltitude: number,
-    drdt: number,
-    dthetadt: number,
-    Distance: number,
-    ArcDistance: number,
-    MassIn: number,
-    AngleCoefficient: number,
-    FuelDensity: number,
-    BurnRate: number,
-    WarheadMass: number
-  ) {
+  private static iterationFun_(params: IterationFunParams) {
+    const { FuelArea, RocketArea, RocketCasingMass, NozzleAltitude, MassIn, AngleCoefficient, FuelDensity, BurnRate, WarheadMass } = params;
+    let { FuelMass, Altitude, drdt, dthetadt, Distance, ArcDistance } = params;
     let ThrustAngle;
 
     if (Altitude < 1200000) {
@@ -1001,23 +962,23 @@ export class Missile {
     NozzleAltitude: number | undefined,
     useStrictUpper: boolean
   ): number {
-    const iterationFunOutput = Missile.iterationFun_(
+    const iterationFunOutput = Missile.iterationFun_({
       FuelArea,
-      state.FuelMass,
-      fixed.RocketArea,
-      state.Altitude,
+      FuelMass: state.FuelMass,
+      RocketArea: fixed.RocketArea,
+      Altitude: state.Altitude,
       RocketCasingMass,
       NozzleAltitude,
-      state.drdt,
-      state.dthetadt,
-      state.Distance,
-      state.ArcDistance,
-      fixed.MassIn,
-      fixed.AngleCoefficient,
-      fixed.FuelDensity,
-      fixed.BurnRate,
-      fixed.WarheadMass
-    );
+      drdt: state.drdt,
+      dthetadt: state.dthetadt,
+      Distance: state.Distance,
+      ArcDistance: state.ArcDistance,
+      MassIn: fixed.MassIn,
+      AngleCoefficient: fixed.AngleCoefficient,
+      FuelDensity: fixed.FuelDensity,
+      BurnRate: fixed.BurnRate,
+      WarheadMass: fixed.WarheadMass,
+    });
 
     state.FuelMass = iterationFunOutput[0];
     state.drdt = iterationFunOutput[12];
@@ -1146,13 +1107,13 @@ export class Missile {
     TargetLongitude: number;
     NumberWarheads: number;
     MissileObjectNum: string | number;
-    CurrentTime: any;
-    MissileDesc: any;
+    CurrentTime: number | Date;
+    MissileDesc: string;
     Length: number;
     Diameter: number;
     NewBurnRate: number;
     MaxMissileRange: number;
-    country: any;
+    country: string;
     minAltitude: number;
   }) {
     const catalogManagerInstance = ServiceLocator.getCatalogManager();
@@ -1238,7 +1199,7 @@ export class Missile {
 
     const hList: number[] = [];
 
-    const AngleCoefficient = Missile.calcBisection(
+    const AngleCoefficient = Missile.calcBisection({
       FuelArea1,
       FuelArea2,
       FuelMass,
@@ -1254,12 +1215,12 @@ export class Missile {
       Distance,
       ArcDistance,
       MassIn,
-      ArcLength,
+      _ArcLength: ArcLength,
       GoalDistance,
       FuelDensity,
       BurnRate,
-      WarheadMass
-    );
+      WarheadMass,
+    });
 
     const flightState: MissileFlightState = { FuelMass, drdt, dthetadt, Altitude, Distance, ArcDistance };
     const flightFixed: MissileFlightFixed = {
@@ -1329,7 +1290,10 @@ export class Missile {
     missileObj.name = `RV_${missileObj.id}`;
     // maxAlt is used for zoom controls
     missileObj.maxAlt = MaxAltitude;
-    missileObj.startTime = CurrentTime;
+    // Callers (tests) pass either epoch ms or a Date; MissileObject.startTime is declared
+    // as a number and all downstream arithmetic coerces a Date identically, so keep the
+    // pre-typing runtime behavior and just assert.
+    missileObj.startTime = CurrentTime as number;
     if (country) {
       missileObj.country = country;
     }
