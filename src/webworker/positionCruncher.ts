@@ -178,7 +178,7 @@ const resetForCatalogSwap = (newLen: number, fovSetLength: number, seqNum: numbe
 
 // Handles Incomming Messages to sat-cruncher from main thread
 try {
-  onmessage = (m) => onmessageProcessing(m);
+  self.onmessage = (m) => onmessageProcessing(m);
 } catch (e) {
   // If Jest isn't running then throw the error
   if (!process) {

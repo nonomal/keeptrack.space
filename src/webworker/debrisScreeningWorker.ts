@@ -238,9 +238,9 @@ function onmessageProcessing_(m: MessageEvent<DsWorkerInMsg>): void {
 // ─── Worker initialization ──────────────────────────────────────────────────
 
 try {
-  onmessage = onmessageProcessing_;
+  self.onmessage = onmessageProcessing_;
 } catch {
-  // Node.js environment (testing) — onmessage not available
+  // Node.js environment (testing) - self not available
 }
 
 postMessage('ready');

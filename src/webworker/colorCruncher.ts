@@ -1919,7 +1919,7 @@ function scheduleRecalc(): void {
 
 // ─── Message Handler ─────────────────────────────────────────────────────────
 
-onmessage = function onmessage(event: MessageEvent<ColorWorkerInMsg>) {
+self.onmessage = function onmessage(event: MessageEvent<ColorWorkerInMsg>) {
   const msg = event.data;
 
   switch (msg.typ) {

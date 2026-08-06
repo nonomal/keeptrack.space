@@ -9,8 +9,6 @@
  * uses. The single-satellite mode is fast and stays on the main thread.
  */
 
-/* eslint-disable no-await-in-loop, no-promise-executor-return */
-
 import { Satellite } from '@ootk/src/main';
 import { dataToSat, findRpoPairs, findSatsAvAGeo, findSatsAvALeo, ProximityOpsEvent, ProxSatData, RpoSearchParams } from '../plugins/proximity-ops/proximity-ops-core';
 import { type RpoMsgStart, type RpoWorkerInMsg, RpoWorkerMsgType, RpoWorkerOutMsgType } from './proximity-ops-messages';
@@ -47,6 +45,7 @@ async function surveyGeo_(runId: number, sats: Satellite[], params: RpoSearchPar
 
     RPOs = RPOs.concat(findRpoPairs(binSats, params, baseDate, true, satPairs));
     postMessage({ typ: RpoWorkerOutMsgType.PROGRESS, runId, done: idx + 1, total: lons.length });
+    // biome-ignore lint/performance/noAwaitInLoops: sequential await is the yield that lets a queued CANCEL message interrupt the survey between bins
     await yieldToLoop_();
   }
 
@@ -81,6 +80,7 @@ async function surveyLeo_(runId: number, sats: Satellite[], params: RpoSearchPar
     }
 
     postMessage({ typ: RpoWorkerOutMsgType.PROGRESS, runId, done: idx + 1, total: incs.length });
+    // biome-ignore lint/performance/noAwaitInLoops: sequential await is the yield that lets a queued CANCEL message interrupt the survey between bins
     await yieldToLoop_();
   }
 
@@ -144,7 +144,7 @@ async function handleStart_(msg: RpoMsgStart): Promise<void> {
 }
 
 /** Worker message router: dispatches START to the survey and records CANCEL. */
-onmessage = async function onmessage(event: MessageEvent<RpoWorkerInMsg>) {
+self.onmessage = async function onmessage(event: MessageEvent<RpoWorkerInMsg>) {
   const msg = event.data;
 
   if (isSgp4WasmBackendMsg(msg)) {
