@@ -64,8 +64,7 @@ const setupStandardEnvironment = () => {
     },
   } as any;
 
-  // eslint-disable-next-line require-await
-  vi.spyOn(CatalogLoader, 'load').mockImplementation(async () => {
+  vi.spyOn(CatalogLoader, 'load').mockImplementation(() => {
     // Setup a mock catalog
     const catalogManagerInstance = ServiceLocator.getCatalogManager();
 
@@ -81,6 +80,8 @@ const setupStandardEnvironment = () => {
 
     // Call the onmessage handler only if it is set to avoid "possibly null" invocation.
     catalogManagerInstance.satCruncher.onmessage?.({ data: { type: 'satData', data: [] } as unknown as SatCruncherMessageData } as unknown as MessageEvent);
+
+    return Promise.resolve();
   });
 
   // Pretend webGl works
