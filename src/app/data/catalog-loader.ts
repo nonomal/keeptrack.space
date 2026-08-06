@@ -1,5 +1,5 @@
 /* eslint-disable max-lines */
-import { DetailedSensor } from '@app/app/sensors/DetailedSensor';
+import { DetailedSensor, DetailedSensorParams } from '@app/app/sensors/DetailedSensor';
 import { rgbaArray, SolarBody } from '@app/engine/core/interfaces';
 import { ServiceLocator } from '@app/engine/core/service-locator';
 import { bodyGlyphFor } from '@app/engine/rendering/body-glyph';
@@ -8,7 +8,22 @@ import { allPlanetMoons } from '@app/engine/rendering/draw-manager/celestial-bod
 import { errorManagerInstance } from '@app/engine/utils/errorManager';
 import { StringPad } from '@app/engine/utils/stringPad';
 import { CruncherSat } from '@app/webworker/positionCruncher';
-import { BaseObject, CatalogSource, LandObject, Marker, OmmDataFormat, PayloadStatus, Satellite, SpaceObjectType, Star, Tle, TleLine1, TleLine2 } from '@ootk/src/main';
+import {
+  BaseObject,
+  CatalogSource,
+  LandObject,
+  Marker,
+  OmmDataFormat,
+  PayloadStatus,
+  Satellite,
+  SpaceObjectType,
+  Star,
+  StarObjectParams,
+  Tle,
+  TleLine1,
+  TleLine2,
+} from '@ootk/src/main';
+import { LandObjectParams } from '@ootk/src/objects/LandObject';
 import Papa from 'papaparse';
 import { EventBus } from '../../engine/events/event-bus';
 import { EventBusEvent } from '../../engine/events/event-bus-events';
@@ -767,9 +782,11 @@ export class CatalogLoader {
       i++;
 
       if (staticSat.maxRng) {
+        // staticSet entries are only partially typed (StaticSetEntry); sensor entries carry
+        // the full DetailedSensorParams shape at runtime, so cast per entry kind.
         const sensor = new DetailedSensor({
+          ...(staticSat as unknown as DetailedSensorParams),
           id: tempObjData.length,
-          ...staticSat,
         });
 
         tempObjData.push(sensor);
@@ -777,15 +794,15 @@ export class CatalogLoader {
         tempObjData.push(staticSat);
       } else if (staticSat.type === SpaceObjectType.STAR) {
         const star = new Star({
+          ...(staticSat as unknown as StarObjectParams),
           id: tempObjData.length,
-          ...staticSat,
         });
 
         tempObjData.push(star);
       } else {
         const landObj = new LandObject({
+          ...(staticSat as unknown as LandObjectParams),
           id: tempObjData.length,
-          ...staticSat,
         });
 
         tempObjData.push(landObj);
@@ -1072,8 +1089,7 @@ export class CatalogLoader {
    * @param {SettingsManager} settingsManager - The settings manager containing the URL for the external TLEs.
    * @returns {Promise<AsciiTleSat[]>} - A promise that resolves to an array of AsciiTleSat objects representing the satellite TLEs.
    */
-  // eslint-disable-next-line require-await
-  private static async getExternalCatalog_(settingsManager: SettingsManager): Promise<AsciiTleSat[] | null> {
+  private static getExternalCatalog_(settingsManager: SettingsManager): Promise<AsciiTleSat[] | null> {
     return fetch(settingsManager.dataSources.externalTLEs)
       .then((resp) => {
         if (resp.ok) {

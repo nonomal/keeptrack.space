@@ -37,14 +37,14 @@ describe('ObjectGroup_SCC_NUM_mixedFormResolution', () => {
   });
 
   it('passes a numeric entry through as a number (no caller-side stringify)', () => {
-    // eslint-disable-next-line no-new
+    // biome-ignore lint/correctness/noUnusedInstantiation: constructor side effects (sccNum2Id calls) are what is under test
     new ObjectGroup(GroupType.SCC_NUM, [25544]);
 
     expect(sccNumSpy).toHaveBeenCalledWith(25544);
   });
 
   it('passes alpha-5 and extended string entries through verbatim', () => {
-    // eslint-disable-next-line no-new
+    // biome-ignore lint/correctness/noUnusedInstantiation: constructor side effects (sccNum2Id calls) are what is under test
     new ObjectGroup(GroupType.SCC_NUM, ['T0001', '799500766']);
 
     expect(sccNumSpy).toHaveBeenCalledWith('T0001');

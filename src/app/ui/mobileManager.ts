@@ -17,8 +17,7 @@ import { getEl, hideEl } from '../../engine/utils/get-el';
 export class MobileManager {
   static readonly MOBILE_ORBIT_LIMIT = 1500;
 
-  // eslint-disable-next-line require-await
-  static async checkMobileMode() {
+  static checkMobileMode() {
     try {
       // Don't become mobile after initialization
       if (!KeepTrack.getInstance().isInitialized) {

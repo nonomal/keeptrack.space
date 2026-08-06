@@ -237,6 +237,7 @@ describe('Extended catalog loader (mixed-width NORAD IDs)', () => {
       // clone per iteration to guarantee each call starts from a clean payload.
       const clonedRows = rows.map((r) => ({ ...r })) as never;
 
+      // biome-ignore lint/performance/noAwaitInLoops: each row ordering must finish loading into the shared catalog before its assertions run
       await expect(CatalogLoader.parse({ keepTrackTle: clonedRows })).resolves.not.toThrow();
 
       const catalogManager = ServiceLocator.getCatalogManager();

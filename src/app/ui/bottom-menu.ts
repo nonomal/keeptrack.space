@@ -208,7 +208,9 @@ export class BottomMenu {
     const menuElements = menuIds.map((id) => getEl(id));
 
     if (menuElements.every((el) => el !== null)) {
-      menuElements.forEach((el) => el.classList.remove('bmenu-item-selected'));
+      menuElements.forEach((el) => {
+        el.classList.remove('bmenu-item-selected');
+      });
     } else {
       errorManagerInstance.warn('Failed to find all bottom menu filter buttons');
     }

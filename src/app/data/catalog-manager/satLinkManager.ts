@@ -29,11 +29,13 @@ export enum LinkType {
 }
 
 export class SatLinkManager {
-  aehfUsers: number[] = [];
-  wgsUsers: number[] = [];
-  iridiumUsers: number[] = [];
-  starlinkUsers: number[] = [];
-  galileoUsers: number[] = [];
+  // Mixed bags: control-site entries contribute numeric ids, staticSet sensor entries
+  // contribute sensor NAMES; showLinks resolves every entry via name lookup (.toString()).
+  aehfUsers: (number | string)[] = [];
+  wgsUsers: (number | string)[] = [];
+  iridiumUsers: (number | string)[] = [];
+  starlinkUsers: (number | string)[] = [];
+  galileoUsers: (number | string)[] = [];
   // Satellite catalog numbers - converted to string IDs at runtime via idToSatnum_()
   private readonly aehfSatnums_: number[] = [22988, 23712, 26715, 27168, 27711, 36868, 38254, 39256, 43651, 44481, 45465]; // Milstar and AEHF
   private readonly dscsSatnums_: number[] = [25019, 26052, 27691, 27875]; // Dead: 22915, 23628
@@ -155,7 +157,7 @@ export class SatLinkManager {
     lineManager.clear();
 
     let satlist: number[];
-    let userlist: number[] = [];
+    let userlist: (number | string)[] = [];
     let minTheta: number;
     let elevationMask: number;
     let linkType: LinkType;
