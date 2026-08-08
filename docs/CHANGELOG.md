@@ -2,7 +2,32 @@
 
 All notable changes to this project will be documented in this file. Dates are displayed in UTC.
 
+#### [v13.10.0](https://github.com/thkruz/keeptrack.space/compare/v13.9.0...v13.10.0)
+
+- Refactor and fix biome warnings, enhance missile reports and routing [`#1424`](https://github.com/thkruz/keeptrack.space/pull/1424)
+- fix(catalogs): :bug: add the country codes missing from the app vocabulary [`41ddef1`](https://github.com/thkruz/keeptrack.space/commit/41ddef1f4c20559c7c1d0e7869f4429981525cef)
+- refactor(missile): :recycle: pass the trajectory math as options objects [`3be82f0`](https://github.com/thkruz/keeptrack.space/commit/3be82f0871de7249b57566563057361d1747aec9)
+- feat(mesh): :sparkles: route pro model variants through a resolver pack [`8c73ef0`](https://github.com/thkruz/keeptrack.space/commit/8c73ef086bf73ec806a423dc25022b4a9392e00e)
+- feat(reports): :sparkles: allow LLA/ECI/COES/sun-eclipse reports on OEM and missile objects [`16f33fc`](https://github.com/thkruz/keeptrack.space/commit/16f33fc6b9f0859e3d231fb26626116acb3bfb8b)
+- refactor(engine): :recycle: clear the biome warnings across the engine [`9df509b`](https://github.com/thkruz/keeptrack.space/commit/9df509bf8a52ca3a7263c2871405461b2c7f2c58)
+- refactor(plugins): :recycle: clear the biome warnings across the plugins [`8cfe57b`](https://github.com/thkruz/keeptrack.space/commit/8cfe57b1f9d82ded798730428bba7a9c42c26ffe)
+- fix(missile): :bug: honor the date argument in MissileObject.eci [`339e891`](https://github.com/thkruz/keeptrack.space/commit/339e891e9a059a5e1fa03cb91ef238ce73a4abed)
+- refactor(app): :recycle: clear the biome warnings in the catalog, sensor and ui layers [`0a83ccf`](https://github.com/thkruz/keeptrack.space/commit/0a83ccfa52344c62042cb7edfe4ca974f58e53e6)
+- refactor(webworker): :recycle: clear the biome warnings in the worker entries [`e8a27ca`](https://github.com/thkruz/keeptrack.space/commit/e8a27caad473938e13728e273a720ea86d526c02)
+- fix(catalogs): :bug: add Montenegro and the Balearic regional code [`74d4a30`](https://github.com/thkruz/keeptrack.space/commit/74d4a30702cc0e3121ad57b6b36bd16e19b4e070)
+- test: :white_check_mark: clear the biome warnings in the app-level suites [`0b38edb`](https://github.com/thkruz/keeptrack.space/commit/0b38edbd47888494e06fa4275729feec0856a56d)
+- refactor(settings): :recycle: clear the biome warnings in the settings classes [`838c81d`](https://github.com/thkruz/keeptrack.space/commit/838c81da7393e8a1a911d4971f92accaca353a22)
+- chore(biome): :wrench: exclude vendored sources and restore the 8-param limit [`ed28522`](https://github.com/thkruz/keeptrack.space/commit/ed2852205d01fa5d711728a8d75fa8f6a13e9505)
+- fix(sat-changes): improve event handling for clickable rows in satChng-menu [`96f4485`](https://github.com/thkruz/keeptrack.space/commit/96f44855e6755cff0baeb3246b3c71963ba36672)
+- chore(plugins-pro): :wrench: update subproject commit reference [`63e9213`](https://github.com/thkruz/keeptrack.space/commit/63e921328741ef563cb7379af9892c5b2a339d6d)
+- fix(plugin-manifest): :bug: set defaultConfig.enabled to false for BottomBannerSponsor [`7593131`](https://github.com/thkruz/keeptrack.space/commit/7593131b338444763fb16e758218f2d8d01bd86a)
+- chore(plugins-pro): :wrench: update subproject commit reference [`25eb774`](https://github.com/thkruz/keeptrack.space/commit/25eb7746160480db9ec344caa52581d346b8d42b)
+- chore(plugins-pro): :wrench: update subproject commit reference [`e776d8c`](https://github.com/thkruz/keeptrack.space/commit/e776d8cdb657a98788a2bc836c60fc8fe57c46cb)
+- chore(plugins-pro): :wrench: update subproject commit reference [`eb4a986`](https://github.com/thkruz/keeptrack.space/commit/eb4a9865d45186802b195345a25bbcfcc15748c4)
+
 #### [v13.9.0](https://github.com/thkruz/keeptrack.space/compare/v13.8.0...v13.9.0)
+
+>  
 
 - Enhance mesh viewer with headless captures and media management [`#1421`](https://github.com/thkruz/keeptrack.space/pull/1421)
 - Adjust ad placeholder positioning and cap fork concurrency [`#1419`](https://github.com/thkruz/keeptrack.space/pull/1419)
@@ -26,6 +51,7 @@ All notable changes to this project will be documented in this file. Dates are d
 - feat(mesh-viewer): :sparkles: add the resumable site-media batch driver [`d72cee6`](https://github.com/thkruz/keeptrack.space/commit/d72cee680f69f7cc28f8cfca4df6968538859069)
 - feat(mesh-viewer): :sparkles: poster frames and skip-unchanged uploads [`fa56881`](https://github.com/thkruz/keeptrack.space/commit/fa56881c7fd965434df17d02adc1ed177ab932f0)
 - build(webpack): :wrench: copy the Pro mesh pack into pro builds [`05708ea`](https://github.com/thkruz/keeptrack.space/commit/05708eac41a81d31f3ea07306552fc47bff03eb6)
+- chore(release): :bookmark: 13.9.0 [skip ci] [`d66590a`](https://github.com/thkruz/keeptrack.space/commit/d66590a4716636f978725b9a77056baf4b5bca43)
 - fix(mesh): :bug: harden isRegisteredModel and mesh-tool CLI parsing [`7e59e9d`](https://github.com/thkruz/keeptrack.space/commit/7e59e9dcc2407aeb659a26b8d1d3dc6e7f41e6ee)
 - style(loading-screen): :art: adjust ad placeholder positioning [`72ff5e5`](https://github.com/thkruz/keeptrack.space/commit/72ff5e5ce32f170d7611ae3dc5c008b6bbc706be)
 - chore(coverage): :wrench: exclude pro dev tooling from coverage and re-baseline thresholds [`18383d0`](https://github.com/thkruz/keeptrack.space/commit/18383d0b69ee8d721096c15caf12500d46fba335)
