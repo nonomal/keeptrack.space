@@ -53,6 +53,7 @@ export const countryCodeList = {
   Malaysia: 'MALA',
   Mauritius: 'MUS',
   Mexico: 'MX|MEX',
+  Montenegro: 'ME',
   Moldova: 'MDA',
   Mongolia: 'MNG',
   Morocco: 'MA',
@@ -154,6 +155,7 @@ export const countryFlagIconMap = {
   EG: 'EG',
   ENG: 'GB-ENG', // England
   ESCN: 'ES', // Canary Islands are part of Spain
+  ESIB: 'ES', // Balearic Islands are part of Spain
   ET: 'ET',
   F: 'FR', // France
   FI: 'FI',
@@ -214,6 +216,7 @@ export const countryFlagIconMap = {
   MA: 'MA',
   MC: 'MC',
   MD: 'MD',
+  ME: 'ME',
   MH: 'MH',
   MN: 'MN',
   MR: 'MR',
@@ -477,6 +480,7 @@ export const getCountryMapList = () => ({
   ENG: t7e('countries.ENG'),
   ES: t7e('countries.SPN'),
   ESCN: t7e('countries.ESCN'),
+  ESIB: t7e('countries.ESIB'),
   'ESA/JAXA': t7e('countries.ESA/JAXA'),
   ET: t7e('countries.ET'),
   F: t7e('countries.F'),
@@ -540,6 +544,7 @@ export const getCountryMapList = () => ({
   MA: t7e('countries.MA'),
   MC: t7e('countries.MC'),
   MD: t7e('countries.MD'),
+  ME: t7e('countries.ME'),
   MH: t7e('countries.MH'),
   MN: t7e('countries.MN'),
   MR: t7e('countries.MR'),
