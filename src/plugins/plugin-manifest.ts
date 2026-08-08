@@ -154,7 +154,7 @@ export const pluginManifest: PluginDescriptor[] = [
     configKey: 'BottomBannerSponsor',
     proImport: __IS_PRO__ ? () => import(/* @vite-ignore */ '@plugins-pro/bottom-banner-sponsor/bottom-banner-sponsor') : undefined,
     proClassName: 'BottomBannerSponsor',
-    defaultConfig: { enabled: true },
+    defaultConfig: { enabled: false },
   },
   {
     configKey: 'SatInfoBoxSensor',
