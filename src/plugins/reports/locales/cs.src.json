@@ -60,6 +60,9 @@
         "howToUse": "<ol><li>Vyberte satelit; spodní ikona je neaktivní, dokud žádný není vybrán.</li><li>Pro zprávy založené na senzoru vyberte také senzor.</li><li>Otevřete <strong>Zprávy</strong> ze spodní lišty a klikněte na tlačítko zprávy. Zpráva se otevře ve vyskakovacím okně.</li><li>Pomocí tlačítka pro stažení v okně zprávy ji uložíte jako textový soubor.</li></ol>",
         "tip1": "Zprávy pokrývají několik dní dat; u zpráv založených na přeletech může generování trvat několik sekund.",
         "tip2": "Pokud se okno se zprávou nezobrazí, obvyklým viníkem je blokování vyskakovacích oken ve vašem prohlížeči; povolte vyskakovací okna pro tento web."
+      },
+      "errorMsgs": {
+        "notSupportedForObject": "Tento report není pro vybraný objekt k dispozici."
       }
     }
   }

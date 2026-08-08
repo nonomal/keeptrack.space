@@ -1,6 +1,7 @@
 /* eslint-disable max-lines-per-function */
 /* eslint-disable dot-notation */
 /* eslint-disable no-new */
+import { MissileObject } from '@app/app/data/catalog-manager/MissileObject';
 import { MenuMode } from '@app/engine/core/interfaces';
 import { ServiceLocator } from '@app/engine/core/service-locator';
 import { getEl } from '@app/engine/utils/get-el';
@@ -109,7 +110,7 @@ describe('ReportsPlugin_class', () => {
 
   describe('Report registry', () => {
     it('should have built-in reports registered', () => {
-      // Constructor registers built-in reports as a side effect
+      // biome-ignore lint/correctness/noUnusedInstantiation: constructor registers built-in reports the assertions read
       new ReportsPlugin();
       const reports = ReportsPlugin.getRegisteredReports();
 
@@ -117,6 +118,7 @@ describe('ReportsPlugin_class', () => {
     });
 
     it('should include all expected report IDs', () => {
+      // biome-ignore lint/correctness/noUnusedInstantiation: constructor registers built-in reports the assertions read
       new ReportsPlugin();
       const reports = ReportsPlugin.getRegisteredReports();
       const ids = reports.map((r) => r.id);
@@ -130,6 +132,7 @@ describe('ReportsPlugin_class', () => {
     });
 
     it('should register and unregister custom reports', () => {
+      // biome-ignore lint/correctness/noUnusedInstantiation: constructor registers built-in reports the assertions read
       new ReportsPlugin();
       const countBefore = ReportsPlugin.getRegisteredReports().length;
 
@@ -147,6 +150,7 @@ describe('ReportsPlugin_class', () => {
     });
 
     it('should mark sensor-requiring reports correctly', () => {
+      // biome-ignore lint/correctness/noUnusedInstantiation: constructor registers built-in reports the assertions read
       new ReportsPlugin();
       const reports = ReportsPlugin.getRegisteredReports();
 
@@ -354,6 +358,67 @@ describe('ReportsPlugin report generation', () => {
       getEl('coes-report-btn')!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
       vi.unstubAllGlobals();
+      expect(alertSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe('non-TLE report targets (missiles / OEM objects)', () => {
+    const start = Date.UTC(2022, 5, 1);
+    const makeMissileTarget = () =>
+      new MissileObject({
+        id: 3,
+        active: true,
+        name: 'Interceptor → TEST SAT',
+        desc: 'Interceptor (Test) → TEST SAT',
+        latList: [0, 1, 2] as never,
+        lonList: [10, 11, 12] as never,
+        altList: [0, 100, 200] as never,
+        timeList: [start, start + 1000, start + 2000],
+        startTime: start,
+        maxAlt: 200,
+        country: '',
+        launchVehicle: '',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
+
+    it('getSat_ accepts a selected missile', () => {
+      const missile = makeMissileTarget();
+
+      p().selectSatManager_ = { primarySatObj: missile };
+      expect(p().getSat_()).toBe(missile);
+    });
+
+    it('supports LLA/ECI/sun-eclipse for a missile but not COES or sensor reports', () => {
+      const missile = makeMissileTarget();
+
+      expect(getReport('lla-report').isSupported!(missile)).toBe(true);
+      expect(getReport('eci-report').isSupported!(missile)).toBe(true);
+      expect(getReport('sun-eclipse-report').isSupported!(missile)).toBe(true);
+      expect(getReport('coes-report').isSupported!(missile)).toBe(false);
+      // Sensor reports use the default gate (full satellites only).
+      expect(getReport('aer-report').isSupported).toBeUndefined();
+    });
+
+    it('generateReport_ refuses an unsupported report for a missile', () => {
+      p().selectSatManager_ = { primarySatObj: makeMissileTarget() };
+      const openSpy = vi.spyOn(window, 'open');
+
+      p().generateReport_(getReport('coes-report'));
+
+      expect(openSpy).not.toHaveBeenCalled();
+    });
+
+    it('generateReport_ writes an LLA report for a missile', () => {
+      vi.spyOn(window, 'open').mockReturnValue(null);
+      const alertSpy = vi.fn();
+
+      vi.stubGlobal('alert', alertSpy);
+      p().selectSatManager_ = { primarySatObj: makeMissileTarget() };
+
+      p().generateReport_(getReport('lla-report'));
+
+      vi.unstubAllGlobals();
+      // Reaching the popup-blocked alert means the report was generated.
       expect(alertSpy).toHaveBeenCalled();
     });
   });

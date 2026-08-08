@@ -92,7 +92,9 @@ describe('Screenshot behavior', () => {
   it('onContextMenuAction takes a 4k shot for the single Save Image item and ignores others', () => {
     const spy = vi.spyOn(plugin, 'saveHiResPhoto').mockImplementation(() => undefined);
 
-    ['save-rmb', 'unknown-rmb'].forEach((id) => plugin.onContextMenuAction(id));
+    ['save-rmb', 'unknown-rmb'].forEach((id) => {
+      plugin.onContextMenuAction(id);
+    });
 
     expect(spy).toHaveBeenCalledTimes(1);
     expect(spy).toHaveBeenCalledWith('4k');
@@ -101,7 +103,9 @@ describe('Screenshot behavior', () => {
   it('command palette commands trigger hi-res capture', () => {
     const spy = vi.spyOn(plugin, 'saveHiResPhoto').mockImplementation(() => undefined);
 
-    plugin.getCommandPaletteCommands().forEach((c) => c.callback());
+    plugin.getCommandPaletteCommands().forEach((c) => {
+      c.callback();
+    });
 
     expect(spy).toHaveBeenCalledTimes(3);
   });

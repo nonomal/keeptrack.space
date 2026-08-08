@@ -98,7 +98,7 @@ export class SatellitePhotos extends KeepTrackPlugin {
   }
 
   private static actionRow_(id: string, label: string): string {
-    return `<button type="button" id="${id}-link" class="kt-action waves-effect sat-photo-link" data-source-id="${id}">` + `<span class="kt-action-label">${label}</span></button>`;
+    return `<button type="button" id="${id}-link" class="kt-action waves-effect sat-photo-link" data-source-id="${id}"><span class="kt-action-label">${label}</span></button>`;
   }
 
   getHelpConfig(): IHelpConfig {

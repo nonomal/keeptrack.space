@@ -106,7 +106,9 @@ export class StreamManager {
     errorManagerInstance.debug('Recorder stopped.');
 
     // Stop all streaming
-    this.stream_.getTracks().forEach((track) => track.stop());
+    this.stream_.getTracks().forEach((track) => {
+      track.stop();
+    });
 
     this.mediaRecorder_.stop();
     this.isVideoRecording = false;

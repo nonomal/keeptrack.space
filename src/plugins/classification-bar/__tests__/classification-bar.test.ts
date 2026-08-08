@@ -48,8 +48,16 @@ describe('classification_bar_plugin', () => {
       settingsManager.classificationStr = testClassificationStr as ClassificationString;
       expect(() => classificationPlugin.init()).not.toThrow();
 
-      expect(() => keepTrackApi.events.uiManagerInit.forEach((callback) => callback.cb())).not.toThrow();
-      expect(() => keepTrackApi.events.uiManagerFinal.forEach((callback) => callback.cb())).not.toThrow();
+      expect(() =>
+        keepTrackApi.events.uiManagerInit.forEach((callback) => {
+          callback.cb();
+        })
+      ).not.toThrow();
+      expect(() =>
+        keepTrackApi.events.uiManagerFinal.forEach((callback) => {
+          callback.cb();
+        })
+      ).not.toThrow();
 
       expect(getEl('classification-string')!.innerHTML).toBe(testClassificationStr);
     });
@@ -63,8 +71,16 @@ describe('classification_bar_plugin', () => {
     settingsManager.classificationStr = 'Test' as ClassificationString;
     expect(() => classificationPlugin.init()).not.toThrow();
 
-    expect(() => keepTrackApi.events.uiManagerInit.forEach((callback) => callback.cb())).not.toThrow();
-    expect(() => keepTrackApi.events.uiManagerFinal.forEach((callback) => callback.cb())).not.toThrow();
+    expect(() =>
+      keepTrackApi.events.uiManagerInit.forEach((callback) => {
+        callback.cb();
+      })
+    ).not.toThrow();
+    expect(() =>
+      keepTrackApi.events.uiManagerFinal.forEach((callback) => {
+        callback.cb();
+      })
+    ).not.toThrow();
   });
 
   it('updateString returns early when the text element is missing', () => {
@@ -88,7 +104,9 @@ describe('classification_bar_plugin', () => {
 
     const debugSpy = vi.spyOn(errorManagerInstance, 'debug');
 
-    keepTrackApi.events.uiManagerInit.forEach((callback) => callback.cb());
+    keepTrackApi.events.uiManagerInit.forEach((callback) => {
+      callback.cb();
+    });
 
     expect(debugSpy).toHaveBeenCalled();
   });

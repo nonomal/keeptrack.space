@@ -11,7 +11,7 @@ export class OBJLoader extends MeshLoader {
     return extension === '.obj';
   }
 
-  // eslint-disable-next-line require-await
+  // biome-ignore lint/suspicious/useAwait: MeshLoader contract; async keeps a sync throw from OBJ.downloadModels flowing into the registry's promise-based failure bookkeeping
   async load(meshName: string, url: string, gl: WebGLRenderingContext): Promise<MeshModel | null> {
     const meshFile = {
       obj: url,

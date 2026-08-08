@@ -9,8 +9,6 @@
  * [0, maxTimeMin] clip reuse the shared time2lon-core helpers.
  */
 
-/* eslint-disable no-await-in-loop, no-promise-executor-return */
-
 import { buildSatLine, computeOrbits, Time2LonLlaSample } from '@app/plugins/plot-analysis/time2lon-core';
 import { eci2lla, GreenwichMeanSiderealTime, MILLISECONDS_TO_DAYS, MINUTES_PER_DAY, SatelliteRecord, Sgp4, TemeVec3 } from '@ootk/src/main';
 import { jday } from '../engine/utils/transforms';
@@ -80,7 +78,7 @@ function computeLine(sat: T2lSatData, nowMs: number, samplePoints: number, maxTi
 }
 
 /** Handle incoming messages from the main thread. */
-onmessage = async function onmessage(event: MessageEvent<T2lWorkerInMsg>) {
+self.onmessage = async function onmessage(event: MessageEvent<T2lWorkerInMsg>) {
   const msg = event.data;
 
   if (isSgp4WasmBackendMsg(msg)) {
@@ -121,6 +119,7 @@ onmessage = async function onmessage(event: MessageEvent<T2lWorkerInMsg>) {
       postMessage({ typ: T2lWorkerOutMsgType.PROGRESS, runId, processed: i + 1, total });
 
       // Yield so a CANCEL message can be received between satellites.
+      // biome-ignore lint/performance/noAwaitInLoops: sequential await is the yield that lets a queued CANCEL message run between satellites
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
     }
 

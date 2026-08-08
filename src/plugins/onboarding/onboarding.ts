@@ -315,7 +315,7 @@ export class OnboardingPlugin extends KeepTrackPlugin implements ICommandPalette
       kind: 'card',
       title: l('welcome.title'),
       body: l('welcome.body'),
-      extraHtml: `<div class="kt-tour-persona"><div class="kt-tour-persona-label">${l('welcome.personaQuestion')}</div>` + `<div class="kt-tour-chips">${personaChips}</div></div>`,
+      extraHtml: `<div class="kt-tour-persona"><div class="kt-tour-persona-label">${l('welcome.personaQuestion')}</div><div class="kt-tour-chips">${personaChips}</div></div>`,
       buttons: [
         { id: 'start', label: l('buttons.startTour'), isPrimary: true },
         { id: 'explore', label: l('buttons.exploreOnMyOwn') },

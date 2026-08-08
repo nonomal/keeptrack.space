@@ -632,7 +632,9 @@ export class PluginDrawer {
 
         getEl('drawer-content', true)
           ?.querySelectorAll(`.drawer-item[data-plugin-id="${id}"]`)
-          .forEach((el) => PluginDrawer.syncItemState_(el as HTMLElement));
+          .forEach((el) => {
+            PluginDrawer.syncItemState_(el as HTMLElement);
+          });
       }
 
       this.syncUtilityFooterState_();
@@ -826,7 +828,9 @@ export class PluginDrawer {
       newGroupEl.querySelectorAll('.drawer-item[data-plugin-id]').forEach((el) => {
         PluginDrawer.syncItemState_(el as HTMLElement);
       });
-      this.badges_.forEach((_badge, pluginId) => renderBadge(pluginId, this.badges_));
+      this.badges_.forEach((_badge, pluginId) => {
+        renderBadge(pluginId, this.badges_);
+      });
 
       // Wire collapsible header for the new group
       const header = newGroupEl.querySelector('.drawer-group-header');

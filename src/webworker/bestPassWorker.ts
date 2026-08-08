@@ -8,8 +8,6 @@
  * one satellite's passes back at a time.
  */
 
-/* eslint-disable no-await-in-loop, no-promise-executor-return */
-
 import { DetailedSensor } from '@app/app/sensors/DetailedSensor';
 import { BestPassDeps, findPassesForSat } from '@app/plugins/best-pass/best-pass-calculator';
 import { Kilometers, Sgp4 } from '@ootk/src/main';
@@ -20,7 +18,7 @@ import { handleSgp4WasmBackendMsg, isSgp4WasmBackendMsg } from './shared/sgp4-wa
 let cancelledRunId = -1;
 
 /** Handle incoming messages from the main thread. */
-onmessage = async function onmessage(event: MessageEvent<BpWorkerInMsg>) {
+self.onmessage = async function onmessage(event: MessageEvent<BpWorkerInMsg>) {
   const msg = event.data;
 
   if (isSgp4WasmBackendMsg(msg)) {
@@ -84,6 +82,7 @@ onmessage = async function onmessage(event: MessageEvent<BpWorkerInMsg>) {
       postMessage({ typ: BpWorkerOutMsgType.PROGRESS, runId, processed: i + 1, total });
 
       // Yield so a CANCEL message can be received between satellites.
+      // biome-ignore lint/performance/noAwaitInLoops: sequential await is the yield that lets a queued CANCEL message run between satellites
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
     }
 

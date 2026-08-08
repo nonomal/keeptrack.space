@@ -1,4 +1,4 @@
-/* eslint-disable max-classes-per-file */
+// biome-ignore-all lint/style/noExcessiveClassesPerFile: DetailedSensor and its thin RfSensor subclass form one legacy compatibility API; splitting would separate the subclass from the base it mirrors
 /**
  * DetailedSensor Compatibility Layer
  *
@@ -521,7 +521,7 @@ export class DetailedSensor extends GroundStation {
    * Check if coordinates are within FOV bounds.
    * Handles azimuth wraparound (e.g., minAz=350, maxAz=10).
    */
-  // eslint-disable-next-line max-params -- 9 cohesive frustum bounds (az/el/rng + min/max each); bundling would allocate per call on a hot path
+  // biome-ignore lint/complexity/useMaxParams: 9 cohesive frustum bounds (az/el/rng + min/max each); bundling would allocate per call on a hot path
   private checkFovBounds_(
     az: Degrees,
     el: Degrees,

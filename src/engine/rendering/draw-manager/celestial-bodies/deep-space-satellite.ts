@@ -127,8 +127,7 @@ export class DeepSpaceSatellite extends ChebyshevBody {
     // No texture for deep-space satellites
   }
 
-  // eslint-disable-next-line require-await
-  async init(gl: WebGL2RenderingContext): Promise<void> {
+  init(gl: WebGL2RenderingContext): Promise<void> {
     this.gl_ = gl;
     // Only mark loaded if we already have coefficient data
     if (this.interpolator_) {
@@ -141,6 +140,8 @@ export class DeepSpaceSatellite extends ChebyshevBody {
         this.fullOrbitPathEarthCentered.isGarbage = true;
       }
     });
+
+    return Promise.resolve();
   }
 
   /**

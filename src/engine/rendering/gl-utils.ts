@@ -118,12 +118,12 @@ export abstract class GlUtils {
     let stage: 'fetch' | 'body' | 'decode' | 'img-fallback' = 'fetch';
 
     try {
-      /* eslint-disable no-await-in-loop -- retry requires sequential awaits */
       while (attempts < TEXTURE_RETRY_MAX_ATTEMPTS) {
         attempts += 1;
         resp = null;
         stage = 'fetch';
         try {
+          // biome-ignore lint/performance/noAwaitInLoops: retry with backoff requires sequential awaits
           resp = await GlUtils.fetchTexture_(url, attempts > 1);
           if (resp.ok) {
             stage = 'body';
@@ -172,7 +172,6 @@ export abstract class GlUtils {
           });
         }
       }
-      /* eslint-enable no-await-in-loop */
 
       let imgBitmap: ImageBitmap;
 

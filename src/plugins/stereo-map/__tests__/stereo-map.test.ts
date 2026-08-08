@@ -46,9 +46,9 @@ describe('StereoMapPlugin_class', () => {
     KeepTrack.getInstance().containerRoot.innerHTML = '';
     PluginRegistry.unregisterAllPlugins();
     setupStandardEnvironment([SelectSatManager]);
-    ServiceLocator.getColorSchemeManager().colorData = new Float32Array(Array(100).fill(0));
-    ServiceLocator.getDotsManager().sizeData = Array(100).fill(0) as unknown as Int8Array;
-    ServiceLocator.getDotsManager().positionData = Array(100).fill(0) as unknown as Float32Array;
+    ServiceLocator.getColorSchemeManager().colorData = new Float32Array(new Array(100).fill(0));
+    ServiceLocator.getDotsManager().sizeData = new Array(100).fill(0) as unknown as Int8Array;
+    ServiceLocator.getDotsManager().positionData = new Array(100).fill(0) as unknown as Float32Array;
     ServiceLocator.getCatalogManager().objectCache = [defaultSat];
     PluginRegistry.getPlugin(SelectSatManager)!.selectSat(0);
   });

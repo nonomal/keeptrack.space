@@ -14,6 +14,7 @@ import {
   eci2lla,
   GreenwichMeanSiderealTime,
   Kilometers,
+  KilometersPerSecond,
   LlaVec3,
   lla2eci,
   PosVel,
@@ -136,17 +137,48 @@ export class MissileObject extends SpaceObject {
     return this.lastTime;
   }
 
-  eci(_date?: Date): PosVel | null {
-    const now = ServiceLocator.getTimeManager().simulationTimeObj;
-    const { gmst } = calcGmst(now);
-
+  eci(date?: Date): PosVel | null {
     if (this.altList.length === 0) {
       return null;
     }
 
-    // Interpolate between 1-second samples so the position (and info-box readouts /
-    // camera follow) is continuous rather than stepping once per second.
-    const sample = interpolateMissileSample(this.latList, this.lonList, this.altList, this.startTime, now.getTime());
+    const effectiveDate = date ?? ServiceLocator.getTimeManager().simulationTimeObj;
+    const ms = effectiveDate.getTime();
+    const lastSampleMs = this.startTime + (this.altList.length - 1) * 1000;
+
+    // An explicit date outside the flight window has no answer (reports and the
+    // intercept solver expect null there); the no-arg render path keeps clamping
+    // to the first/last sample so the dot holds at the impact point.
+    if (date && (ms < this.startTime || ms > lastSampleMs)) {
+      return null;
+    }
+
+    const eciPos = this.eciPositionAt_(ms);
+
+    // Only the current-time path updates the render cache; historical queries
+    // must not clobber the position the scene is drawing.
+    if (!date) {
+      this.position = { x: eciPos.x, y: eciPos.y, z: eciPos.z };
+    }
+
+    // For an explicit date, derive the inertial velocity from the trajectory by
+    // central difference; the cached velocity only describes "now".
+    const velocity = date ? this.velocityAt_(ms, lastSampleMs) : { x: this.velocity.x, y: this.velocity.y, z: this.velocity.z };
+
+    return {
+      position: { x: eciPos.x, y: eciPos.y, z: eciPos.z },
+      velocity,
+    };
+  }
+
+  /**
+   * ECI position at an absolute time, interpolated between the 1-second samples
+   * so the position (and info-box readouts / camera follow) is continuous rather
+   * than stepping once per second.
+   */
+  private eciPositionAt_(ms: number): TemeVec3<Kilometers> {
+    const { gmst } = calcGmst(new Date(ms));
+    const sample = interpolateMissileSample(this.latList, this.lonList, this.altList, this.startTime, ms);
 
     const lla = {
       lat: (sample.lat * DEG2RAD) as Radians,
@@ -154,26 +186,32 @@ export class MissileObject extends SpaceObject {
       alt: sample.alt as Kilometers,
     };
 
-    const eciPos = lla2eci(lla, gmst);
+    return lla2eci(lla, gmst);
+  }
 
-    // Update position cache
-    this.position = {
-      x: eciPos.x as Kilometers,
-      y: eciPos.y as Kilometers,
-      z: eciPos.z as Kilometers,
-    };
+  /**
+   * Inertial velocity at an absolute time via central difference of the
+   * interpolated ECI positions (window-clamped, so the edges fall back to a
+   * one-sided difference). Includes the Earth-rotation component carried by the
+   * ground-referenced trajectory. Falls back to the cached velocity when the
+   * trajectory is a single sample.
+   */
+  private velocityAt_(ms: number, lastSampleMs: number): PosVel['velocity'] {
+    const tMinus = Math.max(this.startTime, ms - 500);
+    const tPlus = Math.min(lastSampleMs, ms + 500);
+
+    if (tPlus <= tMinus) {
+      return { x: this.velocity.x, y: this.velocity.y, z: this.velocity.z };
+    }
+
+    const pMinus = this.eciPositionAt_(tMinus);
+    const pPlus = this.eciPositionAt_(tPlus);
+    const dtSec = (tPlus - tMinus) / 1000;
 
     return {
-      position: {
-        x: eciPos.x as Kilometers,
-        y: eciPos.y as Kilometers,
-        z: eciPos.z as Kilometers,
-      },
-      velocity: {
-        x: this.velocity.x,
-        y: this.velocity.y,
-        z: this.velocity.z,
-      },
+      x: ((pPlus.x - pMinus.x) / dtSec) as KilometersPerSecond,
+      y: ((pPlus.y - pMinus.y) / dtSec) as KilometersPerSecond,
+      z: ((pPlus.z - pMinus.z) / dtSec) as KilometersPerSecond,
     };
   }
 

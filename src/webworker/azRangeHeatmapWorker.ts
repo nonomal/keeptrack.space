@@ -12,8 +12,6 @@
  * ECI → ECEF → RAE follows the same transform chain as fovPredictionWorker.
  */
 
-/* eslint-disable no-await-in-loop, no-promise-executor-return */
-
 import { EcefVec3, ecefRad2rae, eci2ecef, Kilometers, MILLISECONDS_TO_DAYS, MINUTES_PER_DAY, Radians, Sgp4, TemeVec3 } from '@ootk/src/main';
 import { jday } from '../engine/utils/transforms';
 import { AzRangeMsgType, AzRangeOutMsgType, type AzRangeWorkerInMsg } from './az-range-heatmap-messages';
@@ -67,7 +65,7 @@ globalThis.onunhandledrejection = (event: PromiseRejectionEvent) => {
   });
 };
 
-onmessage = async function onmessage(event: MessageEvent<AzRangeWorkerInMsg>) {
+self.onmessage = async function onmessage(event: MessageEvent<AzRangeWorkerInMsg>) {
   const msg = event.data;
 
   if (isSgp4WasmBackendMsg(msg)) {
@@ -217,6 +215,7 @@ onmessage = async function onmessage(event: MessageEvent<AzRangeWorkerInMsg>) {
           stepsTotal: numSteps,
         });
         // Yield so CANCEL messages can be received between snapshots.
+        // biome-ignore lint/performance/noAwaitInLoops: sequential await is the yield that lets queued CANCEL messages run between snapshots
         await new Promise<void>((r) => setTimeout(r, 0));
       }
     }

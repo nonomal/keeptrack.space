@@ -163,7 +163,9 @@ export class UiManager {
     const toasts = this.activeToastList_;
 
     this.activeToastList_ = [];
-    toasts.forEach((toast) => this.dismissToast_(toast));
+    toasts.forEach((toast) => {
+      this.dismissToast_(toast);
+    });
   }
 
   /**

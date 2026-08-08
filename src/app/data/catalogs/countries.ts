@@ -10,11 +10,11 @@ export const countryCodeList = {
   Australia: 'AU|AUS',
   Austria: 'AT|ASRA',
   Azerbaijan: 'AZ|AZER',
-  Bahrain: 'BH',
+  Bahrain: 'BH|BHR',
   Belarus: 'BY|BELA',
   Belgium: 'B|BEL',
   Bolivia: 'BOL',
-  Botswana: 'BW|BOTS',
+  Botswana: 'BW|BOTS|BWA',
   Brazil: 'BR|BRAZ',
   Canada: 'CA',
   Chile: 'CHLE',
@@ -43,7 +43,7 @@ export const countryCodeList = {
   Ireland: 'IE',
   Israel: 'IL|ISRA',
   Italy: 'I|IT',
-  Japan: 'J|Japan|JP|JPN',
+  Japan: 'J|Japan|JP|JPN|JAXA',
   Jordan: 'JOR',
   Kazakhstan: 'KZ|KAZ',
   Kuwait: 'KWT',
@@ -53,6 +53,7 @@ export const countryCodeList = {
   Malaysia: 'MALA',
   Mauritius: 'MUS',
   Mexico: 'MX|MEX',
+  Montenegro: 'ME',
   Moldova: 'MDA',
   Mongolia: 'MNG',
   Morocco: 'MA',
@@ -70,11 +71,13 @@ export const countryCodeList = {
   Russia: 'RU|SU|CIS|Russia',
   'Saudi Arabia': 'SA|SAUD',
   Singapore: 'SG|SING',
+  'Solomon Islands': 'SB|SLB',
   'South Africa': 'ZA',
   'South Korea': 'KR|SKOR',
   Spain: 'E|Spain|ES|SPN',
   Sweden: 'S|SWED',
   Switzerland: 'CH|SWTZ',
+  Uganda: 'UG',
   Thailand: 'T|THAI',
   Turkey: 'TR|TURK',
   Ukraine: 'UKR',
@@ -152,6 +155,7 @@ export const countryFlagIconMap = {
   EG: 'EG',
   ENG: 'GB-ENG', // England
   ESCN: 'ES', // Canary Islands are part of Spain
+  ESIB: 'ES', // Balearic Islands are part of Spain
   ET: 'ET',
   F: 'FR', // France
   FI: 'FI',
@@ -212,6 +216,7 @@ export const countryFlagIconMap = {
   MA: 'MA',
   MC: 'MC',
   MD: 'MD',
+  ME: 'ME',
   MH: 'MH',
   MN: 'MN',
   MR: 'MR',
@@ -250,6 +255,7 @@ export const countryFlagIconMap = {
   RW: 'RW',
   S: 'SE', // Sweden
   SA: 'SA',
+  SB: 'SB',
   SCOT: 'GB-SCT', // Scotland
   SD: 'SD',
   SG: 'SG',
@@ -272,6 +278,7 @@ export const countryFlagIconMap = {
   TUVA: 'RU', // Tuva is part of Russia
   TW: 'TW',
   UA: 'UA',
+  UG: 'UG',
   UAE: 'AE', // United Arab Emirates
   UK: 'GB', // United Kingdom
   UM: 'UM',
@@ -296,8 +303,12 @@ export const countryFlagIconMap = {
   AZER: 'AZ',
   BEL: 'BE',
   BELA: 'BY',
+  ABS: 'ABS', // Asia Broadcast Satellite - no matching flag, kept original
   BERM: 'BM',
+  BHR: 'BH', // Space-Track alpha-3 for Bahrain
   BOL: 'BO',
+  BWA: 'BW', // Space-Track alpha-3 for Botswana
+  SLB: 'SB', // Space-Track alpha-3 for Solomon Islands
   BRAZ: 'BR',
   CHBZ: 'CHBZ', // No matching code, kept original
   CHLE: 'CL', // Chile
@@ -330,6 +341,7 @@ export const countryFlagIconMap = {
   ISS: 'ISS', // No matching code, kept original
   IT: 'IT',
   ITSO: 'ITSO', // Intelsat (custom flag)
+  JAXA: 'JP', // Japan's space agency (joint-mission strings split on /)
   JPN: 'JP',
   KAZ: 'KZ',
   KWT: 'KW', // Kuwait
@@ -468,6 +480,7 @@ export const getCountryMapList = () => ({
   ENG: t7e('countries.ENG'),
   ES: t7e('countries.SPN'),
   ESCN: t7e('countries.ESCN'),
+  ESIB: t7e('countries.ESIB'),
   'ESA/JAXA': t7e('countries.ESA/JAXA'),
   ET: t7e('countries.ET'),
   F: t7e('countries.F'),
@@ -531,6 +544,7 @@ export const getCountryMapList = () => ({
   MA: t7e('countries.MA'),
   MC: t7e('countries.MC'),
   MD: t7e('countries.MD'),
+  ME: t7e('countries.ME'),
   MH: t7e('countries.MH'),
   MN: t7e('countries.MN'),
   MR: t7e('countries.MR'),
@@ -567,6 +581,7 @@ export const getCountryMapList = () => ({
   RW: t7e('countries.RW'),
   S: t7e('countries.S'),
   SA: t7e('countries.SA'),
+  SB: t7e('countries.SB'),
   SCOT: t7e('countries.SCOT'),
   SD: t7e('countries.SD'),
   SG: t7e('countries.SG'),
@@ -588,6 +603,7 @@ export const getCountryMapList = () => ({
   TUVA: t7e('countries.TUVA'),
   TW: t7e('countries.TW'),
   UA: t7e('countries.UA'),
+  UG: t7e('countries.UG'),
   UAE: t7e('countries.UAE'),
   UK: t7e('countries.UK'),
   UM: t7e('countries.UM'),
@@ -604,6 +620,7 @@ export const getCountryMapList = () => ({
   ANALSAT: t7e('countries.ANALSAT'),
   SAUD: t7e('countries.SAUD'),
   AB: t7e('countries.AB'),
+  ABS: t7e('countries.ABS'),
   AC: t7e('countries.AC'),
   ALG: t7e('countries.ALG'),
   ALL: t7e('countries.ALL'),
@@ -614,7 +631,10 @@ export const getCountryMapList = () => ({
   BEL: t7e('countries.BEL'),
   BELA: t7e('countries.BELA'),
   BERM: t7e('countries.BERM'),
+  BHR: t7e('countries.BH'),
   BOL: t7e('countries.BOL'),
+  BWA: t7e('countries.BW'),
+  SLB: t7e('countries.SB'),
   BRAZ: t7e('countries.BRAZ'),
   CHBZ: t7e('countries.CHBZ'),
   CHLE: t7e('countries.CHLE'),
@@ -646,6 +666,7 @@ export const getCountryMapList = () => ({
   ISS: t7e('countries.ISS'),
   IT: t7e('countries.IT'),
   ITSO: t7e('countries.ITSO'),
+  JAXA: t7e('countries.J'),
   JPN: t7e('countries.JPN'),
   KAZ: t7e('countries.KAZ'),
   LAOS: t7e('countries.LAOS'),

@@ -421,4 +421,4 @@ const handleMsgChangeOrbitType = (data: OrbitCruncherInMsgChangeOrbitType) => {
 };
 
 // Set up the web worker
-onmessage = onMessage;
+self.onmessage = onMessage;

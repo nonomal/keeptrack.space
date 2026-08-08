@@ -9,7 +9,7 @@
  */
 
 /* eslint-disable complexity */
-/* eslint-disable no-unmodified-loop-condition, no-await-in-loop, no-promise-executor-return */
+/* eslint-disable no-unmodified-loop-condition */
 
 import { DetailedSensor } from '@app/app/sensors/DetailedSensor';
 import { Degrees, EcefVec3, ecefRad2rae, eci2ecef, Kilometers, MILLISECONDS_TO_DAYS, RaeVec3, Sgp4, TemeVec3 } from '@ootk/src/main';
@@ -248,6 +248,7 @@ async function fullSweep(simTimeMs: number): Promise<void> {
     }
 
     // Yield to allow message processing
+    // biome-ignore lint/performance/noAwaitInLoops: sequential await is the yield that lets queued CANCEL/UPDATE messages run between batches
     await new Promise<void>((resolve) => setTimeout(resolve, 0));
   }
 
@@ -318,7 +319,7 @@ function incrementalUpdate(simTimeMs: number): void {
 // ─── Message Handler ─────────────────────────────────────────────────────────
 
 /** Handle incoming messages from the main thread. */
-onmessage = function onmessage(event: MessageEvent<FovPredInMsg>) {
+self.onmessage = function onmessage(event: MessageEvent<FovPredInMsg>) {
   const msg = event.data;
 
   if (isSgp4WasmBackendMsg(msg)) {

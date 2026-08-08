@@ -595,7 +595,7 @@ export class FindSatPlugin extends KeepTrackPlugin {
     return Array.from(select.selectedOptions).map((option) => option.value);
   }
 
-  // eslint-disable-next-line require-await
+  // biome-ignore lint/suspicious/useAwait: async keeps sync DOM-read throws as a rejected promise for the .then() caller, and the Pro override does await
   protected async findByLooksSubmit_(): Promise<void> {
     const az = parseFloat((<HTMLInputElement>getEl('fbl-azimuth')).value);
     const el = parseFloat((<HTMLInputElement>getEl('fbl-elevation')).value);

@@ -161,7 +161,9 @@ export const buildCatalogRcsStats = (sats: readonly Satellite[]): CatalogRcsStat
   const toMean = <K>(m: Map<K, { sum: number; count: number }>): Map<K, number> => {
     const result = new Map<K, number>();
 
-    m.forEach((v, k) => result.set(k, v.sum / v.count));
+    m.forEach((v, k) => {
+      result.set(k, v.sum / v.count);
+    });
 
     return result;
   };

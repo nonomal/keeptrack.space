@@ -139,6 +139,65 @@ export interface NamedSpacecraftPattern {
   model: string;
 }
 
+/**
+ * The catalog `shape` field of a generic payload, already parsed, as handed to a variant pack's
+ * route hooks. Packs read this instead of re-parsing `sat.shape` so a pack rule and the free rule
+ * beside it always agree on what the record says.
+ */
+export interface GenericShapeContext {
+  /** `shape` lowercased with whitespace and `+` stripped ("Box + 2 pan" -> "box2pan"). */
+  shape: string;
+  /** 0, 1, or 2 - "2 pan" and up all read as 2, since the meshes only distinguish none/one/wings. */
+  panels: number;
+  /** The record mentions an antenna/dish. */
+  hasAnt: boolean;
+  /** `span` in meters, 0 when the record has none. */
+  spanM: number;
+}
+
+/**
+ * A content pack that adds procedural model variants on top of the free routing.
+ *
+ * Two ways to contribute, and the difference matters:
+ *
+ * - `poolExtensions` widens a pool the free build already picks from, so a pack model can only
+ *   ever be an ALTERNATIVE to the free model that would have been chosen. Nothing reroutes.
+ * - `routes` adds a decision the free build cannot make at all (a `shape` value it has no mesh
+ *   for, a launch-vehicle family it lumps into the gray sizes). Each hook is consulted at the ONE
+ *   point in the chain named on it, so a pack rule can only ever be MORE specific than the free
+ *   rule it sits next to - never less.
+ *
+ * See `plugins-pro/variant-meshes`. A free build registers no pack, so every pool stays its free
+ * length and every hook is absent: the routing is exactly what it was before packs existed.
+ */
+export interface MeshVariantPack {
+  /**
+   * Every model this pack ships. Registers the names for `settingsManager.meshOverride` and the
+   * model pickers; a name that no `poolExtensions`/`routes` entry can return is dead weight but
+   * harmless.
+   */
+  models: readonly string[];
+  /**
+   * Extra variants appended to an existing pool, keyed by the model that ANCHORS that pool (its
+   * index 0). Appended, never inserted, so the free build's own picks keep their meaning; the
+   * sccNum hash then spreads objects across the longer pool.
+   */
+  poolExtensions?: Readonly<Record<string, readonly string[]>>;
+  /** Extra routing decisions. Every hook returns null to fall through to the free routing. */
+  routes?: {
+    /** After the free silhouette table misses on `shape`, before launch-vehicle families. */
+    rocketBodySilhouette?(shape: string, sat: Satellite): string | null;
+    /** Before the free launch-vehicle families, so a broader free family cannot shadow a pack one. */
+    rocketBodyFamily?(launchVehicle: string, sat: Satellite): string | null;
+    /** After the free debris shape specials miss, before the generic archetype pool. */
+    debrisShape?(shape: string, sat: Satellite): string | null;
+    /** Inside the box branch of the generic fallback: after the no-panel case, before the span buckets. */
+    genericBox?(ctx: GenericShapeContext, sat: Satellite): string | null;
+    /** Last call in the generic fallback, before the legacy `sat2` mesh. */
+    genericShape?(ctx: GenericShapeContext, sat: Satellite): string | null;
+  };
+}
+
 enum SatelliteNumber {
   iss = '25544',
   tiangong = '48274',
@@ -176,6 +235,72 @@ export class ModelResolver {
       ModelResolver.namedSpacecraft_.push(entry);
       ModelResolver.packModelNames_.add(entry.model);
     }
+  }
+
+  /**
+   * Variants a pack appended to a pool, keyed by the pool's anchor model (see
+   * {@link MeshVariantPack.poolExtensions}). A pool is IDENTIFIED by its anchor, so two pools
+   * must never be authored with the same model at index 0 - they would share extensions.
+   */
+  private static readonly poolExtensions_ = new Map<string, readonly string[]>();
+  /** Route hooks contributed by registered variant packs, in registration order. */
+  private static readonly variantRoutes_: NonNullable<MeshVariantPack['routes']>[] = [];
+
+  /**
+   * Adds a variant pack's models, pool extensions and extra routes to the resolver.
+   *
+   * Shares the pack-id registry with {@link registerModelPack}, so one pack cannot register both
+   * kinds under the same id - give a pack that does both two ids.
+   *
+   * Registration is expected at boot (see registerMeshPacks()), but late registration is
+   * harmless: the mesh manager re-resolves every frame, so an object already on screen picks up
+   * its pack variant on the next one.
+   */
+  static registerVariantPack(packId: string, pack: MeshVariantPack): void {
+    if (ModelResolver.registeredPacks_.has(packId)) {
+      return;
+    }
+    ModelResolver.registeredPacks_.add(packId);
+
+    for (const model of pack.models) {
+      ModelResolver.packModelNames_.add(model);
+    }
+
+    for (const [anchor, extra] of Object.entries(pack.poolExtensions ?? {})) {
+      ModelResolver.poolExtensions_.set(anchor, [...(ModelResolver.poolExtensions_.get(anchor) ?? []), ...extra]);
+    }
+
+    if (pack.routes) {
+      ModelResolver.variantRoutes_.push(pack.routes);
+    }
+  }
+
+  /**
+   * The first non-null answer from a registered pack's hook, or null when no pack routes this
+   * object. Packs are asked in registration order.
+   */
+  private static packRoute_<A>(hook: keyof NonNullable<MeshVariantPack['routes']>, arg: A, sat: Satellite): string | null {
+    for (const routes of ModelResolver.variantRoutes_) {
+      const model = (routes[hook] as ((arg: A, sat: Satellite) => string | null) | undefined)?.(arg, sat);
+
+      if (model) {
+        return model;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Picks one model out of a variant pool, including anything a pack appended to it, by a stable
+   * hash of the object's sccNum. Public so a pack's own route hooks spread their pools the same
+   * way the free routing does.
+   */
+  static pickFromPool(sat: Satellite, pool: readonly string[]): string {
+    const full = ModelResolver.poolExtensions_.get(pool[0]);
+    const variants = full ? [...pool, ...full] : pool;
+
+    return variants[ModelResolver.variantIndex_(sat.sccNum, variants.length)];
   }
 
   /** Every model name this build can resolve: the free set plus any registered pack. */
@@ -258,35 +383,47 @@ export class ModelResolver {
   /**
    * Non-cylinder silhouettes, matched on the catalog `shape` field with all
    * whitespace stripped (the data mixes "Sphere + Cone" / "Sphere+Cone" etc.).
+   * Each maps to a variant pool a pack can widen; the free build ships one
+   * model per silhouette, so its pick is fixed.
    */
-  private static readonly rbSilhouettes_: Record<string, string> = {
-    'sphere+cone': SatelliteModels['rb-sphercone-kick'],
-    trunccone: SatelliteModels['rb-trunccone-gray'],
-    truncatedcone: SatelliteModels['rb-trunccone-gray'],
-    stepcyl: SatelliteModels['rb-stepcyl-soviet'],
-    'cyl+cyl': SatelliteModels['rb-stepcyl-soviet'],
-    'cyl+cone': SatelliteModels['rb-cylcone-soviet'],
-    'cyl+2nozzle': SatelliteModels['rb-cyl2n-legacy'],
+  private static readonly rbSilhouettes_: Record<string, readonly string[]> = {
+    'sphere+cone': [SatelliteModels['rb-sphercone-kick']],
+    trunccone: [SatelliteModels['rb-trunccone-gray']],
+    truncatedcone: [SatelliteModels['rb-trunccone-gray']],
+    stepcyl: [SatelliteModels['rb-stepcyl-soviet']],
+    'cyl+cyl': [SatelliteModels['rb-stepcyl-soviet']],
+    'cyl+cone': [SatelliteModels['rb-cylcone-soviet']],
+    'cyl+2nozzle': [SatelliteModels['rb-cyl2n-legacy']],
   };
 
   /**
    * Launch-vehicle families for cylinder stages, checked in order. A null
-   * model is a deliberate opt-out (e.g. hydrolox Delta IV is not the teal
+   * pool is a deliberate opt-out (e.g. hydrolox Delta IV is not the teal
    * Delta II) that falls through to the size buckets. Soviet vehicles are
    * handled separately because they split by length.
    */
-  private static readonly rbFamilies_: { match: RegExp; model: string | null }[] = [
-    { match: /falcon/u, model: SatelliteModels['rb-cyl-kerolox'] },
-    { match: /electron/u, model: SatelliteModels['rb-cyl-electron'] },
-    { match: /ariane|vega/u, model: SatelliteModels['rb-cyl-euro'] },
-    { match: /chang zheng|long march|^cz[\s-]/u, model: SatelliteModels['rb-cyl-china'] },
-    { match: /atlas|centaur|titan/u, model: SatelliteModels['rb-cyl-centaur'] },
-    { match: /delta (?:iv|4)/u, model: null },
-    { match: /delta/u, model: SatelliteModels['rb-cyl-delta'] },
-    { match: /proton|briz|fregat/u, model: SatelliteModels['rb-cyl-proton'] },
+  private static readonly rbFamilies_: { match: RegExp; pool: readonly string[] | null }[] = [
+    { match: /falcon/u, pool: [SatelliteModels['rb-cyl-kerolox']] },
+    { match: /electron/u, pool: [SatelliteModels['rb-cyl-electron']] },
+    { match: /ariane|vega/u, pool: [SatelliteModels['rb-cyl-euro']] },
+    { match: /chang zheng|long march|^cz[\s-]/u, pool: [SatelliteModels['rb-cyl-china']] },
+    { match: /atlas|centaur|titan/u, pool: [SatelliteModels['rb-cyl-centaur']] },
+    { match: /delta (?:iv|4)/u, pool: null },
+    { match: /delta/u, pool: [SatelliteModels['rb-cyl-delta']] },
+    { match: /proton|briz|fregat/u, pool: [SatelliteModels['rb-cyl-proton']] },
   ];
 
   private static readonly rbSovietVehicles_ = /kosmos|cosmos|tsiklon|tsyklon|cyclone|vostok|voskhod|molniya|soyuz|rokot|dnepr|zenit|shtil|angara|sputnik/u;
+
+  /** Standard-length Soviet stages; the squat rb-cyl-soviet-b stays a length split, not a variant. */
+  private static readonly rbSovietStandardPool_: readonly string[] = [SatelliteModels['rb-cyl-soviet']];
+
+  /** Gray size buckets, one model each in the free build. */
+  private static readonly rbGrayPools_ = {
+    s: [SatelliteModels['rb-cyl-gray-s']],
+    m: [SatelliteModels['rb-cyl-gray-m']],
+    l: [SatelliteModels['rb-cyl-gray-l']],
+  } as const;
 
   /**
    * Rocket bodies, most-specific signal first: catalog `shape` picks the
@@ -295,10 +432,17 @@ export class ModelResolver {
    */
   private resolveRocketBodyModelName_(sat: Satellite): string {
     const shape = sat.shape.toLowerCase().replace(/\s+/gu, '');
-    const silhouette = ModelResolver.rbSilhouettes_[shape];
+    const silhouettePool = ModelResolver.rbSilhouettes_[shape];
 
-    if (silhouette) {
-      return silhouette;
+    if (silhouettePool) {
+      return ModelResolver.pickFromPool(sat, silhouettePool);
+    }
+
+    // A pack may know this silhouette even though the free build has no mesh for it.
+    const packSilhouette = ModelResolver.packRoute_('rocketBodySilhouette', shape, sat);
+
+    if (packSilhouette) {
+      return packSilhouette;
     }
 
     const family = this.resolveRbFamilyModelName_(sat);
@@ -317,9 +461,17 @@ export class ModelResolver {
       return null;
     }
 
-    for (const { match, model } of ModelResolver.rbFamilies_) {
+    // Ahead of the free families on purpose: a pack family is narrower than the one that would
+    // otherwise swallow it, and the free build lumps these vehicles into the gray sizes anyway.
+    const packFamily = ModelResolver.packRoute_('rocketBodyFamily', launchVehicle, sat);
+
+    if (packFamily) {
+      return packFamily;
+    }
+
+    for (const { match, pool } of ModelResolver.rbFamilies_) {
       if (match.test(launchVehicle)) {
-        return model;
+        return pool ? ModelResolver.pickFromPool(sat, pool) : null;
       }
     }
 
@@ -327,7 +479,11 @@ export class ModelResolver {
       const length = Number.parseFloat(sat.length);
 
       // Short Soviet stages (Tsiklon S5M class) get the squat variant
-      return length > 0 && length <= 4 ? SatelliteModels['rb-cyl-soviet-b'] : SatelliteModels['rb-cyl-soviet'];
+      if (length > 0 && length <= 4) {
+        return SatelliteModels['rb-cyl-soviet-b'];
+      }
+
+      return ModelResolver.pickFromPool(sat, ModelResolver.rbSovietStandardPool_);
     }
 
     return null;
@@ -339,27 +495,28 @@ export class ModelResolver {
    * records carry both fields.
    */
   private resolveRbSizeBucket_(sat: Satellite): string {
+    const pools = ModelResolver.rbGrayPools_;
     const diameter = Number.parseFloat(sat.diameter);
 
     if (diameter > 0) {
       if (diameter < 2.0) {
-        return SatelliteModels['rb-cyl-gray-s'];
+        return ModelResolver.pickFromPool(sat, pools.s);
       }
 
-      return diameter <= 3.2 ? SatelliteModels['rb-cyl-gray-m'] : SatelliteModels['rb-cyl-gray-l'];
+      return ModelResolver.pickFromPool(sat, diameter <= 3.2 ? pools.m : pools.l);
     }
 
     const length = Number.parseFloat(sat.length);
 
     if (length > 0) {
       if (length < 5) {
-        return SatelliteModels['rb-cyl-gray-s'];
+        return ModelResolver.pickFromPool(sat, pools.s);
       }
 
-      return length <= 9 ? SatelliteModels['rb-cyl-gray-m'] : SatelliteModels['rb-cyl-gray-l'];
+      return ModelResolver.pickFromPool(sat, length <= 9 ? pools.m : pools.l);
     }
 
-    return SatelliteModels['rb-cyl-gray-m'];
+    return ModelResolver.pickFromPool(sat, pools.m);
   }
 
   /**
@@ -413,9 +570,21 @@ export class ModelResolver {
    */
   private resolveDebrisModelName_(sat: Satellite): string {
     const shape = sat.shape.toLowerCase().replace(/\s+/gu, '');
-    const pool = ModelResolver.debrisShapeSpecials_[shape] ?? ModelResolver.debrisGenericPool_;
+    const special = ModelResolver.debrisShapeSpecials_[shape];
 
-    return pool[this.variantIndex_(sat.sccNum, pool.length)];
+    if (special) {
+      return ModelResolver.pickFromPool(sat, special);
+    }
+
+    // disk / disk+cable and friends: shapes the free build has no mesh for, so they would
+    // otherwise be spread across the generic archetypes as if they carried no shape at all.
+    const packShape = ModelResolver.packRoute_('debrisShape', shape, sat);
+
+    if (packShape) {
+      return packShape;
+    }
+
+    return ModelResolver.pickFromPool(sat, ModelResolver.debrisGenericPool_);
   }
 
   /**
@@ -439,9 +608,7 @@ export class ModelResolver {
 
   /** Pick the size's base/skin/wing variant deterministically from the sccNum. */
   private resolveCubesatModelName_(sat: Satellite, sizeKey: string): string {
-    const pool = ModelResolver.cubesatPools_[sizeKey];
-
-    return pool[this.variantIndex_(sat.sccNum, pool.length)];
+    return ModelResolver.pickFromPool(sat, ModelResolver.cubesatPools_[sizeKey]);
   }
 
   /**
@@ -451,7 +618,7 @@ export class ModelResolver {
    * extended sccNums (it hashes characters), unlike the parseInt bucketing it
    * replaced, which collapsed every non-5-digit id into one bucket.
    */
-  private variantIndex_(key: string, count: number): number {
+  private static variantIndex_(key: string, count: number): number {
     let h = 0x811c9dc5;
 
     for (const ch of key) {
@@ -597,7 +764,27 @@ export class ModelResolver {
    * must not render at smallsat scale). The sccNum hash breaks ties where a
    * bucket has more than one variant. Unparseable/empty shapes keep the legacy
    * `sat2` mesh for continuity.
+   *
+   * The archetype pools it picks from are anchored on the archetype's base mesh. The free build
+   * ships one model in most of them; a variant pack widens them (see
+   * {@link MeshVariantPack.poolExtensions}).
    */
+  private static readonly genPools_ = {
+    trap: [SatelliteModels['gen-trap-geo']],
+    cylPan: [SatelliteModels['gen-cyl-pan']],
+    cylDish: [SatelliteModels['gen-cyl-dish']],
+    cyl: [SatelliteModels['gen-cyl']],
+    hexPan: [SatelliteModels['gen-hex-pan']],
+    poly: [SatelliteModels['gen-poly']],
+    sphere: [SatelliteModels['gen-sphere']],
+    boxDish: [SatelliteModels['gen-box-dish']],
+    boxSolar: [SatelliteModels['gen-box-solar']],
+    boxS: [SatelliteModels['gen-box-s']],
+    boxM: [SatelliteModels['gen-box-m']],
+    boxL: [SatelliteModels['gen-box-l']],
+    boxXl: [SatelliteModels['gen-box-xl'], SatelliteModels['gen-box-xl-b']],
+  } as const;
+
   private resolveGenericModelName_(sat: Satellite): string {
     const s = sat.shape.toLowerCase().replaceAll(/\s+/gu, '').replaceAll('+', '');
 
@@ -605,6 +792,7 @@ export class ModelResolver {
       return SatelliteModels.sat2;
     }
 
+    const pools = ModelResolver.genPools_;
     const span = Number.parseFloat(sat.span);
     const spanM = Number.isFinite(span) ? span : 0;
     const hasAnt = s.includes('ant');
@@ -616,41 +804,59 @@ export class ModelResolver {
       panels = 1;
     }
 
+    const ctx: GenericShapeContext = { shape: s, panels, hasAnt, spanM };
+
     if (s.includes('trap')) {
-      return SatelliteModels['gen-trap-geo'];
+      return ModelResolver.pickFromPool(sat, pools.trap);
     }
     if (s.includes('cyl')) {
       if (panels >= 2) {
-        return SatelliteModels['gen-cyl-pan'];
+        return ModelResolver.pickFromPool(sat, pools.cylPan);
       }
 
-      return hasAnt ? SatelliteModels['gen-cyl-dish'] : SatelliteModels['gen-cyl'];
+      return ModelResolver.pickFromPool(sat, hasAnt ? pools.cylDish : pools.cyl);
     }
     if (s.includes('hex')) {
-      return panels >= 2 ? SatelliteModels['gen-hex-pan'] : SatelliteModels['gen-poly'];
+      return ModelResolver.pickFromPool(sat, panels >= 2 ? pools.hexPan : pools.poly);
     }
     if (s.includes('poly')) {
-      return SatelliteModels['gen-poly'];
+      return ModelResolver.pickFromPool(sat, pools.poly);
     }
     if (s.includes('spher')) {
-      return SatelliteModels['gen-sphere'];
+      return ModelResolver.pickFromPool(sat, pools.sphere);
     }
     if (s.includes('box')) {
       if (panels === 0) {
-        return hasAnt ? SatelliteModels['gen-box-dish'] : SatelliteModels['gen-box-solar'];
+        return ModelResolver.pickFromPool(sat, hasAnt ? pools.boxDish : pools.boxSolar);
       }
+
+      // A pack may split the panelled buses further than span alone can (the single-panel
+      // smallsat look); the free build sizes every one of them by span.
+      const packBox = ModelResolver.packRoute_('genericBox', ctx, sat);
+
+      if (packBox) {
+        return packBox;
+      }
+
       if (spanM < 2) {
-        return SatelliteModels['gen-box-s'];
+        return ModelResolver.pickFromPool(sat, pools.boxS);
       }
       if (spanM < 10) {
-        return SatelliteModels['gen-box-m'];
+        return ModelResolver.pickFromPool(sat, pools.boxM);
       }
       if (spanM < 18) {
-        return SatelliteModels['gen-box-l'];
+        return ModelResolver.pickFromPool(sat, pools.boxL);
       }
-      const xl = [SatelliteModels['gen-box-xl'], SatelliteModels['gen-box-xl-b']];
 
-      return xl[this.variantIndex_(sat.sccNum, xl.length)];
+      return ModelResolver.pickFromPool(sat, pools.boxXl);
+    }
+
+    // Silhouettes the free build has no archetype for (cone and friends) are a pack's last
+    // chance before the legacy generic mesh.
+    const packShape = ModelResolver.packRoute_('genericShape', ctx, sat);
+
+    if (packShape) {
+      return packShape;
     }
 
     // cone / other / unrecognized silhouettes keep the legacy generic mesh.

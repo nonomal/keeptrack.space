@@ -1,8 +1,4 @@
-/*
- * Ring, GpuTimer, and FrameProfiler are one cohesive unit (a buffer, the GPU
- * query pump it feeds, and the collector that owns both), so they live together.
- */
-/* eslint-disable max-classes-per-file */
+// biome-ignore-all lint/style/noExcessiveClassesPerFile: Ring, GpuTimer, and FrameProfiler are one cohesive unit (a buffer, the GPU query pump it feeds, and the collector that owns both), so they live together
 import { ServiceLocator } from '@app/engine/core/service-locator';
 
 /**

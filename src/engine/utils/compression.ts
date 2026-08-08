@@ -34,7 +34,7 @@ export async function compressToGzip(jsonString: string): Promise<Uint8Array> {
   const chunks: Uint8Array[] = [];
 
   for (;;) {
-    // eslint-disable-next-line no-await-in-loop
+    // biome-ignore lint/performance/noAwaitInLoops: stream chunks must be read sequentially in order
     const { done, value } = await reader.read();
 
     if (done) {
@@ -73,7 +73,7 @@ export async function decompressGzipToBytes(data: Uint8Array): Promise<Uint8Arra
   const chunks: Uint8Array[] = [];
 
   for (;;) {
-    // eslint-disable-next-line no-await-in-loop
+    // biome-ignore lint/performance/noAwaitInLoops: stream chunks must be read sequentially in order
     const { done, value } = await reader.read();
 
     if (done) {

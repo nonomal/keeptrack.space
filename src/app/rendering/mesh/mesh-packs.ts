@@ -24,9 +24,10 @@ import { errorManagerInstance } from '@app/engine/utils/errorManager';
 /**
  * Registers every satellite mesh pack this build ships, before anything can resolve a model.
  *
- * The free build's models are baked into `SatelliteModels` and need no registration; this is
- * only for packs whose meshes ship separately, which today means the Pro hero-spacecraft pack
- * (89 named spacecraft, copied into `meshes/` by the pro webpack config).
+ * The free build's models are baked into `SatelliteModels` and need no registration; this is only
+ * for packs whose meshes ship separately, which today means the two Pro packs copied into
+ * `meshes/` by the pro webpack config: hero spacecraft (89 named spacecraft) and procedural
+ * variants (100 models that widen the shape-routed archetype pools).
  *
  * `src/keeptrack.ts` calls this before the plugins load so the model pickers in the
  * ephemeris-import menus - which build their `<option>` lists inside their own `init()` - see
@@ -48,6 +49,16 @@ export async function registerMeshPacks(): Promise<void> {
       pack.registerHeroMeshes();
     } catch (error) {
       errorManagerInstance.warn(`Hero spacecraft meshes unavailable, falling back to the generic models: ${error}`);
+    }
+
+    // Separate try/catch from the heroes above: the two packs are independent content, and one
+    // failing to load must not cost the build the other.
+    try {
+      const pack = await import(/* @vite-ignore */ '@plugins-pro/variant-meshes/variant-meshes');
+
+      pack.registerVariantMeshes();
+    } catch (error) {
+      errorManagerInstance.warn(`Procedural mesh variants unavailable, falling back to the free archetypes: ${error}`);
     }
   }
 }

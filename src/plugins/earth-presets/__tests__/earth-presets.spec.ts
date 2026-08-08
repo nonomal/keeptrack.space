@@ -21,7 +21,7 @@ test.describe('EarthPresetsPlugin', () => {
     const presetIds = ['earth-satellite-rmb', 'earth-nadir-rmb', 'earth-engineer-rmb', 'earth-opscenter-rmb', 'earth-90sGraphics-rmb'];
 
     for (const id of presetIds) {
-      // eslint-disable-next-line no-await-in-loop
+      // biome-ignore lint/performance/noAwaitInLoops: locator assertions run sequentially on one page
       await expect(page.locator(`#${id}`)).toBeAttached();
     }
 

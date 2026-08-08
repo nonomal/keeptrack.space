@@ -126,6 +126,63 @@ describe('MissileObject', () => {
     });
   });
 
+  describe('eci with an explicit date (reports / intercept solving)', () => {
+    const start = simTime.getTime();
+    const flight = () =>
+      makeMissile({
+        startTime: start,
+        latList: [0, 1, 2, 3, 4] as Degrees[],
+        lonList: [10, 11, 12, 13, 14] as Degrees[],
+        altList: [0, 100, 200, 100, 0] as Kilometers[],
+        timeList: [0, 1000, 2000, 3000, 4000],
+      });
+
+    it('samples the trajectory at the requested time, not the sim clock', () => {
+      const m = flight();
+      const early = m.eci(new Date(start))!;
+      const late = m.eci(new Date(start + 4000))!;
+
+      const separation = Math.hypot(late.position.x - early.position.x, late.position.y - early.position.y, late.position.z - early.position.z);
+
+      // Launch (lat 0) and impact (lat 4) are hundreds of km apart; the old
+      // implementation ignored the date and returned the same point for both.
+      expect(separation).toBeGreaterThan(100);
+    });
+
+    it('returns null outside the flight window (the solver and reports skip those samples)', () => {
+      const m = flight();
+
+      expect(m.eci(new Date(start - 1))).toBeNull();
+      expect(m.eci(new Date(start + 4001))).toBeNull();
+    });
+
+    it('the no-arg render path still clamps to the last sample after impact', () => {
+      const m = flight();
+
+      vi.spyOn(ServiceLocator, 'getTimeManager').mockReturnValue({ simulationTimeObj: new Date(start + 60_000) } as never);
+      expect(m.eci()).not.toBeNull();
+    });
+
+    it('does not clobber the cached render position', () => {
+      const m = flight();
+
+      const renderX = m.eci()!.position.x;
+
+      m.eci(new Date(start + 3000));
+      expect(m.position.x).toBe(renderX);
+    });
+
+    it('derives a finite non-zero velocity from the trajectory', () => {
+      const m = flight();
+      const v = m.eci(new Date(start + 2000))!.velocity;
+      const speed = Math.hypot(v.x, v.y, v.z);
+
+      expect(Number.isFinite(speed)).toBe(true);
+      // The cached velocity is zero; the dated query must differentiate the arc.
+      expect(speed).toBeGreaterThan(0);
+    });
+  });
+
   describe('getAltitude', () => {
     it('round-trips the sampled altitude through ECI/LLA', () => {
       const m = makeMissile();

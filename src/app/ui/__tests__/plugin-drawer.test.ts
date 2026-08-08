@@ -180,11 +180,15 @@ describe('PluginDrawer', () => {
 
       getEl('custom-sensor-icon')!.classList.add('bmenu-item-selected');
       await flushObserver();
-      rows.forEach((row) => expect(row.classList.contains('active')).toBe(true));
+      rows.forEach((row) => {
+        expect(row.classList.contains('active')).toBe(true);
+      });
 
       getEl('custom-sensor-icon')!.classList.remove('bmenu-item-selected');
       await flushObserver();
-      rows.forEach((row) => expect(row.classList.contains('active')).toBe(false));
+      rows.forEach((row) => {
+        expect(row.classList.contains('active')).toBe(false);
+      });
     });
 
     it('mirrors bottom-icon disabled state onto drawer rows', async () => {

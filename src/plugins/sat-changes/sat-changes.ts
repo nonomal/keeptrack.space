@@ -79,12 +79,13 @@ const uiManagerFinal = () => {
   });
 
   getEl('satChng-menu')!.addEventListener('click', (evt: Event) => {
-    if (!(<HTMLElement>evt.target).classList.contains('satChng-object')) {
+    // The clickable row is the <tr>, but the click usually originates on one of its <td> children.
+    const row = (evt.target as HTMLElement | null)?.closest('.satChng-object');
+
+    if (!row) {
       return;
     }
-    // Might be better code for this.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const hiddenRow = (<any>evt.currentTarget).attributes.hiddenrow.value;
+    const hiddenRow = row.getAttribute('hiddenrow');
 
     if (hiddenRow !== null) {
       satChng(parseInt(hiddenRow));

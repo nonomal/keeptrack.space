@@ -27,7 +27,7 @@
  */
 
 import { DetailedSensor } from '@app/app/sensors/DetailedSensor';
-import { MILLISECONDS_PER_SECOND, Satellite } from '@ootk/src/main';
+import { Degrees, J2000, Kilometers, LlaVec3, MILLISECONDS_PER_SECOND, PosVel, Satellite } from '@ootk/src/main';
 
 /** A structured report table: a header row plus pre-formatted string cells. */
 export interface ReportTable {
@@ -93,6 +93,29 @@ export const REPORT_DEFAULTS = {
 
 const HEADER_RULE = '-'.repeat(31);
 
+/**
+ * Minimal shape the position/time-series generators need from a report target.
+ * Full TLE-backed satellites satisfy it, but so do ephemeris-driven objects
+ * (OemSatellite) and ballistic missiles (MissileObject) — anything that can be
+ * sampled for a position over time.
+ */
+export interface ReportableObject {
+  name: string;
+  sccNum?: string;
+  altId?: string;
+  intlDes?: string;
+  lla(date?: Date): LlaVec3<Degrees, Kilometers> | null;
+  eci(date?: Date): PosVel | null;
+}
+
+/** A report target that can additionally express itself as an orbit (COES). */
+export interface OrbitalReportableObject extends ReportableObject {
+  toJ2000(date?: Date): J2000;
+}
+
+/** File-safe id for report filenames: the SCC number when present, else the name. */
+const reportId = (sat: ReportableObject): string => sat.sccNum || (sat.name || 'object').replace(/[^\w.-]+/gu, '_');
+
 /** Formats a Date as "YYYY-MM-DD HH:MM:SS" (UTC). */
 export const formatReportTime = (time: Date): string => {
   const [date, rest] = time.toISOString().split('T');
@@ -100,8 +123,8 @@ export const formatReportTime = (time: Date): string => {
   return `${date} ${rest.split('.')[0]}`;
 };
 
-/** Minimal shape the metadata header needs from a satellite. */
-type HeaderSat = Pick<Satellite, 'name' | 'sccNum' | 'altId' | 'intlDes'>;
+/** Minimal shape the metadata header needs from a report target. */
+type HeaderSat = Pick<ReportableObject, 'name' | 'sccNum' | 'altId' | 'intlDes'>;
 
 /**
  * Builds the metadata block printed above every report. Pure: the "generated at"
@@ -113,9 +136,9 @@ export const buildReportHeader = (title: string, sat: HeaderSat, sensor: Detaile
     `${title}\n${HEADER_RULE}\n` +
     `Date: ${generatedAt.toISOString()}\n` +
     `Satellite: ${sat.name}\n` +
-    `NORAD ID: ${sat.sccNum}\n` +
+    `NORAD ID: ${sat.sccNum ?? 'None'}\n` +
     `Alternate ID: ${sat.altId || 'None'}\n` +
-    `International Designator: ${sat.intlDes}\n\n`;
+    `International Designator: ${sat.intlDes ?? 'None'}\n\n`;
 
   if (!sensor) {
     return satData;
@@ -171,7 +194,7 @@ export const generateAerReport = (sat: Satellite, sensor: DetailedSensor, opts: 
 };
 
 /** Latitude/Longitude/Altitude ground track over the report window. */
-export const generateLlaReport = (sat: Satellite, opts: ReportOptions, generatedAt: Date): ReportData => {
+export const generateLlaReport = (sat: ReportableObject, opts: ReportOptions, generatedAt: Date): ReportData => {
   const header = buildReportHeader('Latitude Longitude Altitude Report', sat, null, generatedAt);
   const rows: string[][] = [];
   const stepMs = Math.max(1, opts.stepSec) * MILLISECONDS_PER_SECOND;
@@ -189,14 +212,14 @@ export const generateLlaReport = (sat: Satellite, opts: ReportOptions, generated
   }
 
   return {
-    filename: `lla-${sat.sccNum}`,
+    filename: `lla-${reportId(sat)}`,
     header,
     table: { headers: ['Time (UTC)', 'Latitude(°)', 'Longitude(°)', 'Altitude(km)'], rows },
   };
 };
 
 /** Earth Centered Inertial (TEME) position and velocity over the report window. */
-export const generateEciReport = (sat: Satellite, opts: ReportOptions, generatedAt: Date): ReportData => {
+export const generateEciReport = (sat: ReportableObject, opts: ReportOptions, generatedAt: Date): ReportData => {
   const header = buildReportHeader('Earth Centered Inertial (TEME) Report', sat, null, generatedAt);
   const rows: string[][] = [];
   const stepMs = Math.max(1, opts.stepSec) * MILLISECONDS_PER_SECOND;
@@ -222,7 +245,7 @@ export const generateEciReport = (sat: Satellite, opts: ReportOptions, generated
   }
 
   return {
-    filename: `eci-${sat.sccNum}`,
+    filename: `eci-${reportId(sat)}`,
     header,
     table: {
       headers: ['Time (UTC)', 'Position X(km)', 'Position Y(km)', 'Position Z(km)', 'Velocity X(km/s)', 'Velocity Y(km/s)', 'Velocity Z(km/s)'],
@@ -232,7 +255,7 @@ export const generateEciReport = (sat: Satellite, opts: ReportOptions, generated
 };
 
 /** Classical orbital elements at the satellite's current epoch (J2000). */
-export const generateCoesReport = (sat: Satellite, generatedAt: Date): ReportData => {
+export const generateCoesReport = (sat: OrbitalReportableObject, generatedAt: Date): ReportData => {
   const header = buildReportHeader('Classic Orbit Elements Report', sat, null, generatedAt);
   const el = sat.toJ2000().toClassicalElements();
   const rows: string[][] = [
@@ -250,7 +273,7 @@ export const generateCoesReport = (sat: Satellite, generatedAt: Date): ReportDat
   ];
 
   return {
-    filename: `coes-${sat.sccNum}`,
+    filename: `coes-${reportId(sat)}`,
     header,
     table: { headers: ['Element', 'Value'], rows },
   };
@@ -292,7 +315,7 @@ const ECLIPSE_LABEL: Record<SunIllumination, string> = {
 };
 
 /** Sun illumination + eclipse timing over the report window (for power/thermal work). */
-export const generateSunEclipseReport = (sat: Satellite, opts: ReportOptions, deps: ReportCoreDeps, generatedAt: Date): ReportData => {
+export const generateSunEclipseReport = (sat: ReportableObject, opts: ReportOptions, deps: ReportCoreDeps, generatedAt: Date): ReportData => {
   const header = buildReportHeader('Sun/Eclipse Analysis Report', sat, null, generatedAt);
   const rows: string[][] = [];
   const stepMs = Math.max(1, opts.stepSec) * MILLISECONDS_PER_SECOND;
@@ -310,7 +333,7 @@ export const generateSunEclipseReport = (sat: Satellite, opts: ReportOptions, de
   }
 
   return {
-    filename: `sun-eclipse-${sat.sccNum}`,
+    filename: `sun-eclipse-${reportId(sat)}`,
     header,
     table: { headers: ['Time (UTC)', 'Sun Illuminated', 'Eclipse Type', 'Sun Angle(°)'], rows },
   };

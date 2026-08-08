@@ -8,7 +8,9 @@ export class MeshRegistry {
   private readonly failed = new Set<string>();
 
   registerLoader(loader: MeshLoader, extensions: string[]) {
-    extensions.forEach((ext) => this.loaders.set(ext, loader));
+    extensions.forEach((ext) => {
+      this.loaders.set(ext, loader);
+    });
   }
 
   get(meshName: string): MeshModel | undefined {
@@ -26,7 +28,7 @@ export class MeshRegistry {
     return this.loadingPromises.has(meshName) || this.failed.has(meshName);
   }
 
-  // eslint-disable-next-line require-await
+  // biome-ignore lint/suspicious/useAwait: called every frame by the render loop; async keeps the guard throws (failed/no-loader) surfacing as rejections instead of sync throws
   async load(meshName: string, url: string, gl: WebGLRenderingContext): Promise<MeshModel> {
     /*
      * The mesh is keyed by meshName everywhere (get()/set()), so the cache,

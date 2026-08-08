@@ -10,6 +10,8 @@
       "src/**/*.{js,ts,tsx}",
       "!src/wip/**",
       "!src/lib/external/**",
+      "!src/engine/utils/external/meuusjs.ts",
+      "!src/app/data/catalogs/control-sites.ts",
       "!src/plugins-external/**",
       "!src/tle/**",
       "!src/tools/**",
@@ -55,7 +57,12 @@
         "noUselessUndefinedInitialization": "error",
         "noVoid": "warn",
         "useLiteralKeys": "warn",
-        "useMaxParams": "warn",
+        "useMaxParams": {
+          "level": "warn",
+          "options": {
+            "max": 8
+          }
+        },
         "useNumericLiterals": "error",
         "useRegexLiterals": "error"
       },

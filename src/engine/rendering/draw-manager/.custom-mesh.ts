@@ -127,6 +127,7 @@ export class CustomMesh {
     this.isLoaded_ = true;
   }
 
+  // biome-ignore lint/suspicious/useAwait: mesh init contract returns a Promise; async keeps sync GL setup throws (shader compile failures) surfacing as rejections
   public async init(gl: WebGL2RenderingContext, vertexList: Float32Array): Promise<void> {
     this.gl_ = gl;
     this.vertexList = vertexList;

@@ -609,7 +609,9 @@ export class InputManager {
             return aOrder - bOrder;
           });
           rmbWrapper.innerHTML = '';
-          rmbWrapperChildrenArray.forEach((child) => rmbWrapper.appendChild(child));
+          rmbWrapperChildrenArray.forEach((child) => {
+            rmbWrapper.appendChild(child);
+          });
         }
       }
     }

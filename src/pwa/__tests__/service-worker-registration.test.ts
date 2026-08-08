@@ -56,10 +56,14 @@ describe('registerServiceWorker', () => {
 
     expect(register).toHaveBeenCalledWith('./serviceWorker.js');
 
-    updatefoundHandlers.forEach((cb) => cb());
+    updatefoundHandlers.forEach((cb) => {
+      cb();
+    });
     expect(newWorker.addEventListener).toHaveBeenCalledWith('statechange', expect.any(Function));
 
-    statechangeHandlers.forEach((cb) => cb());
+    statechangeHandlers.forEach((cb) => {
+      cb();
+    });
     expect(waiting.postMessage).toHaveBeenCalledWith({ type: 'SKIP_WAITING' });
 
     vi.advanceTimersByTime(60 * 60 * 1000);
@@ -92,6 +96,10 @@ describe('registerServiceWorker', () => {
     registerServiceWorker();
     await flush();
 
-    expect(() => updatefoundHandlers.forEach((cb) => cb())).not.toThrow();
+    expect(() =>
+      updatefoundHandlers.forEach((cb) => {
+        cb();
+      })
+    ).not.toThrow();
   });
 });

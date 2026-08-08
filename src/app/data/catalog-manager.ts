@@ -34,7 +34,22 @@ import { ServiceLocator } from '@app/engine/core/service-locator';
 import { errorManagerInstance } from '@app/engine/utils/errorManager';
 import { isThisNode } from '@app/engine/utils/isThisNode';
 import { KeepTrack } from '@app/keeptrack';
-import { BaseObject, Degrees, KilometersPerSecond, Radians, Satellite, SatelliteRecord, Sgp4, SpaceObjectType, Star, TemeVec3, Tle, TleLine1, TleLine2 } from '@ootk/src/main';
+import {
+  BaseObject,
+  Degrees,
+  Kilometers,
+  KilometersPerSecond,
+  Radians,
+  Satellite,
+  SatelliteRecord,
+  Sgp4,
+  SpaceObjectType,
+  Star,
+  TemeVec3,
+  Tle,
+  TleLine1,
+  TleLine2,
+} from '@ootk/src/main';
 import { SatMath } from '../analysis/sat-math';
 import { SatCruncherThreadManager } from '../threads/sat-cruncher-thread-manager';
 import { SplashScreen } from '../ui/splash-screen';
@@ -69,6 +84,26 @@ export interface DensityBin {
   maxAltitude: number;
   count: number;
   density: number; // spatial density (objects per km³)
+}
+
+/**
+ * Entry in {@link CatalogManager.staticSet}. The set is a heterogeneous bag of
+ * Star / DetailedSensor / LaunchSite instances plus control-site plain objects
+ * (and plugin-injected entries), so only the properties the app reads off the
+ * shared collection are typed here; consumers narrow or cast per entry kind.
+ */
+export interface StaticSetEntry {
+  id: number;
+  name: string;
+  type: SpaceObjectType;
+  /** Present (and truthy) only on sensor entries. */
+  maxRng?: Kilometers;
+  // Communication link flags carried by control-site entries.
+  linkAehf?: boolean;
+  linkWgs?: boolean;
+  linkIridium?: boolean;
+  linkGalileo?: boolean;
+  linkStarlink?: boolean;
 }
 
 export class CatalogManager {
@@ -126,8 +161,7 @@ export class CatalogManager {
   sensorMarkerArray: number[] = [];
   starIndex1 = 0;
   starIndex2 = 0;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  staticSet = [] as any[];
+  staticSet: StaticSetEntry[] = [];
 
   /**
    * Calculates the Satellite Record (satrec) for a given satellite object.

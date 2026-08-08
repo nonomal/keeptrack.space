@@ -63,10 +63,14 @@ describe('filter-menu-core', () => {
       // Vimpel only appears when the JSC catalog is enabled, so exclude it from the existence check.
       const groupIds = [...OBJECT_TYPE_FILTERS, ...ORBITAL_REGIME_FILTERS, ...COUNTRY_FILTERS, ...SOURCE_FILTERS].filter((id) => id !== 'vimpelSatellites');
 
-      groupIds.forEach((id) => expect(ids.has(id)).toBe(true));
+      groupIds.forEach((id) => {
+        expect(ids.has(id)).toBe(true);
+      });
       Object.keys(FILTER_STORAGE_MAP)
         .filter((id) => id !== 'vimpelSatellites')
-        .forEach((id) => expect(ids.has(id)).toBe(true));
+        .forEach((id) => {
+          expect(ids.has(id)).toBe(true);
+        });
     });
   });
 

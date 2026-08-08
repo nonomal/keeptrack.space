@@ -74,6 +74,8 @@ describe('buildRicChartOption', () => {
     const opt = buildRicChartOption(POINTS, LABELS);
     const zoom = opt.dataZoom as { xAxisIndex: number[] }[];
 
-    zoom.forEach((z) => expect(z.xAxisIndex).toEqual([0, 1, 2, 3]));
+    zoom.forEach((z) => {
+      expect(z.xAxisIndex).toEqual([0, 1, 2, 3]);
+    });
   });
 });

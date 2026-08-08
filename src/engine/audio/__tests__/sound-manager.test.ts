@@ -21,8 +21,7 @@ describe('Sound Manager', () => {
     expect(sounds).toBeDefined();
     expect(sounds.click).toBeDefined();
 
-    // eslint-disable-next-line guard-for-in
-    for (const sound in sounds) {
+    for (const sound of Object.keys(sounds)) {
       const soundManagerPlugin2 = soundManagerPlugin;
 
       vi.spyOn(global, 'navigator', 'get').mockReturnValue({

@@ -14,7 +14,7 @@ import { vi } from 'vitest';
 
 const flushAsync = async () => {
   for (let i = 0; i < 6; i++) {
-    // eslint-disable-next-line no-await-in-loop
+    // biome-ignore lint/performance/noAwaitInLoops: microtask flushes must run sequentially
     await Promise.resolve();
   }
 };

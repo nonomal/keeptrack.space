@@ -235,7 +235,9 @@ export const getOwnSettingsSections = (): ISettingsContribution[] => {
 export const resetOwnSettings = (): void => {
   const descriptors = ownDescriptors_();
 
-  [...descriptors.general, ...descriptors.fastCpu].forEach((d) => d.reset());
+  [...descriptors.general, ...descriptors.fastCpu].forEach((d) => {
+    d.reset();
+  });
 
   // These live in plugin-contributed sections, but "Reset to defaults" restores them too.
   settingsManager.satLabelMode = SatLabelMode.FOV_ONLY;
