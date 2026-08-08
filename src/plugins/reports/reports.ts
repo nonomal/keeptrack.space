@@ -23,6 +23,8 @@
  */
 
 import { SatMath, SunStatus } from '@app/app/analysis/sat-math';
+import { MissileObject } from '@app/app/data/catalog-manager/MissileObject';
+import { OemSatellite } from '@app/app/objects/oem-satellite';
 import { DetailedSensor } from '@app/app/sensors/DetailedSensor';
 import { MenuMode } from '@app/engine/core/interfaces';
 import { PluginRegistry } from '@app/engine/core/plugin-registry';
@@ -63,6 +65,20 @@ import './reports.css';
 /** Shorthand for this plugin's locale keys. */
 const l = (key: string): string => t7e(`plugins.ReportsPlugin.${key}` as Parameters<typeof t7e>[0]);
 
+/**
+ * An object a report can be generated for. Full TLE-backed satellites support
+ * every report; ephemeris objects (OEM trajectories such as Pro launch
+ * simulations) and ballistic missiles (e.g. interceptors) support the reports
+ * that only sample position over time.
+ */
+export type ReportTarget = Satellite | OemSatellite | MissileObject;
+
+/** Reports that only sample position/time (LLA, ECI, sun/eclipse) work on any target. */
+const supportsPositionSampling = (obj: ReportTarget): boolean => obj instanceof Satellite || obj instanceof OemSatellite || obj instanceof MissileObject;
+
+/** Reports that need an orbit (COES) exclude ballistic missiles. */
+const supportsOrbitalElements = (obj: ReportTarget): boolean => obj instanceof Satellite || obj instanceof OemSatellite;
+
 /** The context a report generator receives: the time window, injected app state, and the report epoch. */
 export interface ReportContext {
   options: ReportOptions;
@@ -84,13 +100,19 @@ export interface ReportGenerator {
   /** Whether this report requires a sensor to be selected */
   requiresSensor?: boolean;
   /**
+   * Whether this report can run on the given selected object. Defaults to full
+   * TLE-backed satellites only; position-sampling reports also accept ephemeris
+   * (OEM) objects and ballistic missiles.
+   */
+  isSupported?: (obj: ReportTarget) => boolean;
+  /**
    * Generate the report data
-   * @param sat The selected satellite
+   * @param sat The selected report target (gated by {@link isSupported})
    * @param sensor The selected sensor (if required)
    * @param ctx The report context (time window, injected dependencies, epoch)
    * @returns The report data to be written
    */
-  generate(sat: Satellite, sensor: DetailedSensor | null, ctx: ReportContext): ReportData;
+  generate(sat: ReportTarget, sensor: DetailedSensor | null, ctx: ReportContext): ReportData;
 }
 
 /** Persisted shape for the last-used output options (StorageKey.REPORTS_SETTINGS). */
@@ -230,7 +252,9 @@ export class ReportsPlugin extends KeepTrackPlugin {
       callback: () => this.generateReport_(report),
       isAvailable: () => {
         try {
-          if (!this.selectSatManager_?.primarySatObj?.isSatellite()) {
+          const target = ReportsPlugin.asReportTarget_(this.selectSatManager_?.primarySatObj);
+
+          if (!target || !ReportsPlugin.isReportSupported_(report, target)) {
             return false;
           }
           if (report.requiresSensor && !ServiceLocator.getSensorManager().isSensorSelected()) {
@@ -250,7 +274,7 @@ export class ReportsPlugin extends KeepTrackPlugin {
         label: l('commands.open'),
         category,
         callback: () => this.bottomMenuClicked(),
-        isAvailable: () => !!this.selectSatManager_?.primarySatObj?.isSatellite?.(),
+        isAvailable: () => ReportsPlugin.asReportTarget_(this.selectSatManager_?.primarySatObj) !== null,
       },
       ...reportCommands,
     ];
@@ -340,8 +364,9 @@ export class ReportsPlugin extends KeepTrackPlugin {
   addJs(): void {
     super.addJs();
     EventBus.getInstance().on(EventBusEvent.uiManagerFinal, () => this.uiManagerFinal_());
-    EventBus.getInstance().on(EventBusEvent.setSensor, () => this.updateSensorReportsState_());
-    EventBus.getInstance().on(EventBusEvent.resetSensor, () => this.updateSensorReportsState_());
+    EventBus.getInstance().on(EventBusEvent.setSensor, () => this.updateReportAvailability_());
+    EventBus.getInstance().on(EventBusEvent.resetSensor, () => this.updateReportAvailability_());
+    EventBus.getInstance().on(EventBusEvent.selectSatData, () => this.updateReportAvailability_());
   }
 
   private uiManagerFinal_(): void {
@@ -358,11 +383,16 @@ export class ReportsPlugin extends KeepTrackPlugin {
     getEl('reports-format', true)?.addEventListener('change', () => this.readOptionsFromForm_());
 
     initMaterialSelects(getEl('reports-menu', true) ?? document.body);
-    this.updateSensorReportsState_();
+    this.updateReportAvailability_();
   }
 
-  /** Enables/disables the sensor-requiring report rows and toggles the requirement note. */
-  private updateSensorReportsState_(): void {
+  /**
+   * Enables/disables the report rows for the current selection: sensor-requiring
+   * reports need a sensor, and every report needs the selected object to support
+   * it (e.g. COES is disabled while a ballistic missile is selected). Also
+   * toggles the sensor-requirement note.
+   */
+  private updateReportAvailability_(): void {
     const hasSensor = (() => {
       try {
         return ServiceLocator.getSensorManager().isSensorSelected();
@@ -370,16 +400,20 @@ export class ReportsPlugin extends KeepTrackPlugin {
         return false;
       }
     })();
+    const target = ReportsPlugin.asReportTarget_(this.selectSatManager_?.primarySatObj);
 
-    ReportsPlugin.getRegisteredReports()
-      .filter((r) => r.requiresSensor)
-      .forEach((r) => {
-        const btn = getEl(`${r.id}-btn`, true) as HTMLButtonElement | null;
+    ReportsPlugin.getRegisteredReports().forEach((r) => {
+      const btn = getEl(`${r.id}-btn`, true) as HTMLButtonElement | null;
 
-        if (btn) {
-          btn.disabled = !hasSensor;
-        }
-      });
+      if (btn) {
+        const missingSensor = !!r.requiresSensor && !hasSensor;
+        // With nothing selected the menu cannot be opened anyway, so leave the
+        // rows enabled rather than flashing every button disabled.
+        const unsupported = target !== null && !ReportsPlugin.isReportSupported_(r, target);
+
+        btn.disabled = missingSensor || unsupported;
+      }
+    });
 
     const note = getEl('reports-sensor-note', true);
 
@@ -457,6 +491,16 @@ export class ReportsPlugin extends KeepTrackPlugin {
   // Report generation
   // =========================================================================
 
+  /** Narrow an arbitrary selected object to a report target, or null. */
+  private static asReportTarget_(obj: unknown): ReportTarget | null {
+    return obj instanceof Satellite || obj instanceof OemSatellite || obj instanceof MissileObject ? obj : null;
+  }
+
+  /** Whether a report can run on the given target (default: full satellites only). */
+  private static isReportSupported_(report: ReportGenerator, obj: ReportTarget): boolean {
+    return report.isSupported ? report.isSupported(obj) : obj instanceof Satellite;
+  }
+
   /**
    * Generic report generation method that works with any registered report
    */
@@ -464,6 +508,12 @@ export class ReportsPlugin extends KeepTrackPlugin {
     const sat = this.getSat_();
 
     if (!sat) {
+      return;
+    }
+
+    if (!ReportsPlugin.isReportSupported_(report, sat)) {
+      errorManagerInstance.warn(l('errorMsgs.notSupportedForObject'));
+
       return;
     }
 
@@ -482,7 +532,7 @@ export class ReportsPlugin extends KeepTrackPlugin {
   }
 
   /** Assembles the report context: time window, injected dependencies, and report epoch. */
-  private buildContext_(sat: Satellite): ReportContext {
+  private buildContext_(sat: ReportTarget): ReportContext {
     const startTime = this.getStartTime_();
     const options: ReportOptions = { startTime, windowSec: this.windowSec_, stepSec: this.stepSec_ };
 
@@ -494,9 +544,11 @@ export class ReportsPlugin extends KeepTrackPlugin {
    * is computed lazily inside the closures so non-sensor reports (e.g. COES) never
    * trigger the satrec/pass machinery.
    */
-  private buildCoreDeps_(sat: Satellite): ReportCoreDeps {
+  private buildCoreDeps_(sat: ReportTarget): ReportCoreDeps {
     return {
-      findPasses: (sensor, opts) => this.findPasses_(sat, sensor, opts),
+      // Pass finding needs a satrec, so it only exists for TLE-backed satellites;
+      // sensor reports are gated to those, this guard just keeps the closure total.
+      findPasses: (sensor, opts) => (sat instanceof Satellite ? this.findPasses_(sat, sensor, opts) : []),
       sunStatusAt: (date) => ReportsPlugin.sunStatusAt_(sat, date),
     };
   }
@@ -540,7 +592,7 @@ export class ReportsPlugin extends KeepTrackPlugin {
   }
 
   /** Computes the satellite's sun-illumination state and sun angle at a given time. */
-  private static sunStatusAt_(sat: Satellite, date: Date): { illumination: SunIllumination; sunAngleDeg: number } | null {
+  private static sunStatusAt_(sat: ReportTarget, date: Date): { illumination: SunIllumination; sunAngleDeg: number } | null {
     const stateVector = sat.eci(date);
 
     if (!stateVector) {
@@ -576,7 +628,8 @@ export class ReportsPlugin extends KeepTrackPlugin {
           throw new Error('Sensor is required for AER report');
         }
 
-        return generateAerReport(sat, sensor, ctx.options, ctx.deps, ctx.generatedAt);
+        // The default support gate restricts this report to full satellites.
+        return generateAerReport(sat as Satellite, sensor, ctx.options, ctx.deps, ctx.generatedAt);
       },
     });
 
@@ -585,6 +638,7 @@ export class ReportsPlugin extends KeepTrackPlugin {
       name: l('reports.lla.name'),
       description: l('reports.lla.description'),
       requiresSensor: false,
+      isSupported: supportsPositionSampling,
       generate: (sat, _sensor, ctx) => generateLlaReport(sat, ctx.options, ctx.generatedAt),
     });
 
@@ -593,6 +647,7 @@ export class ReportsPlugin extends KeepTrackPlugin {
       name: l('reports.eci.name'),
       description: l('reports.eci.description'),
       requiresSensor: false,
+      isSupported: supportsPositionSampling,
       generate: (sat, _sensor, ctx) => generateEciReport(sat, ctx.options, ctx.generatedAt),
     });
 
@@ -601,6 +656,8 @@ export class ReportsPlugin extends KeepTrackPlugin {
       name: l('reports.coes.name'),
       description: l('reports.coes.description'),
       requiresSensor: false,
+      isSupported: supportsOrbitalElements,
+      // MissileObject.toJ2000 throws; the isSupported gate keeps missiles out.
       generate: (sat, _sensor, ctx) => generateCoesReport(sat, ctx.generatedAt),
     });
 
@@ -614,7 +671,8 @@ export class ReportsPlugin extends KeepTrackPlugin {
           throw new Error('Sensor is required for Visibility Windows report');
         }
 
-        return generateVisibilityWindowsReport(sat, sensor, ctx.options, ctx.deps, ctx.generatedAt);
+        // The default support gate restricts this report to full satellites.
+        return generateVisibilityWindowsReport(sat as Satellite, sensor, ctx.options, ctx.deps, ctx.generatedAt);
       },
     });
 
@@ -623,6 +681,7 @@ export class ReportsPlugin extends KeepTrackPlugin {
       name: l('reports.sunEclipse.name'),
       description: l('reports.sunEclipse.description'),
       requiresSensor: false,
+      isSupported: supportsPositionSampling,
       generate: (sat, _sensor, ctx) => generateSunEclipseReport(sat, ctx.options, ctx.deps, ctx.generatedAt),
     });
   }
@@ -688,16 +747,10 @@ export class ReportsPlugin extends KeepTrackPlugin {
     return time;
   }
 
-  private getSat_(): Satellite | null {
-    const sat = this.selectSatManager_.primarySatObj as Satellite;
+  private getSat_(): ReportTarget | null {
+    const sat = ReportsPlugin.asReportTarget_(this.selectSatManager_.primarySatObj);
 
     if (!sat) {
-      errorManagerInstance.warn(t7e('errorMsgs.SelectSatelliteFirst'));
-
-      return null;
-    }
-
-    if (!(sat instanceof Satellite)) {
       errorManagerInstance.warn(t7e('errorMsgs.SelectSatelliteFirst'));
 
       return null;

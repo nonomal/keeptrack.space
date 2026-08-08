@@ -136,4 +136,37 @@ describe('reports-core', () => {
       expect(data.table!.rows[0][4]).toBe('42.500');
     });
   });
+
+  describe('targets without satellite identity (OEM objects, missiles)', () => {
+    // Structurally a ReportableObject: position sampling but no NORAD identity.
+    const interceptorTarget = {
+      name: 'Interceptor → COSMOS 2251',
+      lla: () => ({ lat: 10.123, lon: 20.456, alt: 300.789 }),
+      eci: () => ({ position: { x: 7000, y: 0, z: 0 }, velocity: { x: 0, y: 7.5, z: 0 } }),
+    };
+
+    it('LLA falls back to a name slug for the filename and None for missing ids', () => {
+      const data = generateLlaReport(interceptorTarget as never, opts, generatedAt);
+
+      expect(data.filename).toBe('lla-Interceptor_COSMOS_2251');
+      expect(data.header).toContain('NORAD ID: None');
+      expect(data.header).toContain('International Designator: None');
+      expect(data.table!.rows.length).toBeGreaterThan(0);
+    });
+
+    it('ECI samples position and velocity from the target', () => {
+      const data = generateEciReport(interceptorTarget as never, opts, generatedAt);
+
+      expect(data.filename).toBe('eci-Interceptor_COSMOS_2251');
+      expect(data.table!.rows[0][1]).toBe('7000.000');
+      expect(data.table!.rows[0][5]).toBe('7.500');
+    });
+
+    it('skips samples where the target has no position (outside its window)', () => {
+      const gappy = { ...interceptorTarget, lla: () => null };
+      const data = generateLlaReport(gappy as never, opts, generatedAt);
+
+      expect(data.table!.rows).toHaveLength(0);
+    });
+  });
 });

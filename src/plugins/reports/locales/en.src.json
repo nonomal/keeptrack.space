@@ -60,6 +60,9 @@
         "howToUse": "<ol><li>Select a satellite; the bottom icon is disabled until one is selected.</li><li>For sensor based reports, select a sensor too.</li><li>Open <strong>Reports</strong> from the bottom bar and click a report button. The report opens in a popup window.</li><li>Use the download button in the report window to save it as a text file.</li></ol>",
         "tip1": "Reports cover several days of data; generation can take a few seconds for the pass based reports.",
         "tip2": "If the report window does not appear, your browser's popup blocker is the usual culprit; allow popups for this site."
+      },
+      "errorMsgs": {
+        "notSupportedForObject": "This report is not available for the selected object."
       }
     }
   }

@@ -60,6 +60,9 @@
         "howToUse": "<ol><li>Wybierz satelitę; dolna ikona jest nieaktywna, dopóki żaden nie zostanie wybrany.</li><li>W przypadku raportów opartych na czujniku wybierz także czujnik.</li><li>Otwórz <strong>Raporty</strong> z dolnego paska i kliknij przycisk raportu. Raport otworzy się w wyskakującym oknie.</li><li>Użyj przycisku pobierania w oknie raportu, aby zapisać go jako plik tekstowy.</li></ol>",
         "tip1": "Raporty obejmują dane z kilku dni; generowanie raportów opartych na przelotach może potrwać kilka sekund.",
         "tip2": "Jeśli okno raportu się nie pojawia, zwykle winna jest blokada wyskakujących okien w przeglądarce; zezwól na wyskakujące okna dla tej witryny."
+      },
+      "errorMsgs": {
+        "notSupportedForObject": "Ten raport nie jest dostępny dla wybranego obiektu."
       }
     }
   }
