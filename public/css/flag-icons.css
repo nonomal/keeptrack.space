@@ -3,10 +3,15 @@
 }
 
 .fi-cis {
-    background-image: url(../flags/cis.svg);
+    background-image: url(../flags/cis.png);
 }
 
-.fi-nato {
+.fi-i-arab {
+    background-image: url(../flags/arabsat.png);
+}
+
+.fi-nato,
+.fi-i-nato {
     background-image: url(../flags/nato.png);
 }
 
@@ -14,10 +19,41 @@
     background-image: url(../flags/ussr.png);
 }
 
-.fi-esa {
+.fi-esa,
+.fi-i-esa {
     background-image: url(../flags/esa.png);
 }
 
-.fi-iss {
+.fi-i-eu {
+    background-image: url(../flags/eu.png);
+}
+
+.fi-eume,
+.fi-i-eum {
+    background-image: url(../flags/eumetsat.png);
+}
+
+.fi-eute,
+.fi-i-eut {
+    background-image: url(../flags/eutelsat.png);
+}
+
+.fi-i-inm,
+.fi-im {
+    background-image: url(../flags/inmarsat.png);
+}
+
+.fi-i-int,
+.fi-itso {
+    background-image: url(../flags/intelsat.png);
+}
+
+.fi-iss,
+.fi-i-iss {
     background-image: url(../flags/iss.png);
+}
+
+.fi-rasc,
+.fi-i-rasc {
+    background-image: url(../flags/rascom.png);
 }

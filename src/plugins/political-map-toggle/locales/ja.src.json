@@ -1,0 +1,16 @@
+{
+  "plugins": {
+    "PoliticalMapToggle": {
+      "bottomIconLabel": "\u653f\u6cbb\u5730\u56f3",
+      "modeOff": "\u653f\u6cbb\u5730\u56f3\u30aa\u30d5",
+      "modeBorders": "\u56fd\u5883\u306e\u307f",
+      "modeBordersLabels": "\u56fd\u5883 + \u56fd\u540d",
+      "modeLabels": "\u56fd\u540d\u306e\u307f",
+      "commandPalette": {
+        "cycle": "\u653f\u6cbb\u5730\u56f3\u30e2\u30fc\u30c9\u306e\u5207\u308a\u66ff\u3048",
+        "toggle": "\u653f\u6cbb\u7684\u5883\u754c\u7dda\u306e\u5207\u308a\u66ff\u3048",
+        "toggleLabels": "\u56fd\u540d\u30e9\u30d9\u30eb\u306e\u5207\u308a\u66ff\u3048"
+      }
+    }
+  }
+}

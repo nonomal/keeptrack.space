@@ -1,8 +1,13 @@
-import { KeepTrackApiEvents } from '@app/interfaces';
-import { keepTrackApi } from '@app/keepTrackApi';
-import { getEl } from '@app/lib/get-el';
-import { isThisNode } from '@app/static/isThisNode';
-import { KeepTrackPlugin } from '../KeepTrackPlugin';
+import { ServiceLocator } from '@app/engine/core/service-locator';
+import { EventBus } from '@app/engine/events/event-bus';
+import { EventBusEvent } from '@app/engine/events/event-bus-events';
+import { html } from '@app/engine/utils/development/formatter';
+import { errorManagerInstance } from '@app/engine/utils/errorManager';
+import { getEl, setInnerHtml } from '@app/engine/utils/get-el';
+import { isThisNode } from '@app/engine/utils/isThisNode';
+import { settingsManager } from '@app/settings/settings';
+import { Milliseconds } from '@ootk/src/main';
+import { KeepTrackPlugin } from '../../engine/plugins/base-plugin';
 import { TopMenu } from '../top-menu/top-menu';
 import { Calendar } from './calendar';
 
@@ -12,41 +17,120 @@ export class DateTimeManager extends KeepTrackPlugin {
   isEditTimeOpen = false;
   private readonly dateTimeContainerId_ = 'datetime';
   private readonly dateTimeInputTbId_ = 'datetime-input-tb';
+  private iText: number | null = null;
+  private simulationTimeSerialized_: string | null = null;
+  /** Reusable empty text string to reduce garbage collection */
+  private readonly timeTextStrEmpty_ = '' as const;
+  timeTextStr: string = '';
+  isCreateClockDOMOnce_ = false;
+  dateDOM: HTMLElement | null = null;
+  /** Time in Milliseconds the last time sim time was updated */
+  private lastTime = 0 as Milliseconds;
+  /** Last value written to each DOM node, so we can skip redundant writes that trigger style recalcs every frame */
+  private lastDateStr_: string | null = null;
+  private lastJdayStr_: string | null = null;
+  private lastTimeTextStr_: string | null = null;
   calendar: Calendar;
 
-  init(): void {
-    super.init();
+  // =========================================================================
+  // Lifecycle methods
+  // =========================================================================
 
-    keepTrackApi.on(KeepTrackApiEvents.uiManagerInit, this.uiManagerInit.bind(this));
-    keepTrackApi.on(KeepTrackApiEvents.uiManagerFinal, this.uiManagerFinal.bind(this));
-    keepTrackApi.on(KeepTrackApiEvents.updateDateTime, this.updateDateTime.bind(this));
-    keepTrackApi.on(KeepTrackApiEvents.onKeepTrackReady, () => this.updateDateTime(keepTrackApi.getTimeManager().simulationTimeObj));
+  addHtml(): void {
+    super.addHtml();
+
+    EventBus.getInstance().on(EventBusEvent.uiManagerInit, this.uiManagerInit_.bind(this));
+    EventBus.getInstance().on(EventBusEvent.uiManagerFinal, this.uiManagerFinal_.bind(this));
+  }
+
+  addJs(): void {
+    super.addJs();
+
+    EventBus.getInstance().on(EventBusEvent.updateDateTime, this.updateDateTime.bind(this));
+    EventBus.getInstance().on(EventBusEvent.onKeepTrackReady, () => this.updateDateTime(ServiceLocator.getTimeManager().simulationTimeObj));
+    EventBus.getInstance().on(EventBusEvent.selectedDateChange, (date: Date) => this.updateDateTime(date));
   }
 
   updateDateTime(date: Date) {
-    const dateTimeInputTb = document.getElementById(this.dateTimeInputTbId_) as HTMLInputElement;
-
-    if (dateTimeInputTb && !isThisNode()) {
-      dateTimeInputTb.value = date.toISOString().split('T')[0]; // Format the date as yyyy-mm-dd
-    }
-
-    //  Jday isn't initalized right away, so we need to check if it exists
-    if (!getEl('jday')) {
+    if (!date || isNaN(date.getTime())) {
       return;
     }
 
-    if (settingsManager.isUseJdayOnTopMenu) {
-      const jday = keepTrackApi.getTimeManager().getUTCDayOfYear(keepTrackApi.getTimeManager().simulationTimeObj);
+    // Only rewrite the editable date input when the day actually changes (avoids a
+    // per-frame style recalc from setting .value with an unchanged string).
+    if (!isThisNode()) {
+      const dateStr = date.toISOString().split('T')[0]; // Format the date as yyyy-mm-dd
 
-      getEl('jday')!.innerHTML = jday.toString();
-    } else {
-      getEl('jday')!.innerHTML = keepTrackApi.getTimeManager().simulationTimeObj.toLocaleDateString();
+      if (dateStr !== this.lastDateStr_) {
+        const dateTimeInputTb = document.getElementById(this.dateTimeInputTbId_) as HTMLInputElement | null;
+
+        if (dateTimeInputTb) {
+          dateTimeInputTb.value = dateStr;
+          this.lastDateStr_ = dateStr;
+        }
+      }
+    }
+
+    //  Jday isn't initalized right away, so we need to check if it exists
+    if (!getEl('jday', true)) {
+      return;
+    }
+
+    const timeManagerInstance = ServiceLocator.getTimeManager();
+    const jdayStr = settingsManager.isUseJdayOnTopMenu
+      ? timeManagerInstance.getUTCDayOfYear(timeManagerInstance.simulationTimeObj).toString()
+      : timeManagerInstance.simulationTimeObj.toLocaleDateString();
+
+    // Only touch the jday DOM on change; setInnerHtml rewrites innerHTML which triggers a style recalc.
+    if (jdayStr !== this.lastJdayStr_) {
+      setInnerHtml('jday', jdayStr);
+      this.lastJdayStr_ = jdayStr;
+    }
+
+    if (!this.simulationTimeSerialized_ || Math.abs(this.lastTime - timeManagerInstance.simulationTimeObj.getTime()) > (1000 as Milliseconds)) {
+      this.simulationTimeSerialized_ = timeManagerInstance.simulationTimeObj.toJSON();
+      this.timeTextStr = this.timeTextStrEmpty_;
+      for (this.iText = 11; this.iText < 20; this.iText++) {
+        if (this.iText > 11) {
+          this.timeTextStr += this.simulationTimeSerialized_[this.iText - 1];
+        }
+      }
+
+      this.lastTime = timeManagerInstance.simulationTimeObj.getTime() as Milliseconds;
+    }
+
+    // Avoid race condition
+    if (!this.dateDOM) {
+      try {
+        this.dateDOM = getEl('datetime-text');
+        if (!this.dateDOM) {
+          return;
+        }
+      } catch {
+        errorManagerInstance.debug('Date DOM not found');
+
+        return;
+      }
+    }
+
+    // The clock text (HH:MM:SS) only changes once per second, so skip the DOM write
+    // otherwise. Writing every frame is what showed up as "Recalculate Style" in the
+    // game loop. Update the existing text node in place rather than replacing it.
+    if (this.timeTextStr !== this.lastTimeTextStr_) {
+      if (!this.isCreateClockDOMOnce_ || this.dateDOM.childNodes.length === 0) {
+        this.dateDOM.innerText = this.timeTextStr;
+        this.isCreateClockDOMOnce_ = true;
+      } else {
+        // nodeValue doesn't remove the Node! No unnecessary DOM changes every time the time updates.
+        this.dateDOM.childNodes[0].nodeValue = this.timeTextStr;
+      }
+      this.lastTimeTextStr_ = this.timeTextStr;
     }
   }
 
   datetimeTextClick(): void {
-    const simulationDateObj = new Date(keepTrackApi.getTimeManager().simulationTimeObj);
-    const timeManagerInstance = keepTrackApi.getTimeManager();
+    const simulationDateObj = new Date(ServiceLocator.getTimeManager().simulationTimeObj);
+    const timeManagerInstance = ServiceLocator.getTimeManager();
 
     timeManagerInstance.synchronize();
 
@@ -54,8 +138,14 @@ export class DateTimeManager extends KeepTrackPlugin {
     this.calendar.setDate(simulationDateObj);
     this.calendar.toggleDatePicker();
 
-    if (!this.isEditTimeOpen) {
-      const datetimeInput = getEl('datetime-input');
+    const datetimeInput = getEl('datetime-input');
+
+    if (this.isEditTimeOpen) {
+      if (datetimeInput) {
+        datetimeInput.style.display = 'none';
+      }
+      this.isEditTimeOpen = false;
+    } else {
       const datetimeInputTb = getEl(this.dateTimeInputTbId_);
 
       if (datetimeInput && datetimeInputTb) {
@@ -63,17 +153,16 @@ export class DateTimeManager extends KeepTrackPlugin {
         (datetimeInputTb as HTMLInputElement).focus();
         this.isEditTimeOpen = true;
       }
-
     }
   }
 
-  uiManagerInit() {
+  private uiManagerInit_() {
     const NavWrapper = getEl('nav-wrapper');
 
     NavWrapper?.insertAdjacentHTML(
       'afterbegin',
-      keepTrackApi.html`
-        <div id="nav-mobile">
+      html`
+        <div id="nav-top-center">
           <div id="jday"></div>
           <div id="${this.dateTimeContainerId_}">
             <div id="datetime-text" class="waves-effect waves-light">Placeholder Text</div>
@@ -83,11 +172,11 @@ export class DateTimeManager extends KeepTrackPlugin {
               </form>
             </div>
           </div>
-        </div>`,
+        </div>`
     );
   }
 
-  uiManagerFinal() {
+  private uiManagerFinal_() {
     if (!settingsManager.plugins.TopMenu) {
       return;
     }
@@ -103,25 +192,34 @@ export class DateTimeManager extends KeepTrackPlugin {
 
     document.getElementById('datetime-text')?.addEventListener('click', this.datetimeTextClick.bind(this));
 
+    if (settingsManager.isJdayToggleable) {
+      const jdayEl = getEl('jday', true);
+
+      if (jdayEl) {
+        jdayEl.style.cursor = 'pointer';
+        jdayEl.addEventListener('click', () => {
+          settingsManager.isUseJdayOnTopMenu = !settingsManager.isUseJdayOnTopMenu;
+          this.updateDateTime(ServiceLocator.getTimeManager().simulationTimeObj);
+        });
+      }
+    }
+
     const datetimeInputTb = document.getElementById(this.dateTimeInputTbId_);
 
     if (datetimeInputTb && !isThisNode()) {
       datetimeInputTb.addEventListener('change', () => {
         if (this.isEditTimeOpen) {
-          // const datetimeInputElement = document.getElementById('datetime-input');
+          const datetimeInputElement = document.getElementById('datetime-input');
 
-          /*
-           * TODO: Why was this originally !datetimeInputElement???
-           * if (datetimeInputElement) {
-           * datetimeInputElement.style.display = 'none';
-           * }
-           */
+          if (datetimeInputElement) {
+            datetimeInputElement.style.display = 'none';
+          }
           setTimeout(() => {
             this.isEditTimeOpen = false;
           }, 500);
 
           try {
-            const uiManagerInstance = keepTrackApi.getUiManager();
+            const uiManagerInstance = ServiceLocator.getUiManager();
 
             uiManagerInstance.updateNextPassOverlay(true);
           } catch {

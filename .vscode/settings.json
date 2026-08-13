@@ -1,15 +1,11 @@
 {
   "jest.jestCommandLine": "",
-  "conventionalCommits.promptScopes": false,
   "editor.formatOnSave": true,
   "typescript.validate.enable": true,
   "npm.exclude": [
     "**/dist/**",
     "**/src/admin",
     "**/src/admin/*"
-  ],
-  "eslint.workingDirectories": [
-    "./"
   ],
   "typescript.tsdk": "./node_modules/typescript/lib",
   "git.enableCommitSigning": true,
@@ -33,21 +29,21 @@
     "src/lib/**": true,
     "tsconfig.json": true
   },
+  "files.trimTrailingWhitespace": true,
+  "editor.renderWhitespace": "trailing",
+  "editor.trimAutoWhitespace": true,
   "[yaml]": {
-    "editor.autoIndent": "advanced",
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
+    "editor.autoIndent": "advanced"
   },
-  "eslint.validate": [
-    "javascript",
-    "javascriptreact",
-    "typescript",
-    "typescriptreact"
-  ],
+  "[javascript]": { "editor.defaultFormatter": "biomejs.biome" },
+  "[javascriptreact]": { "editor.defaultFormatter": "biomejs.biome" },
+  "[typescript]": { "editor.defaultFormatter": "biomejs.biome" },
+  "[typescriptreact]": { "editor.defaultFormatter": "biomejs.biome" },
+  "[json]": { "editor.defaultFormatter": "vscode.json-language-features" },
+  "[jsonc]": { "editor.defaultFormatter": "biomejs.biome" },
   "editor.codeActionsOnSave": {
-    "source.fixAll.eslint": "explicit",
-    "source.organizeImports": "always",
-    "source.addMissingImports": "explicit",
-    "source.removeUnusedImports": "explicit"
+    "source.fixAll.biome": "explicit",
+    "source.organizeImports.biome": "explicit"
   },
   "files.eol": "\n",
   "terminal.integrated.profiles.windows": {
@@ -78,8 +74,42 @@
   "editor.rulers": [
     180
   ],
+  "rewrap.wrappingColumn": 180,
   "sonarlint.connectedMode.project": {
     "connectionId": "http-localhost-9000",
     "projectKey": "keeptrack"
-  }
+  },
+  "github.copilot.chat.commitMessageGeneration.instructions": [
+    {
+      "text": "Format: <type>(<scope>): :emoji: <description>"
+    },
+    {
+      "text": "ALWAYS include the emoji - this is required"
+    },
+    {
+      "text": "Emoji mapping by type: feat=:sparkles:, fix=:bug:, refactor=:recycle:, docs=:memo:, test=:white_check_mark:, chore=:wrench:, perf=:zap:, style=:art:"
+    },
+    {
+      "text": "Special emojis: localization=:globe_with_meridians:, move/rename=:truck:, breaking=:boom:, security=:lock:, remove=:fire:, UI/UX=:children_crossing:"
+    },
+    {
+      "text": "Use imperative present tense: 'add', 'update', 'fix', not 'added' or 'fixes'"
+    },
+    {
+      "text": "Keep description concise - aim for < 50 chars, max 72. Omit filler words like 'functionality', 'to enhance', 'for better'"
+    },
+    {
+      "text": "No trailing period. No scope needed unless clarifying ambiguity"
+    },
+    {
+      "text": "Good: 'feat: :sparkles: add keyboard shortcuts for VCR plugin' Bad: 'feat: add keyboard shortcuts functionality for play, rewind, and fast forward in VCR plugin'"
+    },
+    {
+      "text": "Only add body for breaking changes, complex reasoning, or issue references"
+    }
+  ],
+  "github.copilot.enable": {
+    "*": true
+  },
+  "github.copilot.nextEditSuggestions.enabled": true,
 }

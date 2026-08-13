@@ -1,0 +1,56 @@
+{
+  "SatInfoBoxObject": {
+    "title": "Dati dell'oggetto",
+    "Type": {
+      "label": "Tipo",
+      "tooltip": "Tipo di oggetto",
+      "unknown": "Da annunciare",
+      "payload": "Carico utile",
+      "rocketBody": "Corpo del razzo",
+      "debris": "Detriti",
+      "special": "Speciale",
+      "missile": "Missile balistico"
+    },
+    "Status": {
+      "label": "Stato",
+      "tooltip": "Stato operativo dell'oggetto",
+      "operational": "Operativo",
+      "nonOperational": "Non operativo",
+      "partiallyOperational": "Parzialmente operativo",
+      "extendedMission": "Missione estesa",
+      "backupStandby": "Riserva/In attesa",
+      "spare": "Riserva",
+      "unknown": "Sconosciuto"
+    },
+    "Country": {
+      "label": "Paese",
+      "tooltip": "Paese di origine"
+    },
+    "LaunchSite": {
+      "label": "Sito di lancio",
+      "tooltip": "Luogo da cui l'oggetto è stato lanciato"
+    },
+    "LaunchVehicle": {
+      "label": "Veicolo di lancio",
+      "tooltip": "Razzo o veicolo utilizzato per lanciare l'oggetto"
+    },
+    "Configuration": {
+      "label": "Configurazione",
+      "tooltip": "Configurazione del razzo o del veicolo di lancio"
+    },
+    "RCS": {
+      "label": "RCS",
+      "tooltip": "Sezione radar equivalente - Quanto l'oggetto è riflettente a un segnale radar (in m²)"
+    },
+    "StdMag": {
+      "label": "Mag standard",
+      "tooltip": "Magnitudine standard - Numeri più piccoli indicano maggiore luminosità"
+    },
+    "AppMag": {
+      "label": "Mag apparente",
+      "tooltip": "Magnitudine visuale apparente osservata dal sensore selezionato all'ora di simulazione corrente"
+    },
+    "estimatedSuffix": "(stim.)",
+    "unknown": "Sconosciuto"
+  }
+}

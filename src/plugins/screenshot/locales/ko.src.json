@@ -1,0 +1,15 @@
+{
+  "plugins": {
+    "Screenshot": {
+      "bottomIconLabel": "사진 찍기",
+      "rmbMenu": {
+        "title": "이미지 저장"
+      },
+      "commands": {
+        "take4k": "스크린샷 (4K)",
+        "takeHd": "스크린샷 (HD)",
+        "take8k": "스크린샷 (8K)"
+      }
+    }
+  }
+}

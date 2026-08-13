@@ -1,8 +1,13 @@
-import { ToastMsgType } from '@app/interfaces';
-import { keepTrackApi } from '@app/keepTrackApi';
+import { ToastMsgType } from '@app/engine/core/interfaces';
+import { PluginRegistry } from '@app/engine/core/plugin-registry';
+import { ServiceLocator } from '@app/engine/core/service-locator';
+import { html } from '@app/engine/utils/development/formatter';
+import { errorManagerInstance } from '@app/engine/utils/errorManager';
+import { setInnerHtml } from '@app/engine/utils/get-el';
 import { t7e } from '@app/locales/keys';
-import { errorManagerInstance } from '@app/singletons/errorManager';
 import { WatchlistOverlay } from '../watchlist/watchlist-overlay';
+
+const dt = (key: string) => t7e(`plugins.DateTimeManager.${key}` as Parameters<typeof t7e>[0]);
 
 export class Calendar {
   private readonly containerId: string;
@@ -10,6 +15,8 @@ export class Calendar {
   private simulationDate: Date;
   private propagationRate: number = 1;
   private isVisible: boolean = false;
+  /** attachEvents() runs after every render; the container persists, so only bind its click once */
+  private isContainerClickBound_ = false;
 
   // PropRate Slider limits
   private readonly propRateLimitMin = -20;
@@ -18,7 +25,7 @@ export class Calendar {
   constructor(containerId: string) {
     this.containerId = containerId;
     this.calendarDate = new Date();
-    this.simulationDate = new Date(keepTrackApi.getTimeManager().simulationTimeObj);
+    this.simulationDate = new Date(ServiceLocator.getTimeManager().simulationTimeObj);
   }
 
   private render(date?: Date): void {
@@ -47,11 +54,11 @@ export class Calendar {
 
     newDatepickerDiv.innerHTML = `
       <div class="ui-datepicker-header ui-widget-header ui-helper-clearfix ui-corner-all">
-        <a class="ui-datepicker-prev ui-corner-all" data-handler="prev" data-event="click" title="Prev">
-          <span class="ui-icon ui-icon-circle-triangle-w">Prev</span>
+        <a class="ui-datepicker-prev ui-corner-all" data-handler="prev" data-event="click" title="${dt('prev')}">
+          <span class="ui-icon ui-icon-circle-triangle-w">${dt('prev')}</span>
         </a>
-        <a class="ui-datepicker-next ui-corner-all" data-handler="next" data-event="click" title="Next">
-          <span class="ui-icon ui-icon-circle-triangle-e">Next</span>
+        <a class="ui-datepicker-next ui-corner-all" data-handler="next" data-event="click" title="${dt('next')}">
+          <span class="ui-icon ui-icon-circle-triangle-e">${dt('next')}</span>
         </a>
         <div class="ui-datepicker-title">
           <span class="ui-datepicker-month">${this.getUTCMonthName(this.calendarDate.getUTCMonth())}</span>&nbsp;
@@ -69,13 +76,13 @@ export class Calendar {
       ${this.renderTimePicker()}
       <div class="ui-datepicker-buttonpane ui-widget-content">
         <button type="button" class="ui-datepicker-current ui-state-default ui-priority-secondary ui-corner-all" data-handler="today" data-event="click">
-          ${t7e('time.calendar.now')}
+          ${dt('calendar.now')}
         </button>
         <button type="button" class="ui-datepicker-pause ui-state-default ui-priority-secondary ui-corner-all" data-handler="pause" data-event="click">
-          ${t7e('time.calendar.pause')}
+          ${dt('calendar.pause')}
         </button>
         <button type="button" class="ui-datepicker-close ui-state-default ui-priority-primary ui-corner-all" data-handler="hide" data-event="click">
-          ${t7e('time.calendar.done')}
+          ${dt('calendar.done')}
         </button>
       </div>
     `;
@@ -84,7 +91,14 @@ export class Calendar {
   }
 
   private attachEvents(): void {
-    document.querySelector(`#${this.containerId}`)?.addEventListener('click', this.toggleDatePicker.bind(this));
+    if (!this.isContainerClickBound_) {
+      const container = document.querySelector(`#${this.containerId}`);
+
+      if (container) {
+        container.addEventListener('click', this.toggleDatePicker.bind(this));
+        this.isContainerClickBound_ = true;
+      }
+    }
 
     const prevButton = document.querySelector('#ui-datepicker-div .ui-datepicker-prev');
     const nextButton = document.querySelector('#ui-datepicker-div .ui-datepicker-next');
@@ -124,6 +138,21 @@ export class Calendar {
     this.attachSliderEvents('ui_tpicker_minute_slider', this.updateMinute.bind(this));
     this.attachSliderEvents('ui_tpicker_second_slider', this.updateSecond.bind(this));
     this.attachSliderEvents('ui_tpicker_proprate_slider', this.updatePropRate.bind(this));
+
+    // Attach event for time text input
+    const timeInput = document.getElementById('calendar-time-input') as HTMLInputElement;
+
+    if (timeInput) {
+      timeInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          timeInput.blur();
+        }
+      });
+      timeInput.addEventListener('blur', () => {
+        this.onTextInputChange();
+      });
+    }
 
     // Attach events for time adjustment buttons
     this.attachTimeAdjustmentEvents('hour');
@@ -209,9 +238,9 @@ export class Calendar {
     const slider = document.getElementById(sliderId);
 
     if (slider) {
-      const min = parseInt(slider.getAttribute('data-min') || '0');
-      const max = parseInt(slider.getAttribute('data-max') || '59');
-      const step = parseInt(slider.getAttribute('data-step') || '1');
+      const min = parseInt(slider.dataset.min || '0');
+      const max = parseInt(slider.dataset.max || '59');
+      const step = parseInt(slider.dataset.step || '1');
       const handle: HTMLElement | null = slider.querySelector('.ui-slider-handle');
 
       const updateSliderPosition = (clientX: number) => {
@@ -247,22 +276,21 @@ export class Calendar {
   }
 
   private renderDayHeaders(): string {
-    const daysOfWeek = [
-      t7e('time.days-short.1'), t7e('time.days-short.2'), t7e('time.days-short.3'),
-      t7e('time.days-short.4'), t7e('time.days-short.5'), t7e('time.days-short.6'), t7e('time.days-short.0'),
-    ];
+    const daysOfWeek = [dt('days-short.1'), dt('days-short.2'), dt('days-short.3'), dt('days-short.4'), dt('days-short.5'), dt('days-short.6'), dt('days-short.0')];
 
-
-    return daysOfWeek.map((day, index) =>
-      `<th scope="col" class="${index === 0 || index === 6 ? 'ui-datepicker-week-end' : ''}">
+    return daysOfWeek
+      .map(
+        (day, index) =>
+          `<th scope="col" class="${index === 0 || index === 6 ? 'ui-datepicker-week-end' : ''}">
         <span title="${this.getUTCDayFullName(index)}">${day}</span>
-      </th>`,
-    ).join('');
+      </th>`
+      )
+      .join('');
   }
 
   private renderCalendarDays(): string {
-    const firstDay = new Date(this.calendarDate.getUTCFullYear(), this.calendarDate.getUTCMonth(), 1).getUTCDay();
-    const daysInMonth = new Date(this.calendarDate.getUTCFullYear(), this.calendarDate.getUTCMonth() + 1, 0).getUTCDate() + 1;
+    const firstDay = new Date(Date.UTC(this.calendarDate.getUTCFullYear(), this.calendarDate.getUTCMonth(), 1)).getUTCDay();
+    const daysInMonth = new Date(Date.UTC(this.calendarDate.getUTCFullYear(), this.calendarDate.getUTCMonth() + 1, 0)).getUTCDate();
     const today = new Date();
     let dayHtml = '';
     let dayCount = 1;
@@ -274,20 +302,18 @@ export class Calendar {
         if (i === 0 && j < firstDay) {
           row += '<td class="ui-datepicker-other-month ui-datepicker-unselectable ui-state-disabled">&nbsp;</td>';
         } else if (dayCount <= daysInMonth) {
-          const isToday = this.calendarDate.getUTCFullYear() === today.getUTCFullYear() &&
-            this.calendarDate.getUTCMonth() === today.getUTCMonth() &&
-            dayCount === today.getUTCDate();
-          const isSelected = this.simulationDate &&
+          const isToday =
+            this.calendarDate.getUTCFullYear() === today.getUTCFullYear() && this.calendarDate.getUTCMonth() === today.getUTCMonth() && dayCount === today.getUTCDate();
+          const isSelected =
+            this.simulationDate &&
             this.simulationDate.getUTCFullYear() === this.calendarDate.getUTCFullYear() &&
             this.simulationDate.getUTCMonth() === this.calendarDate.getUTCMonth() &&
             this.simulationDate.getUTCDate() === dayCount;
-          const classes = [
-            j === 0 || j === 6 ? 'ui-datepicker-week-end' : '',
-            isToday ? 'ui-datepicker-today' : '',
-            isSelected ? 'ui-datepicker-current-day' : '',
-          ].filter(Boolean).join(' ');
+          const classes = [j === 0 || j === 6 ? 'ui-datepicker-week-end' : '', isToday ? 'ui-datepicker-today' : '', isSelected ? 'ui-datepicker-current-day' : '']
+            .filter(Boolean)
+            .join(' ');
 
-          const jday = keepTrackApi.getTimeManager().getUTCDayOfYear(new Date(this.calendarDate.getUTCFullYear(), this.calendarDate.getUTCMonth(), dayCount));
+          const jday = ServiceLocator.getTimeManager().getUTCDayOfYear(new Date(Date.UTC(this.calendarDate.getUTCFullYear(), this.calendarDate.getUTCMonth(), dayCount)));
 
           const dayCountPadded = dayCount.toString().padStart(2, '0');
           const jdayPadded = jday.toString().padStart(3, '0');
@@ -320,14 +346,15 @@ export class Calendar {
     const propRateRange = this.propRateLimitMax - this.propRateLimitMin;
     const propagationPercentage = ((propRate - this.propRateLimitMin) / propRateRange) * 100;
 
-    return keepTrackApi.html`
+    return html`
       <div class="ui-timepicker-div">
         <dl>
-          <dt class="ui_tpicker_time_label">${t7e('time.calendar.time')}</dt>
+          <dt class="ui_tpicker_time_label">${dt('calendar.time')}</dt>
           <dd class="ui_tpicker_time">
-            <input id="calendar-time-input" class="ui_tpicker_time_input" value="${this.formatTime(hours, minutes, seconds)} | (x${propRate.toString()})" disabled>
+            <input id="calendar-time-input" class="ui_tpicker_time_input keyboard-priority" value="${this.formatTime(hours, minutes, seconds)}">
+            <span id="calendar-time-prop-rate">(x${propRate.toString()})</span>
           </dd>
-          <dt class="ui_tpicker_hour_label">${t7e('time.calendar.hour')}</dt>
+          <dt class="ui_tpicker_hour_label">${dt('calendar.hour')}</dt>
           <dd class="ui_tpicker_hour">
             <div id="ui_tpicker_hour_slider" class="ui_tpicker_hour_slider ui-slider ui-corner-all ui-slider-horizontal ui-widget ui-widget-content"
             style="display: inline-block; width: 100px;" data-min="0" data-max="23" data-step="1">
@@ -345,7 +372,7 @@ export class Calendar {
               </button>
             </span>
           </dd>
-          <dt class="ui_tpicker_minute_label">${t7e('time.calendar.minute')}</dt>
+          <dt class="ui_tpicker_minute_label">${dt('calendar.minute')}</dt>
           <dd class="ui_tpicker_minute">
             <div id="ui_tpicker_minute_slider" class="ui_tpicker_minute_slider ui-slider ui-corner-all ui-slider-horizontal ui-widget ui-widget-content"
             style="display: inline-block; width: 100px;" data-min="0" data-max="59" data-step="1">
@@ -363,7 +390,7 @@ export class Calendar {
               </button>
             </span>
           </dd>
-          <dt class="ui_tpicker_second_label">${t7e('time.calendar.second')}</dt>
+          <dt class="ui_tpicker_second_label">${dt('calendar.second')}</dt>
           <dd class="ui_tpicker_second">
             <div id="ui_tpicker_second_slider" class="ui_tpicker_second_slider ui-slider ui-corner-all ui-slider-horizontal ui-widget ui-widget-content"
             style="display: inline-block; width: 100px;" data-min="0" data-max="59" data-step="1">
@@ -381,11 +408,11 @@ export class Calendar {
               </button>
             </span>
           </dd>
-          <dt class="ui_tpicker_proprate_label">${t7e('time.calendar.propagation')}</dt>
+          <dt class="ui_tpicker_proprate_label">${dt('calendar.propagation')}</dt>
           <dd class="ui_tpicker_proprate">
             <div id="ui_tpicker_proprate_slider" class="ui_tpicker_proprate_slider ui-slider ui-corner-all ui-slider-horizontal ui-widget ui-widget-content"
             style="display: inline-block; width: 100px;" data-min="${this.propRateLimitMin.toString()}" data-max="${this.propRateLimitMax.toString()}" data-step="1">
-              <span tabindex="0" class="ui-slider-handle ui-corner-all ui-state-default" style="left: ${(propagationPercentage).toString()}%;"></span>
+              <span tabindex="0" class="ui-slider-handle ui-corner-all ui-state-default" style="left: ${propagationPercentage.toString()}%;"></span>
             </div>
             <span class="ui-slider-access ui-controlgroup ui-controlgroup-horizontal ui-helper-clearfix ui-corner-left" role="toolbar"
             style="margin-left: 10px; margin-right: 0px;">
@@ -406,22 +433,25 @@ export class Calendar {
 
   private getUTCMonthName(monthIndex: number): string {
     const monthNames = [
-      t7e('time.months.1'), t7e('time.months.2'), t7e('time.months.3'),
-      t7e('time.months.4'), t7e('time.months.5'), t7e('time.months.6'),
-      t7e('time.months.7'), t7e('time.months.8'), t7e('time.months.9'),
-      t7e('time.months.10'), t7e('time.months.11'), t7e('time.months.12'),
+      dt('months.1'),
+      dt('months.2'),
+      dt('months.3'),
+      dt('months.4'),
+      dt('months.5'),
+      dt('months.6'),
+      dt('months.7'),
+      dt('months.8'),
+      dt('months.9'),
+      dt('months.10'),
+      dt('months.11'),
+      dt('months.12'),
     ];
-
 
     return monthNames[monthIndex];
   }
 
   private getUTCDayFullName(dayIndex: number): string {
-    const dayNames = [
-      t7e('time.days.0'), t7e('time.days.1'), t7e('time.days.2'),
-      t7e('time.days.3'), t7e('time.days.4'), t7e('time.days.5'), t7e('time.days.6'),
-    ];
-
+    const dayNames = [dt('days.0'), dt('days.1'), dt('days.2'), dt('days.3'), dt('days.4'), dt('days.5'), dt('days.6')];
 
     return dayNames[dayIndex];
   }
@@ -446,11 +476,11 @@ export class Calendar {
       const jdayElement: HTMLElement | null | undefined = target.parentElement?.querySelector('.ui-datepicker-jday');
 
       // If we pick the calendar day, find the parent, then get the second span (class === ui-datepicker-jday)
-      dayOfYear = parseInt((jdayElement)?.innerText ?? '-1');
+      dayOfYear = parseInt(jdayElement?.innerText ?? '-1');
     } else if (target.tagName === 'A') {
       const jdayElement: HTMLElement | null = target.querySelector('.ui-datepicker-jday');
 
-      dayOfYear = parseInt((jdayElement)?.innerText ?? '-1');
+      dayOfYear = parseInt(jdayElement?.innerText ?? '-1');
     } else if (target.classList.contains('ui-datepicker-jday')) {
       dayOfYear = parseInt(target.innerText);
     }
@@ -459,7 +489,7 @@ export class Calendar {
       return;
     }
 
-    const selectedDate = keepTrackApi.getTimeManager().getUTCDateFromDayOfYear(this.calendarDate.getUTCFullYear(), dayOfYear);
+    const selectedDate = ServiceLocator.getTimeManager().getUTCDateFromDayOfYear(this.calendarDate.getUTCFullYear(), dayOfYear);
 
     selectedDate.setUTCHours(this.simulationDate.getUTCHours());
     selectedDate.setUTCMinutes(this.simulationDate.getUTCMinutes());
@@ -494,8 +524,8 @@ export class Calendar {
   }
 
   toggleDatePicker(): void {
-    if (!keepTrackApi.getTimeManager().isTimeChangingEnabled) {
-      keepTrackApi.getUiManager().toast(t7e('errorMsgs.catalogNotFullyInitialized'), ToastMsgType.caution, true);
+    if (!ServiceLocator.getTimeManager().isTimeChangingEnabled) {
+      ServiceLocator.getUiManager().toast(t7e('errorMsgs.catalogNotFullyInitialized'), ToastMsgType.caution, true);
 
       return;
     }
@@ -509,8 +539,8 @@ export class Calendar {
   }
 
   showDatePicker(): void {
-    if (!keepTrackApi.getTimeManager().isTimeChangingEnabled) {
-      keepTrackApi.getUiManager().toast(t7e('errorMsgs.catalogNotFullyInitialized'), ToastMsgType.caution, true);
+    if (!ServiceLocator.getTimeManager().isTimeChangingEnabled) {
+      ServiceLocator.getUiManager().toast(t7e('errorMsgs.catalogNotFullyInitialized'), ToastMsgType.caution, true);
 
       return;
     }
@@ -533,14 +563,14 @@ export class Calendar {
   }
 
   updatePropRate(propRate: number): void {
-    const timeManagerInstance = keepTrackApi.getTimeManager();
+    const timeManagerInstance = ServiceLocator.getTimeManager();
 
     propRate = Math.max(this.propRateLimitMin, Math.min(propRate, this.propRateLimitMax));
     timeManagerInstance.calculateSimulationTime();
     timeManagerInstance.changePropRate(propRate);
     this.propagationRate = propRate;
     this.updateTimeInput();
-    this.updateSliderPosition('ui_tpicker_proprate_slider', propRate, (this.propRateLimitMax - this.propRateLimitMin), this.propRateLimitMin);
+    this.updateSliderPosition('ui_tpicker_proprate_slider', propRate, this.propRateLimitMax - this.propRateLimitMin, this.propRateLimitMin);
   }
 
   private updateHour(hour: number): void {
@@ -576,15 +606,52 @@ export class Calendar {
     }
   }
 
+  private onTextInputChange(): void {
+    const timeInput = document.getElementById('calendar-time-input') as HTMLInputElement;
+
+    if (!timeInput) {
+      return;
+    }
+
+    // Expecting 6 or 8 characters (HHMMSS or HH:MM:SS)
+    if (timeInput.value.length < 6 || timeInput.value.length > 8) {
+      errorManagerInstance.warn('Invalid time format entered! Expected HH:MM:SS or HHMMSS');
+
+      return;
+    }
+
+    // Expecting format HH:MM:SS or HHMMSS
+    if (!timeInput.value.includes(':') && timeInput.value.length === 6) {
+      timeInput.value = `${timeInput.value.slice(0, 2)}:${timeInput.value.slice(2, 4)}:${timeInput.value.slice(4, 6)}`;
+    }
+
+    const timeParts = timeInput.value.split(':');
+
+    if (timeParts.length === 3) {
+      const hours = parseInt(timeParts[0], 10);
+      const minutes = parseInt(timeParts[1], 10);
+      const seconds = parseInt(timeParts[2], 10);
+
+      if (!isNaN(hours) && !isNaN(minutes) && !isNaN(seconds)) {
+        this.simulationDate.setUTCHours(Math.max(0, Math.min(23, hours)));
+        this.simulationDate.setUTCMinutes(Math.max(0, Math.min(59, minutes)));
+        this.simulationDate.setUTCSeconds(Math.max(0, Math.min(59, seconds)));
+
+        this.datetimeInputFormChange();
+        this.updateTimeInput();
+        this.render();
+        this.attachEvents();
+      }
+    }
+  }
+
   private updateTimeInput(): void {
+    setInnerHtml('calendar-time-prop-rate', `(x${this.propagationRate.toString()})`);
+
     const timeInput = document.getElementById('calendar-time-input') as HTMLInputElement;
 
     if (timeInput) {
-      timeInput.value = `${this.formatTime(
-        this.simulationDate.getUTCHours(),
-        this.simulationDate.getUTCMinutes(),
-        this.simulationDate.getUTCSeconds(),
-      )} | (x${this.propagationRate.toString()})`;
+      timeInput.value = `${this.formatTime(this.simulationDate.getUTCHours(), this.simulationDate.getUTCMinutes(), this.simulationDate.getUTCSeconds())}`;
     }
   }
 
@@ -604,20 +671,19 @@ export class Calendar {
   }
 
   datetimeInputFormChange() {
-    const timeManagerInstance = keepTrackApi.getTimeManager();
-    const colorSchemeManagerInstance = keepTrackApi.getColorSchemeManager();
+    const timeManagerInstance = ServiceLocator.getTimeManager();
+    const colorSchemeManagerInstance = ServiceLocator.getColorSchemeManager();
 
     const today = new Date();
 
     timeManagerInstance.changeStaticOffset(this.simulationDate.getTime() - today.getTime());
-    colorSchemeManagerInstance.calculateColorBuffers(true);
-    timeManagerInstance.calculateSimulationTime();
-
     timeManagerInstance.lastBoxUpdateTime = timeManagerInstance.realTime;
 
+    colorSchemeManagerInstance.calculateColorBuffers(true);
+
     try {
-      const watchlistOverlay = keepTrackApi.getPlugin(WatchlistOverlay);
-      const uiManagerInstance = keepTrackApi.getUiManager();
+      const watchlistOverlay = PluginRegistry.getPlugin(WatchlistOverlay);
+      const uiManagerInstance = ServiceLocator.getUiManager();
 
       if (watchlistOverlay) {
         watchlistOverlay.lastOverlayUpdateTime = timeManagerInstance.realTime * 1 - 7000;

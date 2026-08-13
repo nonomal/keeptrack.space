@@ -1,0 +1,51 @@
+{
+  "plugins": {
+    "SearchSettingsPlugin": {
+      "bottomIconLabel": "Nastavení vyhledávání",
+      "title": "Nastavení vyhledávání",
+      "sections": {
+        "resultLimits": "Omezení výsledků",
+        "objectTypes": "Typy objektů",
+        "searchFields": "Pole vyhledávání",
+        "filters": "Filtry",
+        "actions": "Akce"
+      },
+      "labels": {
+        "maxResults": "Maximální počet výsledků vyhledávání",
+        "minSearchChars": "Minimální počet znaků před vyhledáváním",
+        "showDecayed": "Zobrazit zaniklé satelity",
+        "showVimpel": "Zahrnout objekty Vimpel",
+        "reset": "Obnovit výchozí hodnoty",
+        "fields": {
+          "name": "Název",
+          "altName": "Alternativní název",
+          "bus": "Platforma satelitu",
+          "noradId": "NORAD ID",
+          "intlDes": "Mezinárodní označení",
+          "launchVehicle": "Nosná raketa"
+        },
+        "types": {
+          "satellite": "Satelity",
+          "missile": "Rakety",
+          "star": "Hvězdy",
+          "sensor": "Senzory",
+          "launchSite": "Startovací místa",
+          "planet": "Planety"
+        }
+      },
+      "tooltips": {
+        "maxResults": "Maximální počet satelitů zobrazených ve vyhledávání",
+        "minSearchChars": "Minimální počet znaků, které je třeba zadat, než se spustí vyhledávání",
+        "showDecayed": "Zobrazit zaniklé satelity (pozice 0,0,0) ve výsledcích vyhledávání",
+        "showVimpel": "Zahrnout objekty Vimpel (analytické) do výsledků vyhledávání. To může vyhledávání zpomalit."
+      },
+      "toasts": {
+        "reset": "Nastavení vyhledávání obnoveno na výchozí hodnoty"
+      },
+      "errorMsgs": {
+        "InvalidMaxResults": "Neplatná hodnota maximálního počtu výsledků vyhledávání!",
+        "InvalidMinSearchChars": "Neplatná hodnota minimálního počtu znaků vyhledávání!"
+      }
+    }
+  }
+}

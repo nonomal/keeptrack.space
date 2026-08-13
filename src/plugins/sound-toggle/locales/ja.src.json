@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "SoundToggle": {
+      "tooltip": "サウンドのオン/オフ",
+      "errorMsgs": {
+        "notEnabled": "SoundManagerが有効になっていません。設定を確認してください！"
+      }
+    }
+  }
+}

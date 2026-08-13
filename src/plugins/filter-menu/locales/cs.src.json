@@ -1,0 +1,197 @@
+{
+  "plugins": {
+    "FilterMenuPlugin": {
+      "title": "Nabídka filtrů",
+      "bottomIconLabel": "Nabídka filtrů",
+      "help": {
+        "overview": "Nabídka filtrů určuje, které objekty se vůbec vykreslují. Přepínače jsou seskupeny podle typu objektu (užitečná zatížení, trosky, těla raket), orbitálního režimu (od LEO po GEO a dále), zdroje dat a země, takže můžete katalog omezit přesně na populaci, kterou zkoumáte.",
+        "imgAlt": "Nabídka filtrů se seskupenými přepínači viditelnosti",
+        "imgCaption": "Každý přepínač okamžitě skryje nebo zobrazí část katalogu.",
+        "howToUse": "<ol><li>Otevřete <strong>Nabídka filtrů</strong> ze spodní lišty nebo stiskněte <strong>F</strong>.</li><li>Přepínejte přepínače; scéna se aktualizuje okamžitě při použití každého filtru.</li><li>Klikněte na <strong>Obnovit výchozí</strong> pro obnovení standardního zobrazení.</li></ol>",
+        "tip1": "Filtry se kombinují: objekt musí projít každou aktivní skupinou, aby zůstal viditelný, takže prázdně vypadající scéna obvykle znamená, že se dva filtry vzájemně vylučují.",
+        "tip2": "Paleta příkazů nabízí předvolby na jedno kliknutí, například zobrazit pouze LEO nebo skrýt trosky a těla raket.",
+        "shortcutToggle": "Přepnout nabídku filtrů"
+      },
+      "resetToDefaults": "Obnovit výchozí",
+      "defaultTooltip": "Vypněte pro skrytí {name}",
+      "searchPlaceholder": "Hledat filtry...",
+      "commands": {
+        "category": "Filtry",
+        "open": "Otevřít nabídku filtrů",
+        "resetDefaults": "Obnovit výchozí filtry",
+        "toggleDebris": "Přepnout viditelnost trosek",
+        "toggleRocketBodies": "Přepnout viditelnost těl raket",
+        "toggleUnknownType": "Přepnout viditelnost neznámého typu",
+        "toggleNotional": "Přepnout viditelnost hypotetických satelitů",
+        "toggleStarlink": "Přepnout viditelnost Starlink",
+        "showOnlyPayloads": "Zobrazit pouze užitečná zatížení",
+        "hideDebrisAndRocketBodies": "Skrýt trosky a těla raket",
+        "showAllObjectTypes": "Zobrazit všechny typy objektů",
+        "hideAllObjectTypes": "Skrýt všechny typy objektů",
+        "toggleLEO": "Přepnout viditelnost LEO",
+        "toggleMEO": "Přepnout viditelnost MEO",
+        "toggleGEO": "Přepnout viditelnost GEO",
+        "toggleHEO": "Přepnout viditelnost HEO",
+        "showOnlyLEO": "Zobrazit pouze LEO satelity",
+        "showOnlyGEO": "Zobrazit pouze GEO satelity",
+        "showAllOrbitalRegimes": "Zobrazit všechny orbitální režimy",
+        "showOnlyCelestrak": "Zobrazit pouze satelity CelesTrak",
+        "showAllSources": "Zobrazit všechny zdroje",
+        "showOnlyUS": "Zobrazit pouze objekty USA",
+        "showOnlyRussia": "Zobrazit pouze ruské objekty",
+        "showOnlyChina": "Zobrazit pouze čínské objekty",
+        "showAllCountries": "Zobrazit všechny země",
+        "hideAllCountries": "Skrýt všechny země"
+      }
+    }
+  },
+  "filterMenu": {
+    "operationalPayloads": {
+      "name": "Provozní užitečná zatížení",
+      "category": "Typy objektů",
+      "tooltip": "Satelity, které jsou aktuálně v provozu, včetně těch v pohotovostním režimu, záložních nebo s prodlouženou misí."
+    },
+    "nonOperationalPayloads": {
+      "name": "Neprovozní užitečná zatížení",
+      "category": "Typy objektů",
+      "tooltip": "Satelity, které nejsou v provozu nebo jejichž stav je neznámý."
+    },
+    "rocketBodies": {
+      "name": "Těla raket",
+      "category": "Typy objektů",
+      "tooltip": "Horní stupně raket, které vynesly užitečná zatížení na oběžnou dráhu a nyní jsou velkými kusy kosmického odpadu."
+    },
+    "debris": {
+      "name": "Trosky",
+      "category": "Typy objektů",
+      "tooltip": "Úlomky kosmických lodí a raket, včetně rozbitých satelitů, které již nejsou v jednom kuse."
+    },
+    "unknownType": {
+      "name": "Neznámý typ",
+      "category": "Typy objektů",
+      "tooltip": "Objekty na oběžné dráze, jejichž účel nebo typ dosud nebyl jasně identifikován."
+    },
+    "notionalSatellites": {
+      "name": "Hypotetické satelity",
+      "category": "Typy objektů",
+      "tooltip": "Satelity, které jsou plánované nebo navržené, ale dosud nebyly vypuštěny."
+    },
+    "groundSensors": {
+      "name": "Pozemní senzory",
+      "category": "Typy objektů",
+      "tooltip": "Pozemní radarové a optické senzory používané ke sledování objektů ve vesmíru."
+    },
+    "launchFacilities": {
+      "name": "Startovací zařízení",
+      "category": "Typy objektů",
+      "tooltip": "Kosmodromy a startovací rampy, ze kterých jsou vypouštěny rakety."
+    },
+    "vleoSatellites": {
+      "name": "VLEO satelity",
+      "category": "Orbitální režimy",
+      "tooltip": "Satelity na velmi nízké oběžné dráze s apogeem pod 400 km."
+    },
+    "leoSatellites": {
+      "name": "LEO satelity",
+      "category": "Orbitální režimy",
+      "tooltip": "Satelity na nízké oběžné dráze s apogeem mezi 400 km a 6000 km."
+    },
+    "heoSatellites": {
+      "name": "HEO satelity",
+      "category": "Orbitální režimy",
+      "tooltip": "Satelity na vysoce excentrické oběžné dráze s excentricitou 0,1 nebo větší a apogeem pod 39786 km."
+    },
+    "meoSatellites": {
+      "name": "MEO satelity",
+      "category": "Orbitální režimy",
+      "tooltip": "Satelity na střední oběžné dráze s apogeem mezi 6000 km a 34786 km."
+    },
+    "geoSatellites": {
+      "name": "GEO satelity",
+      "category": "Orbitální režimy",
+      "tooltip": "Satelity na geostacionární oběžné dráze s excentricitou pod 0,1 a apogeem mezi 34786 km a 36786 km."
+    },
+    "xgeoSatellites": {
+      "name": "xGEO satelity",
+      "category": "Orbitální režimy",
+      "tooltip": "Satelity za geosynchronní oběžnou dráhou s excentricitou pod 0,1 a apogeem nad 36786 km, nebo s excentricitou 0,1 či větší a apogeem nad 39786 km."
+    },
+    "source": {
+      "category": "Zdroj"
+    },
+    "vimpelSatellites": {
+      "name": "Satelity Vimpel",
+      "tooltip": "Katalog satelitů Vimpel je spravován ruskou akciovou společností JSC Vimpel ve spolupráci s Keldyšovým institutem aplikované matematiky."
+    },
+    "celestrakSatellites": {
+      "name": "Satelity Celestrak",
+      "tooltip": "Celestrak je oblíbený zdroj orbitálních dat satelitů, poskytující TLE pro širokou škálu satelitů a trosek."
+    },
+    "celestrakSupSatellites": {
+      "name": "Doplňkové satelity Celestrak",
+      "tooltip": "Doplňková satelitní data z Celestrak, včetně dalších objektů, které nejsou v hlavním katalogu."
+    },
+    "satnogsSatellites": {
+      "name": "Satelity SatNOGS",
+      "tooltip": "Satelitní data ze sítě SatNOGS, komunitního projektu pro pozorování a sledování satelitů."
+    },
+    "countries": {
+      "category": "Země",
+      "unitedStates": {
+        "name": "Spojené státy",
+        "tooltip": "Zahrnuje satelity ze Spojených států amerických."
+      },
+      "unitedKingdom": {
+        "name": "Spojené království",
+        "tooltip": "Zahrnuje satelity ze Spojeného království."
+      },
+      "france": {
+        "name": "Francie",
+        "tooltip": "Zahrnuje satelity z Francie."
+      },
+      "germany": {
+        "name": "Německo",
+        "tooltip": "Zahrnuje satelity z Německa."
+      },
+      "japan": {
+        "name": "Japonsko",
+        "tooltip": "Zahrnuje satelity z Japonska."
+      },
+      "china": {
+        "name": "Čína",
+        "tooltip": "Zahrnuje satelity z Číny."
+      },
+      "india": {
+        "name": "Indie",
+        "tooltip": "Zahrnuje satelity z Indie."
+      },
+      "russia": {
+        "name": "Rusko",
+        "tooltip": "Zahrnuje satelity z Ruska."
+      },
+      "ussr": {
+        "name": "SSSR",
+        "tooltip": "Historické označení pro satelity vypuštěné bývalým Sovětským svazem."
+      },
+      "southKorea": {
+        "name": "Jižní Korea",
+        "tooltip": "Zahrnuje satelity z Jižní Koreje."
+      },
+      "australia": {
+        "name": "Austrálie",
+        "tooltip": "Zahrnuje satelity z Austrálie."
+      },
+      "otherCountries": {
+        "name": "Ostatní země",
+        "tooltip": "Zahrnuje satelity ze zemí neuvedených výše."
+      }
+    },
+    "miscellaneous": {
+      "category": "Různé",
+      "starlinkSatellites": {
+        "name": "Satelity Starlink",
+        "tooltip": "Satelity, které jsou součástí konstelace Starlink společnosti SpaceX, jejímž cílem je poskytnout globální širokopásmové internetové pokrytí."
+      }
+    }
+  }
+}

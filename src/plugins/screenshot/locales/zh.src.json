@@ -1,0 +1,15 @@
+{
+  "plugins": {
+    "Screenshot": {
+      "bottomIconLabel": "拍照",
+      "rmbMenu": {
+        "title": "保存图片"
+      },
+      "commands": {
+        "take4k": "截图 (4K)",
+        "takeHd": "截图 (HD)",
+        "take8k": "截图 (8K)"
+      }
+    }
+  }
+}

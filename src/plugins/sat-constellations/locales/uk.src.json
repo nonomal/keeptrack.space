@@ -1,0 +1,92 @@
+{
+  "plugins": {
+    "SatConstellations": {
+      "bottomIconLabel": "Сузір'я",
+      "title": "Меню сузір'їв",
+      "help": {
+        "overview": "Меню сузір'їв групує пов'язані супутники, щоб їх можна було вивчати як систему: навігаційні сузір'я, такі як GPS і Galileo, комунікаційні угруповання, космічні станції тощо. Вибір сузір'я підсвічує його учасників, показує зведену статистику та виводить кожен супутник у таблиці з можливістю сортування.",
+        "imgAlt": "Меню сузір'їв з вибраним сузір'ям, його статистикою та таблицею",
+        "imgCaption": "Вибір сузір'я показує його статистику та таблицю учасників, згрупованих за RAAN.",
+        "readingHeading": "Статистика та таблиця",
+        "reading": "Після вибору сузір'я в заголовку відображаються кількість <strong>Супутники</strong>, значення <strong>Сер висота</strong> (середня висота) та діапазон <strong>Нахил</strong> (нахил орбіти). У таблиці кожен учасник наведений з номером NORAD, ім'ям, нахилом, RAAN, перигеєм та апогеєм, згруповані за RAAN, тож орбітальні площини добре видно. Клацніть рядок, щоб вибрати цей супутник.",
+        "filtersHeading": "Фільтри",
+        "filters": "Панель фільтрів звужує таблицю: задайте мінімальні та максимальні <strong>нахил</strong>, <strong>висоту</strong> або <strong>RAAN</strong> чи введіть <strong>Фільтр імені</strong> (регулярні вирази працюють). <strong>Застосувати</strong> оновлює таблицю, а <strong>Скинути</strong> очищає всі фільтри.",
+        "howToUse": "<ol><li>Відкрийте меню <strong>Сузір'я</strong> на нижній панелі (режим каталогу).</li><li>Клацніть сузір'я, наприклад <strong>Супутники GPS</strong>. Його учасники підсвічуються у 3D-виді, а статистика й таблиця заповнюються.</li><li>Для деяких сузір'їв між учасниками малюються умовні висхідні, низхідні або міжсупутникові лінії зв'язку.</li><li>Використовуйте панель фільтрів, щоб виокремити площини або висотні шари, і клацайте рядки таблиці, щоб дослідити окремі супутники.</li></ol>",
+        "tip1": "Останнє вибране сузір'я запам'ятовується, тож після повторного відкриття KeepTrack ваша робоча група відновлюється.",
+        "tip2": "Сузір'я також доступні як команди палітри команд, тому до них можна перейти, не відкриваючи меню.",
+        "tip3": "Групування за RAAN робить орбітальні площини очевидними: супутники в одній площині мають майже однакове значення RAAN."
+      },
+      "constellations": {
+        "SpaceStations": "Космічні станції",
+        "AmateurRadio": "Аматорське радіо",
+        "GPSGroup": "Супутники GPS",
+        "GalileoGroup": "Супутники Galileo",
+        "GlonassGroup": "Супутники ГЛОНАСС",
+        "iridium": "Iridium",
+        "orbcomm": "Orbcomm",
+        "globalstar": "Globalstar",
+        "ses": "SES",
+        "aehf": "Milstar та AEHF",
+        "wgs": "DSCS та WGS",
+        "starlink": "Starlink",
+        "sbirs": "SBIRS",
+        "starlink-gen2": "Starlink Gen2",
+        "starlink-v2": "Starlink v2",
+        "starlink-snapshot": "Starlink (Концептуальний)",
+        "starshield": "Starshield",
+        "pwsa": "PWSA",
+        "kuiper": "Kuiper",
+        "ast-spaceobile": "AST SpaceMobile",
+        "oneweb": "OneWeb",
+        "telesat-lightspeed": "Telesat Lightspeed",
+        "boeing": "Boeing",
+        "astra": "Astra",
+        "spinlaunch": "SpinLaunch",
+        "hvnet": "HVNET",
+        "lynk": "Lynk",
+        "guanwang": "Гуован (Guowang)",
+        "qianfan": "Цяньфань (Qianfan)",
+        "honghu3": "Хунху-3 (Honghu-3)",
+        "yinhe": "Іньхе (Yinhe)",
+        "hanwha": "Hanwha"
+      },
+      "sections": {
+        "constellations": "Угруповання",
+        "statistics": "Статистика",
+        "results": "Результати",
+        "filters": "Фільтри"
+      },
+      "stats": {
+        "satellites": "Супутники",
+        "avgAltitude": "Сер висота",
+        "incRange": "Нахил"
+      },
+      "table": {
+        "norad": "NORAD",
+        "name": "Ім'я",
+        "inclination": "Нахил",
+        "raan": "RAAN",
+        "perigee": "Перигей",
+        "apogee": "Апогей"
+      },
+      "filters": {
+        "incMin": "Мін нахил (°)",
+        "incMax": "Макс нахил (°)",
+        "altMin": "Мін висота (km)",
+        "altMax": "Макс висота (km)",
+        "raanMin": "Мін RAAN (°)",
+        "raanMax": "Макс RAAN (°)",
+        "nameFilter": "Фільтр імені",
+        "apply": "Застосувати",
+        "reset": "Скинути"
+      },
+      "commands": {
+        "category": "Сузір'я"
+      },
+      "errorMsgs": {
+        "NoConstellationSelected": "Сузір'я не вибрано",
+        "ConstellationEmpty": "Супутники не знайдені — ця сузір'я, можливо, ще не виведена на орбіту або потребує імпорту"
+      }
+    }
+  }
+}

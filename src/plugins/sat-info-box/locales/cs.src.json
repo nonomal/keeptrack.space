@@ -1,0 +1,39 @@
+{
+  "satInfoBox": {
+    "title": "Identifikátory",
+    "Cospar": {
+      "label": "COSPAR",
+      "tooltip": "Mezinárodní označení"
+    },
+    "Norad": {
+      "label": "NORAD",
+      "tooltip": "Katalogové číslo NORAD"
+    },
+    "AltName": {
+      "label": "Alt. název",
+      "tooltip": "Alternativní název satelitu"
+    },
+    "AltId": {
+      "label": "Alt. ID",
+      "tooltip": "Alternativní ID satelitu"
+    },
+    "Source": {
+      "label": "Zdroj",
+      "tooltip": "Zdroj dat o satelitu"
+    },
+    "Confidence": {
+      "label": "Spolehlivost",
+      "tooltip": "Úroveň spolehlivosti dat (vyšší je lepší) na stupnici 1-10. Na základě zdroje a stáří dat",
+      "high": "Vysoká",
+      "medium": "Střední",
+      "low": "Nízká",
+      "external": "Externí"
+    },
+    "notAvailable": "N/A",
+    "oemFile": "Soubor OEM",
+    "copy": {
+      "copied": "Zkopírováno do schránky",
+      "tooltip": "Kliknutím zkopírujete"
+    }
+  }
+}

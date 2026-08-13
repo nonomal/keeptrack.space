@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "SatelliteEciView": {
+      "bottomIconLabel": "Satelliten-ECI-Ansicht",
+      "commandPalette": {
+        "activate": "Zur Satelliten-ECI-Ansicht wechseln"
+      }
+    }
+  }
+}

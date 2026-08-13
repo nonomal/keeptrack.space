@@ -1,0 +1,17 @@
+{
+  "SelectSatManager": {
+    "objectInsideEarth": "Object is inside the Earth, cannot select it",
+    "secondaryObjectSet": "Secondary object set: {name}"
+  },
+  "plugins": {
+    "SelectSatManager": {
+      "sectionLabel": "Satellite Selection",
+      "settings": {
+        "focusOnSatWhenSelected": {
+          "label": "Focus on Satellite When Selected",
+          "helpText": "Zoom in on the satellite when selected."
+        }
+      }
+    }
+  }
+}

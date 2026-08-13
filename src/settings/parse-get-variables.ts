@@ -1,6 +1,6 @@
-import { ToastMsgType } from '@app/interfaces';
-import { keepTrackApi } from '@app/keepTrackApi';
-import { EarthTextureStyle } from '@app/singletons/draw-manager/earth';
+import { ToastMsgType } from '@app/engine/core/interfaces';
+import { ServiceLocator } from '@app/engine/core/service-locator';
+import { EarthDayTextureQuality, EarthNightTextureQuality, EarthTextureStyle } from '@app/engine/rendering/draw-manager/earth-quality-enums';
 import { GetVariables } from './getVariables';
 import { darkClouds } from './presets/darkClouds';
 import { SettingsPresets } from './presets/presets';
@@ -73,7 +73,7 @@ export const parseGetVariables = (params: string[], settingsManager: SettingsMan
         if (parseInt(val) > 0) {
           settingsManager.searchLimit = parseInt(val);
         } else {
-          keepTrackApi.getUiManager().toast(`Invalid search limit: ${val}`, ToastMsgType.error);
+          ServiceLocator.getUiManager().toast(`Invalid search limit: ${val}`, ToastMsgType.error);
         }
         break;
       case 'console':
@@ -82,17 +82,14 @@ export const parseGetVariables = (params: string[], settingsManager: SettingsMan
       case 'godrays':
         settingsManager.godraysSamples = GetVariables.godrays(val);
         break;
-      case 'smallImages':
-        settingsManager.smallImages = true;
-        break;
       case 'lowperf':
         settingsManager.isShowSplashScreen = false;
         settingsManager.isDrawMilkyWay = false;
         settingsManager.isDrawLess = true;
-        settingsManager.zFar = 250000.0;
         settingsManager.noMeshManager = true;
         settingsManager.maxFieldOfViewMarkers = 1;
-        settingsManager.smallImages = true;
+        settingsManager.earthDayTextureQuality = '512' as EarthDayTextureQuality;
+        settingsManager.earthNightTextureQuality = '512' as EarthNightTextureQuality;
         break;
       case 'hires':
         settingsManager.earthNumLatSegs = 128;
@@ -102,16 +99,17 @@ export const parseGetVariables = (params: string[], settingsManager: SettingsMan
         settingsManager.isDisableStars = true;
         settingsManager.isDrawMilkyWay = false;
         break;
+      case 'nocatalog':
+        settingsManager.noCatalogOnLoad = true;
+        break;
       case 'draw-less':
         settingsManager.isDrawMilkyWay = false;
         settingsManager.isDrawLess = true;
-        settingsManager.zFar = 250000.0;
         settingsManager.noMeshManager = true;
         break;
       case 'draw-more':
         settingsManager.isDrawLess = false;
         settingsManager.noMeshManager = false;
-        settingsManager.smallImages = false;
         settingsManager.isDrawMilkyWay = true;
         break;
       case 'hires-milky-way':
@@ -137,11 +135,14 @@ export const parseGetVariables = (params: string[], settingsManager: SettingsMan
       case 'noPropRate':
         settingsManager.isAlwaysHidePropRate = true;
         break;
+      case 'apiKey':
+        settingsManager.apiKey = val;
+        break;
       case 'supplement-data':
         settingsManager.dataSources.isSupplementExternal = true;
         break;
       case 'latest-sats':
-        settingsManager.dataSources.tle = `https://api.keeptrack.space/v3/sats/latest/${val}`;
+        settingsManager.dataSources.tle = `https://api.keeptrack.space/v4/sats/latest/${val}`;
         settingsManager.isEnableJscCatalog = false;
         break;
       case 'CATNR':

@@ -1,15 +1,18 @@
 /* eslint-disable no-use-before-define */
-import { KeepTrackApiEvents } from '@app/interfaces';
-import { keepTrackApi } from '@app/keepTrackApi';
-import { clickAndDragWidth } from '@app/lib/click-and-drag';
-import { getEl } from '@app/lib/get-el';
-import { slideInRight, slideOutLeft } from '@app/lib/slide';
-import { isThisNode } from '@app/static/isThisNode';
+import { ServiceLocator } from '@app/engine/core/service-locator';
+import { EventBus } from '@app/engine/events/event-bus';
+import { EventBusEvent } from '@app/engine/events/event-bus-events';
+import { clickAndDragWidth } from '@app/engine/utils/click-and-drag';
+import { html } from '@app/engine/utils/development/formatter';
+import { getEl } from '@app/engine/utils/get-el';
+import { isThisNode } from '@app/engine/utils/isThisNode';
+import { slideInRight, slideOutLeft } from '@app/engine/utils/slide';
+import { dateFromJday } from '@app/engine/utils/transforms';
+import { t7e } from '@app/locales/keys';
 import satChngPng from '@public/img/icons/sats.png';
-
-import { dateFromJday } from '@app/lib/transforms';
-
 import './components/sat-changes.css';
+
+const sc = (key: string) => t7e(`plugins.SatChanges.${key}` as Parameters<typeof t7e>[0]);
 
 /**
  *  ////////////////////////////////////////////////////////////////////////////
@@ -31,42 +34,42 @@ let issatChngMenuOpen = false;
 
 export const uiManagerInit = () => {
   // Side Menu
-  getEl('left-menus').insertAdjacentHTML(
+  getEl('left-menus')?.insertAdjacentHTML(
     'beforeend',
-    keepTrackApi.html`
-        <div id="satChng-menu" class="side-menu-parent start-hidden text-select">
+    html`
+        <div id="satChng-menu" class="side-menu-parent start-hidden">
           <div id="satChng-content" class="side-menu">
             <div class="row">
-              <h5 class="center-align">Interesting Movements</h5>
+              <h5 class="center-align">${sc('title')}</h5>
               <table id="satChng-table" class="center-align"></table>
             </div>
           </div>
         </div>
-      `,
+      `
   );
 
   // Bottom Icon
   getEl('bottom-icons')?.insertAdjacentHTML(
     'beforeend',
-    keepTrackApi.html`
+    html`
         <div id="menu-satChng" class="bmenu-item">
           <div class="bmenu-item-inner">
             <img alt="satchng" src="" delayedsrc="${satChngPng}" />
           </div>
-          <span class="bmenu-title">Satellite Changes</span>
+          <span class="bmenu-title">${sc('bottomIconLabel')}</span>
         </div>
-        `,
+        `
   );
 };
 
 export const init = (): void => {
   // Add HTML
-  keepTrackApi.on(KeepTrackApiEvents.uiManagerInit, uiManagerInit);
-  keepTrackApi.on(KeepTrackApiEvents.uiManagerFinal, uiManagerFinal);
+  EventBus.getInstance().on(EventBusEvent.uiManagerInit, uiManagerInit);
+  EventBus.getInstance().on(EventBusEvent.uiManagerFinal, uiManagerFinal);
 
   // Add JavaScript
-  keepTrackApi.on(KeepTrackApiEvents.bottomMenuClick, bottomMenuClick);
-  keepTrackApi.on(KeepTrackApiEvents.hideSideMenus, hideSideMenus);
+  EventBus.getInstance().on(EventBusEvent.bottomMenuClick, bottomMenuClick);
+  EventBus.getInstance().on(EventBusEvent.hideSideMenus, hideSideMenus);
 };
 
 const uiManagerFinal = () => {
@@ -76,12 +79,13 @@ const uiManagerFinal = () => {
   });
 
   getEl('satChng-menu')!.addEventListener('click', (evt: Event) => {
-    if (!(<HTMLElement>evt.target).classList.contains('satChng-object')) {
+    // The clickable row is the <tr>, but the click usually originates on one of its <td> children.
+    const row = (evt.target as HTMLElement | null)?.closest('.satChng-object');
+
+    if (!row) {
       return;
     }
-    // Might be better code for this.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const hiddenRow = (<any>evt.currentTarget).attributes.hiddenrow.value;
+    const hiddenRow = row.getAttribute('hiddenrow');
 
     if (hiddenRow !== null) {
       satChng(parseInt(hiddenRow));
@@ -106,7 +110,7 @@ export const satChng = (row: number, testOverride?: undefined): void => {
 
   if (row === -1 && satChngTable?.length === 0) {
     // Only generate the table if receiving the -1 argument for the first time
-    fetch(`./analysis/satchng.json?v=${settingsManager.versionNumber}`).then((resp) => {
+    fetch(`./analysis/satchng.json?v=${__VERSION__}`).then((resp) => {
       resp.json().then((json) => {
         ({ satChngTable } = getSatChngJson(json));
       });
@@ -117,7 +121,7 @@ export const satChng = (row: number, testOverride?: undefined): void => {
     if (!satChngTable[row].SCC) {
       return;
     }
-    const uiManagerInstance = keepTrackApi.getUiManager();
+    const uiManagerInstance = ServiceLocator.getUiManager();
 
     uiManagerInstance.doSearch(satChngTable[row].SCC.toString()); // Actually perform the search of the two objects
     (<HTMLInputElement>getEl('anal-sat')).value = satChngTable[row].SCC.toString();
@@ -125,35 +129,33 @@ export const satChng = (row: number, testOverride?: undefined): void => {
 };
 
 export const hideSideMenus = (): void => {
-  slideOutLeft(getEl('satChng-menu'), 1000);
-  getEl('menu-satChng').classList.remove('bmenu-item-selected');
+  slideOutLeft(getEl('satChng-menu'), 300);
+  getEl('menu-satChng')?.classList.remove('bmenu-item-selected');
   issatChngMenuOpen = false;
 };
 
 export const bottomMenuClick = (iconName: string): void => {
   if (iconName === 'menu-satChng') {
-    const uiManagerInstance = keepTrackApi.getUiManager();
+    const uiManagerInstance = ServiceLocator.getUiManager();
 
     if (issatChngMenuOpen) {
       issatChngMenuOpen = false;
       uiManagerInstance.hideSideMenus();
-
     } else {
       if (settingsManager.isMobileModeEnabled) {
         uiManagerInstance.searchManager.closeSearch();
       }
       uiManagerInstance.hideSideMenus();
-      slideInRight(getEl('satChng-menu'), 1000);
+      slideInRight(getEl('satChng-menu'), 300);
       issatChngMenuOpen = true;
       satChng(-1);
-      getEl('menu-satChng').classList.add('bmenu-item-selected');
-
+      getEl('menu-satChng')?.classList.add('bmenu-item-selected');
     }
   }
 };
 
 export const getSatChngJson = (json) => {
-  const catalogManagerInstance = keepTrackApi.getCatalogManager();
+  const catalogManagerInstance = ServiceLocator.getCatalogManager();
 
   // TODO: This is a temporary fix for the fact that the JSON is not being parsed correctly.
   if (!json && isThisNode()) {
@@ -176,19 +178,19 @@ export const getSatChngJson = (json) => {
   let tr = tbl.insertRow();
   let tdT = tr.insertCell();
 
-  tdT.appendChild(document.createTextNode('Time'));
+  tdT.appendChild(document.createTextNode(sc('tableHeaders.time')));
   tdT.setAttribute('style', 'text-decoration: underline');
   let tdSat = tr.insertCell();
 
-  tdSat.appendChild(document.createTextNode('Sat'));
+  tdSat.appendChild(document.createTextNode(sc('tableHeaders.satellite')));
   tdSat.setAttribute('style', 'text-decoration: underline');
   let tdInc = tr.insertCell();
 
-  tdInc.appendChild(document.createTextNode('Inc'));
+  tdInc.appendChild(document.createTextNode(sc('tableHeaders.inclination')));
   tdInc.setAttribute('style', 'text-decoration: underline');
   let tdPer = tr.insertCell();
 
-  tdPer.appendChild(document.createTextNode('Per'));
+  tdPer.appendChild(document.createTextNode(sc('tableHeaders.period')));
   tdPer.setAttribute('style', 'text-decoration: underline');
 
   // 20 rows max

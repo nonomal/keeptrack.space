@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "SkipInterpolationToggle": {
+      "bottomIconLabel": "補間スキップ",
+      "commandPalette": {
+        "toggle": "TLE 補間スキップの切り替え"
+      }
+    }
+  }
+}

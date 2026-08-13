@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "CloudsToggle": {
+      "bottomIconLabel": "Nubes",
+      "commandPalette": {
+        "toggle": "Alternar capa de nubes"
+      }
+    }
+  }
+}

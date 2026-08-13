@@ -1,0 +1,42 @@
+{
+  "plugins": {
+    "SatInfoBoxSensor": {
+      "sectionTitle": "Dane czujnika",
+      "labels": {
+        "range": "Zasięg",
+        "azimuth": "Azymut",
+        "elevation": "Elewacja",
+        "ra": "RA",
+        "dec": "Dek",
+        "beamWidth": "Szerokość wiązki",
+        "maxTmxTime": "Maks. czas Tmx",
+        "sun": "Słońce",
+        "visMag": "Jasność wiz.",
+        "nextPass": "Następny przelot"
+      },
+      "tooltips": {
+        "range": "Odległość od czujnika",
+        "azimuth": "Kąt (lewo/prawo) od czujnika",
+        "elevation": "Kąt (góra/dół) od czujnika",
+        "ra": "Rektascensja",
+        "dec": "Deklinacja",
+        "beamWidth": "Szerokość liniowa na zasięgu celu",
+        "maxTmxTime": "Czas potrzebny sygnałowi RF/światłu na dotarcie do celu i powrót",
+        "sun": "Czy Słońce wpływa na czujnik",
+        "visMag": "Jasność wizualna (niższe wartości oznaczają jaśniejsze obiekty)",
+        "nextPass": "Następny czas w zasięgu"
+      },
+      "values": {
+        "noEffect": "Brak wpływu",
+        "sunExclusion": "Wykluczenie słoneczne",
+        "noSunlight": "Brak światła słonecznego",
+        "limitedSunlight": "Ograniczone światło słoneczne",
+        "directSunlight": "Bezpośrednie światło słoneczne",
+        "unableToCalculate": "Nie można obliczyć",
+        "outOfFov": "Poza polem widzenia",
+        "unavailable": "Niedostępne",
+        "beyondMaxRange": "Poza maksymalnym zasięgiem"
+      }
+    }
+  }
+}

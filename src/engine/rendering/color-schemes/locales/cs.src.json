@@ -1,0 +1,20 @@
+{
+  "colorSchemes": {
+    "CelestrakColorScheme": { "label": "Celestrak" },
+    "ConfidenceColorScheme": { "label": "Spolehlivost" },
+    "CountryColorScheme": { "label": "Země" },
+    "GpAgeColorScheme": { "label": "Stáří GP" },
+    "MissionColorScheme": { "label": "Mise" },
+    "ObjectTypeColorScheme": { "label": "Typ objektu" },
+    "OrbitalPlaneDensityColorScheme": { "label": "Hustota orbitální roviny" },
+    "RcsColorScheme": { "label": "Radarový průřez" },
+    "ReentryRiskColorScheme": { "label": "Riziko znovuvstoupení" },
+    "SmallSatColorScheme": { "label": "Malé satelity" },
+    "SourceColorScheme": { "label": "Zdroj dat" },
+    "SpatialDensityColorScheme": { "label": "Prostorová hustota" },
+    "StarlinkColorScheme": { "label": "Starlink" },
+    "SunlightColorScheme": { "label": "Stav slunečního svitu" },
+    "VelocityColorScheme": { "label": "Rychlost" },
+    "VisualMagnitudeColorScheme": { "label": "Standardní magnituda" }
+  }
+}

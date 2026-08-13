@@ -1,0 +1,8 @@
+{
+  "plugins": {
+    "OrbitReferences": {
+      "tooltip": "궤도에 분석 위성 생성",
+      "linkText": "궤도 참조 위성 생성..."
+    }
+  }
+}

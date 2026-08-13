@@ -1,21 +1,24 @@
-import { MenuMode, ToastMsgType } from '@app/interfaces';
-import { keepTrackApi } from '@app/keepTrackApi';
-import { GroupType } from '@app/singletons/object-group';
+import { GroupType } from '@app/app/data/object-group';
+import { MenuMode, ToastMsgType } from '@app/engine/core/interfaces';
+import { ServiceLocator } from '@app/engine/core/service-locator';
+import { ICommandPaletteCommand, ISettingsContribution, ISettingsContributor } from '@app/engine/plugins/core/plugin-capabilities';
+import { PersistenceManager, StorageKey } from '@app/engine/utils/persistence-manager';
+import { t7e } from '@app/locales/keys';
 import historyPng from '@public/img/icons/history.png';
-import { KeepTrackPlugin } from '../KeepTrackPlugin';
+import { KeepTrackPlugin } from '../../engine/plugins/base-plugin';
 
-export class TimeMachine extends KeepTrackPlugin {
+export class TimeMachine extends KeepTrackPlugin implements ISettingsContributor {
   readonly id = 'TimeMachine';
   static readonly TIME_BETWEEN_SATELLITES = 10000;
   dependencies_ = [];
 
   bottomIconCallback = () => {
-    const groupManagerInstance = keepTrackApi.getGroupsManager();
-    const colorSchemeManagerInstance = keepTrackApi.getColorSchemeManager();
-    const orbitManagerInstance = keepTrackApi.getOrbitManager();
+    const groupManagerInstance = ServiceLocator.getGroupsManager();
+    const colorSchemeManagerInstance = ServiceLocator.getColorSchemeManager();
+    const orbitManagerInstance = ServiceLocator.getOrbitManager();
 
     if (this.isMenuButtonActive) {
-      keepTrackApi.getUiManager().searchManager.hideResults();
+      ServiceLocator.getUiManager().searchManager.hideResults();
       this.setBottomIconToSelected();
       this.historyOfSatellitesPlay();
     } else {
@@ -27,18 +30,48 @@ export class TimeMachine extends KeepTrackPlugin {
     }
   };
 
-
   bottomIconImg = historyPng;
   bottomIconLabel = 'Time Machine';
+
+  getCommandPaletteCommands(): ICommandPaletteCommand[] {
+    return [
+      {
+        id: 'TimeMachine.toggle',
+        label: 'Toggle Time Machine',
+        category: 'Playback',
+        callback: () => this.bottomMenuClicked(),
+      },
+    ];
+  }
+
+  getSettingsContribution(): ISettingsContribution {
+    return {
+      sectionId: this.id,
+      sectionLabel: this.bottomIconLabel,
+      controls: [
+        {
+          type: 'toggle',
+          id: 'disableToasts',
+          label: t7e('plugins.TimeMachine.settings.disableToasts.label'),
+          helpText: t7e('plugins.TimeMachine.settings.disableToasts.helpText'),
+          get: () => settingsManager.isDisableTimeMachineToasts,
+          set: (next) => {
+            settingsManager.isDisableTimeMachineToasts = next;
+            PersistenceManager.getInstance().saveItem(StorageKey.SETTINGS_DISABLE_TIME_MACHINE_TOASTS, next.toString());
+          },
+        },
+      ],
+    };
+  }
   historyOfSatellitesRunCount = 0;
   isTimeMachineRunning = false;
 
-  menuMode: MenuMode[] = [MenuMode.BASIC, MenuMode.ADVANCED, MenuMode.ALL];
+  menuMode: MenuMode[] = [MenuMode.TOOLS, MenuMode.ALL];
 
   historyOfSatellitesPlay() {
     this.isTimeMachineRunning = true;
     this.historyOfSatellitesRunCount++;
-    keepTrackApi.getOrbitManager().tempTransColor = settingsManager.colors.transparent;
+    ServiceLocator.getOrbitManager().tempTransColor = settingsManager.colors.transparent;
     settingsManager.colors.transparent = [0, 0, 0, 0];
     for (let yy = 0; yy <= 200; yy++) {
       let year = 57 + yy;
@@ -51,7 +84,7 @@ export class TimeMachine extends KeepTrackPlugin {
           this.playNextSatellite(runCount, year);
         },
         settingsManager.timeMachineDelay * yy,
-        this.historyOfSatellitesRunCount,
+        this.historyOfSatellitesRunCount
       );
 
       const currentYear = parseInt(new Date().getUTCFullYear().toString().slice(2, 4));
@@ -70,8 +103,8 @@ export class TimeMachine extends KeepTrackPlugin {
 
       return;
     }
-    const groupManagerInstance = keepTrackApi.getGroupsManager();
-    const colorSchemeManagerInstance = keepTrackApi.getColorSchemeManager();
+    const groupManagerInstance = ServiceLocator.getGroupsManager();
+    const colorSchemeManagerInstance = ServiceLocator.getColorSchemeManager();
 
     // Kill all old async calls if run count updates
     if (runCount !== this.historyOfSatellitesRunCount) {
@@ -88,12 +121,12 @@ export class TimeMachine extends KeepTrackPlugin {
       if (year >= 57 && year < 100) {
         const timeMachineString = <string>(settingsManager.timeMachineString(year.toString()) || `Time Machine In Year 19${year}!`);
 
-        keepTrackApi.getUiManager().toast(timeMachineString, ToastMsgType.normal, settingsManager.timeMachineLongToast);
+        ServiceLocator.getUiManager().toast(timeMachineString, ToastMsgType.normal, settingsManager.timeMachineLongToast);
       } else {
         const yearStr = year < 10 ? `0${year}` : `${year}`;
         const timeMachineString = <string>(settingsManager.timeMachineString(yearStr) || `Time Machine In Year 20${yearStr}!`);
 
-        keepTrackApi.getUiManager().toast(timeMachineString, ToastMsgType.normal, settingsManager.timeMachineLongToast);
+        ServiceLocator.getUiManager().toast(timeMachineString, ToastMsgType.normal, settingsManager.timeMachineLongToast);
       }
     }
 
@@ -111,9 +144,9 @@ export class TimeMachine extends KeepTrackPlugin {
   }
 
   removeSatellite(runCount: number): void {
-    const orbitManagerInstance = keepTrackApi.getOrbitManager();
-    const groupManagerInstance = keepTrackApi.getGroupsManager();
-    const colorSchemeManagerInstance = keepTrackApi.getColorSchemeManager();
+    const orbitManagerInstance = ServiceLocator.getOrbitManager();
+    const groupManagerInstance = ServiceLocator.getGroupsManager();
+    const colorSchemeManagerInstance = ServiceLocator.getColorSchemeManager();
 
     if (runCount !== this.historyOfSatellitesRunCount) {
       return;
@@ -128,4 +161,3 @@ export class TimeMachine extends KeepTrackPlugin {
     colorSchemeManagerInstance.calculateColorBuffers(true);
   }
 }
-

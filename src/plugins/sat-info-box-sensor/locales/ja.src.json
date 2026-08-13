@@ -1,0 +1,42 @@
+{
+  "plugins": {
+    "SatInfoBoxSensor": {
+      "sectionTitle": "センサーデータ",
+      "labels": {
+        "range": "距離",
+        "azimuth": "方位角",
+        "elevation": "仰角",
+        "ra": "RA",
+        "dec": "Dec",
+        "beamWidth": "ビーム幅",
+        "maxTmxTime": "最大 Tmx 時間",
+        "sun": "太陽",
+        "visMag": "視等級",
+        "nextPass": "次のパス"
+      },
+      "tooltips": {
+        "range": "センサーからの距離",
+        "azimuth": "センサーからの角度（左/右）",
+        "elevation": "センサーからの角度（上/下）",
+        "ra": "赤経",
+        "dec": "赤緯",
+        "beamWidth": "ターゲット距離での線形幅",
+        "maxTmxTime": "RF/光がターゲットに到達して戻るまでの時間",
+        "sun": "太陽がセンサーに影響するか",
+        "visMag": "視等級（数値が低いほど明るい）",
+        "nextPass": "次にカバレッジに入る時間"
+      },
+      "values": {
+        "noEffect": "影響なし",
+        "sunExclusion": "太陽排除",
+        "noSunlight": "日光なし",
+        "limitedSunlight": "限定的な日光",
+        "directSunlight": "直射日光",
+        "unableToCalculate": "計算不能",
+        "outOfFov": "FOV 外",
+        "unavailable": "利用不可",
+        "beyondMaxRange": "最大距離超過"
+      }
+    }
+  }
+}

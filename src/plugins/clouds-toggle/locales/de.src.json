@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "CloudsToggle": {
+      "bottomIconLabel": "Wolken",
+      "commandPalette": {
+        "toggle": "Wolkenschicht umschalten"
+      }
+    }
+  }
+}

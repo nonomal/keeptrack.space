@@ -1,0 +1,14 @@
+{
+  "plugins": {
+    "EarthPresetsPlugin": {
+      "rmbMenu": {
+        "title": "Стиль Земли",
+        "satelliteImages": "Спутниковые снимки",
+        "alternateSatelliteImages": "Альтернативные спутниковые снимки",
+        "engineeringTool": "Инженерный инструмент",
+        "operationsCenter": "Операционный центр",
+        "nineties": "Графика 90-х"
+      }
+    }
+  }
+}

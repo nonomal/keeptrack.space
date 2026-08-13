@@ -1,11 +1,32 @@
-import { KeepTrackApiEvents, MenuMode } from '@app/interfaces';
-import { keepTrackApi } from '@app/keepTrackApi';
-import { getEl, hideEl, showEl } from '@app/lib/get-el';
-import { PersistenceManager, StorageKey } from '@app/singletons/persistence-manager';
+import { SoundNames } from '@app/engine/audio/sounds';
+import { MenuMode } from '@app/engine/core/interfaces';
+import { ServiceLocator } from '@app/engine/core/service-locator';
+import { EventBus } from '@app/engine/events/event-bus';
+import { EventBusEvent } from '@app/engine/events/event-bus-events';
+import { IBottomIconConfig, ICommandPaletteCommand, IHelpConfig, IKeyboardShortcut, ISideMenuConfig } from '@app/engine/plugins/core/plugin-capabilities';
+import { html } from '@app/engine/utils/development/formatter';
+import { getEl, hideEl, showEl } from '@app/engine/utils/get-el';
+import { PersistenceManager } from '@app/engine/utils/persistence-manager';
+import { t7e } from '@app/locales/keys';
 import filterPng from '@public/img/icons/filter.png';
-import { KeepTrackPlugin } from '../KeepTrackPlugin';
-import { SoundNames } from '../sounds/sounds';
+import { KeepTrackPlugin } from '../../engine/plugins/base-plugin';
 import { TopMenu } from '../top-menu/top-menu';
+import {
+  COUNTRY_FILTERS,
+  defaultFilterValue,
+  enableGroup,
+  FILTER_STORAGE_MAP,
+  FilterPluginSettings,
+  Filters,
+  getFilters,
+  isDefaultState,
+  OBJECT_TYPE_FILTERS,
+  ORBITAL_REGIME_FILTERS,
+  SOURCE_FILTERS,
+  showOnlyInGroup,
+  showOnlyPayloads,
+} from './filter-menu-core';
+import './filter-menu.css';
 
 /**
  * /////////////////////////////////////////////////////////////////////////////
@@ -28,430 +49,518 @@ import { TopMenu } from '../top-menu/top-menu';
  * /////////////////////////////////////////////////////////////////////////////
  */
 
-declare module '@app/interfaces' {
+declare module '@app/engine/core/interfaces' {
   interface UserSettings {
     isBlackEarth: boolean;
     isDrawMilkyWay: boolean;
   }
 }
 
-export interface FilterPluginSettings {
-  payloads?: boolean;
-  rocketBodies?: boolean;
-  debris?: boolean;
-  unknownType?: boolean;
-  agencies?: boolean;
-  starlinkSatellites?: boolean;
-  hEOSatellites?: boolean;
-  mEOSatellites?: boolean;
-  gEOSatellites?: boolean;
-  lEOSatellites?: boolean;
-  unitedStates?: boolean;
-  unitedKingdom?: boolean;
-  france?: boolean;
-  germany?: boolean;
-  japan?: boolean;
-  china?: boolean;
-  india?: boolean;
-  russia?: boolean;
-  uSSR?: boolean;
-  southKorea?: boolean;
-  australia?: boolean;
-  otherCountries?: boolean;
-  vimpelSatellites?: boolean;
-  celestrakSatellites?: boolean;
-  notionalSatellites?: boolean;
-}
-
-interface Filters {
-  name: string;
-  category: string;
-  id?: string;
-  tooltip?: string;
-  checked?: boolean;
-  disabled?: boolean;
-  cb?: (e: Event) => void;
-}
+// Re-export the plugin's public settings type from its core for backwards compatibility.
+export type { FilterPluginSettings };
 
 export class FilterMenuPlugin extends KeepTrackPlugin {
   readonly id = 'FilterMenuPlugin';
   dependencies_ = [TopMenu.name];
 
-  menuMode: MenuMode[] = [MenuMode.BASIC, MenuMode.ADVANCED, MenuMode.SETTINGS, MenuMode.ALL];
+  /** Current text in the filter search box, preserved across re-opens. */
+  private searchQuery_ = '';
 
-  static filters: Filters[] = [
-    {
-      name: 'Payloads',
-      category: 'Object Types',
-    },
-    {
-      name: 'Rocket Bodies',
-      category: 'Object Types',
-    },
-    {
-      name: 'Debris',
-      category: 'Object Types',
-    },
-    {
-      name: 'Unknown Type',
-      category: 'Object Types',
-    },
-    {
-      name: 'Notional Satellites',
-      category: 'Object Types',
-    },
-    {
-      name: 'Agencies',
-      category: 'Object Types',
-      tooltip: 'Planned feature - This will show agencies on the globe.',
-      checked: false,
-      disabled: true,
-    },
-    {
-      name: 'LEO Satellites',
-      category: 'Orbital Regimes',
-    },
-    {
-      name: 'HEO Satellites',
-      category: 'Orbital Regimes',
-    },
-    {
-      name: 'MEO Satellites',
-      category: 'Orbital Regimes',
-    },
-    {
-      name: 'GEO Satellites',
-      category: 'Orbital Regimes',
-    },
-    {
-      name: 'Vimpel Satellites',
-      category: 'Source',
-    },
-    {
-      name: 'Celestrak Satellites',
-      category: 'Source',
-    },
-    {
-      name: 'United States',
-      category: 'Countries',
-    },
-    {
-      name: 'United Kingdom',
-      category: 'Countries',
-    },
-    {
-      name: 'France',
-      category: 'Countries',
-    },
-    {
-      name: 'Germany',
-      category: 'Countries',
-    },
-    {
-      name: 'Japan',
-      category: 'Countries',
-    },
-    {
-      name: 'China',
-      category: 'Countries',
-    },
-    {
-      name: 'India',
-      category: 'Countries',
-    },
-    {
-      name: 'Russia',
-      category: 'Countries',
-    },
-    {
-      name: 'USSR',
-      category: 'Countries',
-      tooltip: 'Historical designation for satellites launched by the former Soviet Union.',
-    },
-    {
-      name: 'South Korea',
-      category: 'Countries',
-    },
-    {
-      name: 'Australia',
-      category: 'Countries',
-    },
-    {
-      name: 'Other Countries',
-      category: 'Countries',
-      tooltip: 'Includes satellites from countries not listed above.',
-    },
-    {
-      name: 'Starlink Satellites',
-      category: 'Miscellaneous',
-    },
-  ];
+  getBottomIconConfig(): IBottomIconConfig {
+    return {
+      elementName: 'filter-menu-icon',
+      label: t7e('plugins.FilterMenuPlugin.bottomIconLabel'),
+      image: filterPng,
+      menuMode: [MenuMode.SETTINGS, MenuMode.ALL],
+    };
+  }
 
-  bottomIconElementName: string = 'filter-menu-icon';
-  bottomIconImg = filterPng;
-  bottomIconLabel: string = 'Filter Menu';
-  sideMenuElementName: string = 'filter-menu';
-  sideMenuElementHtml: string = keepTrackApi.html`
-  <div id="filter-menu" class="side-menu-parent start-hidden text-select">
-    <div id="filter-content" class="side-menu">
-      <div class="row">
+  getSideMenuConfig(): ISideMenuConfig {
+    return {
+      elementName: 'filter-menu',
+      title: t7e('plugins.FilterMenuPlugin.title'),
+      html: this.buildSideMenuHtml_(),
+      dragOptions: {
+        isDraggable: true,
+        minWidth: 350,
+      },
+    };
+  }
+
+  getHelpConfig(): IHelpConfig {
+    return {
+      title: t7e('plugins.FilterMenuPlugin.title'),
+      sections: [
+        {
+          heading: t7e('help.overview'),
+          content: t7e('plugins.FilterMenuPlugin.help.overview'),
+          image: {
+            src: 'img/help/filter-menu/filter-menu.png',
+            alt: t7e('plugins.FilterMenuPlugin.help.imgAlt'),
+            caption: t7e('plugins.FilterMenuPlugin.help.imgCaption'),
+          },
+        },
+        {
+          heading: t7e('help.howToUse'),
+          content: t7e('plugins.FilterMenuPlugin.help.howToUse'),
+        },
+      ],
+      tips: [t7e('plugins.FilterMenuPlugin.help.tip1'), t7e('plugins.FilterMenuPlugin.help.tip2')],
+      shortcuts: [{ keys: ['F'], description: t7e('plugins.FilterMenuPlugin.help.shortcutToggle') }],
+    };
+  }
+
+  getKeyboardShortcuts(): IKeyboardShortcut[] {
+    return [
+      {
+        key: 'f',
+        callback: () => this.bottomMenuClicked(),
+      },
+    ];
+  }
+
+  getCommandPaletteCommands(): ICommandPaletteCommand[] {
+    const cmd = (key: string) => t7e(`plugins.FilterMenuPlugin.commands.${key}` as Parameters<typeof t7e>[0]);
+    const category = cmd('category');
+
+    return [
+      // General
+      {
+        id: 'FilterMenuPlugin.open',
+        label: cmd('open'),
+        category,
+        shortcutHint: 'F',
+        callback: () => this.bottomMenuClicked(),
+      },
+      {
+        id: 'FilterMenuPlugin.resetDefaults',
+        label: cmd('resetDefaults'),
+        category,
+        callback: () => this.resetToDefaults(),
+      },
+
+      // Object type toggles
+      {
+        id: 'FilterMenuPlugin.toggleDebris',
+        label: cmd('toggleDebris'),
+        category,
+        callback: () => this.toggleFilter_('debris'),
+      },
+      {
+        id: 'FilterMenuPlugin.toggleRocketBodies',
+        label: cmd('toggleRocketBodies'),
+        category,
+        callback: () => this.toggleFilter_('rocketBodies'),
+      },
+      {
+        id: 'FilterMenuPlugin.toggleUnknownType',
+        label: cmd('toggleUnknownType'),
+        category,
+        callback: () => this.toggleFilter_('unknownType'),
+      },
+      {
+        id: 'FilterMenuPlugin.toggleNotional',
+        label: cmd('toggleNotional'),
+        category,
+        callback: () => this.toggleFilter_('notionalSatellites'),
+      },
+      {
+        id: 'FilterMenuPlugin.toggleStarlink',
+        label: cmd('toggleStarlink'),
+        category,
+        callback: () => this.toggleFilter_('starlinkSatellites'),
+      },
+
+      // Object type presets
+      {
+        id: 'FilterMenuPlugin.showOnlyPayloads',
+        label: cmd('showOnlyPayloads'),
+        category,
+        callback: () => this.applyPatch_(showOnlyPayloads()),
+      },
+      {
+        id: 'FilterMenuPlugin.hideDebrisAndRocketBodies',
+        label: cmd('hideDebrisAndRocketBodies'),
+        category,
+        callback: () => this.applyPatch_({ debris: false, rocketBodies: false }),
+      },
+      {
+        id: 'FilterMenuPlugin.showAllObjectTypes',
+        label: cmd('showAllObjectTypes'),
+        category,
+        callback: () => this.applyPatch_(enableGroup(OBJECT_TYPE_FILTERS, true)),
+      },
+      {
+        id: 'FilterMenuPlugin.hideAllObjectTypes',
+        label: cmd('hideAllObjectTypes'),
+        category,
+        callback: () => this.applyPatch_(enableGroup(OBJECT_TYPE_FILTERS, false)),
+      },
+
+      // Orbital regime toggles
+      {
+        id: 'FilterMenuPlugin.toggleLEO',
+        label: cmd('toggleLEO'),
+        category,
+        callback: () => this.toggleFilter_('lEOSatellites'),
+      },
+      {
+        id: 'FilterMenuPlugin.toggleMEO',
+        label: cmd('toggleMEO'),
+        category,
+        callback: () => this.toggleFilter_('mEOSatellites'),
+      },
+      {
+        id: 'FilterMenuPlugin.toggleGEO',
+        label: cmd('toggleGEO'),
+        category,
+        callback: () => this.toggleFilter_('gEOSatellites'),
+      },
+      {
+        id: 'FilterMenuPlugin.toggleHEO',
+        label: cmd('toggleHEO'),
+        category,
+        callback: () => this.toggleFilter_('hEOSatellites'),
+      },
+
+      // Orbital regime presets
+      {
+        id: 'FilterMenuPlugin.showOnlyLEO',
+        label: cmd('showOnlyLEO'),
+        category,
+        callback: () => this.applyPatch_(showOnlyInGroup('lEOSatellites', ORBITAL_REGIME_FILTERS)),
+      },
+      {
+        id: 'FilterMenuPlugin.showOnlyGEO',
+        label: cmd('showOnlyGEO'),
+        category,
+        callback: () => this.applyPatch_(showOnlyInGroup('gEOSatellites', ORBITAL_REGIME_FILTERS)),
+      },
+      {
+        id: 'FilterMenuPlugin.showAllOrbitalRegimes',
+        label: cmd('showAllOrbitalRegimes'),
+        category,
+        callback: () => this.applyPatch_(enableGroup(ORBITAL_REGIME_FILTERS, true)),
+      },
+
+      // Source presets
+      {
+        id: 'FilterMenuPlugin.showOnlyCelestrak',
+        label: cmd('showOnlyCelestrak'),
+        category,
+        callback: () => this.applyPatch_(showOnlyInGroup('celestrakSatellites', SOURCE_FILTERS)),
+      },
+      {
+        id: 'FilterMenuPlugin.showAllSources',
+        label: cmd('showAllSources'),
+        category,
+        callback: () => this.applyPatch_(enableGroup(SOURCE_FILTERS, true)),
+      },
+
+      // Country presets
+      {
+        id: 'FilterMenuPlugin.showOnlyUS',
+        label: cmd('showOnlyUS'),
+        category,
+        callback: () => this.applyPatch_(showOnlyInGroup('unitedStates', COUNTRY_FILTERS)),
+      },
+      {
+        id: 'FilterMenuPlugin.showOnlyRussia',
+        label: cmd('showOnlyRussia'),
+        category,
+        callback: () => this.applyPatch_(showOnlyInGroup('russia', COUNTRY_FILTERS)),
+      },
+      {
+        id: 'FilterMenuPlugin.showOnlyChina',
+        label: cmd('showOnlyChina'),
+        category,
+        callback: () => this.applyPatch_(showOnlyInGroup('china', COUNTRY_FILTERS)),
+      },
+      {
+        id: 'FilterMenuPlugin.showAllCountries',
+        label: cmd('showAllCountries'),
+        category,
+        callback: () => this.applyPatch_(enableGroup(COUNTRY_FILTERS, true)),
+      },
+      {
+        id: 'FilterMenuPlugin.hideAllCountries',
+        label: cmd('hideAllCountries'),
+        category,
+        callback: () => this.applyPatch_(enableGroup(COUNTRY_FILTERS, false)),
+      },
+    ];
+  }
+
+  private buildSideMenuHtml_(): string {
+    return html`
+    <div id="filter-menu" class="side-menu-parent start-hidden kt-ui-v13">
+      <div id="filter-content" class="side-menu">
         <form id="filter-form">
-          <div id="filter-general">
-            <div class="row center"></div>
-            </br>
-            <div class="row center">
-              <button id="filter-reset" class="btn btn-ui waves-effect waves-light" type="button" name="action">Reset to Defaults &#9658;</button>
-            </div>
-            ${this.generateFilterHtml()}
+          <div class="filter-search-wrapper">
+            <input id="filter-search" type="search" autocomplete="off"
+              placeholder="${t7e('plugins.FilterMenuPlugin.searchPlaceholder')}" />
           </div>
+          <div id="filter-sections">
+            ${this.generateFilterHtml_()}
+          </div>
+          <button id="filter-reset" type="button" class="kt-action waves-effect">
+            <span class="kt-action-label">${t7e('plugins.FilterMenuPlugin.resetToDefaults')}</span>
+          </button>
         </form>
       </div>
-    </div>
-  </div>`;
+    </div>`;
+  }
 
-  private generateFilterHtml(): string {
-    const categories: { [key: string]: Filters[] } = {};
+  private generateFilterHtml_(): string {
+    // Group filters by category, preserving the catalog's insertion order.
+    const categories = new Map<string, Filters[]>();
 
-    // Group filters by category
-    FilterMenuPlugin.filters.forEach((filter) => {
-      if (!categories[filter.category]) {
-        categories[filter.category] = [];
-      }
-      categories[filter.category].push(filter);
+    getFilters().forEach((filter) => {
+      const group = categories.get(filter.category) ?? [];
+
+      group.push(filter);
+      categories.set(filter.category, group);
     });
 
-    // Generate HTML for each category and its filters
-    return Object.entries(categories)
+    return [...categories.entries()]
       .map(([category, filters]) => {
-        const categoryHtml = KeepTrackPlugin.genH5Title_(category);
-        const filtersHtml = filters
-          .map(
-            (filter) => {
-              filter.id ??= FilterMenuPlugin.generateFilterId_(filter.name);
-              filter.checked ??= settingsManager.filter[filter.id] ?? true;
-              filter.tooltip ??= `Disable to hide ${filter.name}`;
+        const rows = filters.map((filter) => this.buildFilterRow_(filter)).join('');
 
-              filter.cb ??= (e: Event) => {
-                const checkbox = <HTMLInputElement>e.target;
-
-                settingsManager.filter[filter.id as string] = checkbox.checked;
-                keepTrackApi.getSoundManager()?.play(checkbox.checked ? SoundNames.TOGGLE_ON : SoundNames.TOGGLE_OFF);
-              };
-
-              return keepTrackApi.html`
-            <div class="switch row">
-              <label data-position="top" data-delay="50" data-tooltip="${filter.tooltip || ''}">
-                <input id="filter-${filter.id}" type="checkbox" ${filter.checked ? 'checked' : ''} ${!filter.disabled ? '' : 'disabled'}/>
-                <span class="lever"></span>
-                ${filter.name}
-              </label>
-            </div>`;
-            })
-          .join('');
-
-
-        // TODO: Move this to a CSS class
-        return `${categoryHtml}<div style="padding-top: 0.5rem;">${filtersHtml}</div>`;
+        return html`
+          <section class="kt-section">
+            <div class="kt-section-label">${category}</div>
+            ${rows}
+          </section>`;
       })
       .join('');
   }
 
-  isNotColorPickerInitialSetup = false;
+  private buildFilterRow_(filter: Filters): string {
+    const id = filter.id!;
+    const checked = settingsManager.filter[id] ?? defaultFilterValue(filter);
+    const tooltip = filter.tooltip ?? t7e('plugins.FilterMenuPlugin.defaultTooltip').replace('{name}', filter.name);
+
+    return html`
+      <div class="switch row">
+        <label data-position="top" data-delay="50" kt-tooltip="${tooltip}">
+          <input id="filter-${id}" type="checkbox" ${checked ? 'checked' : ''} ${filter.disabled ? 'disabled' : ''}/>
+          <span class="lever"></span>
+          ${filter.name}
+        </label>
+      </div>`;
+  }
 
   addHtml(): void {
     super.addHtml();
-    keepTrackApi.on(
-      KeepTrackApiEvents.uiManagerFinal,
-      () => {
-        getEl('filter-form')?.addEventListener('change', this.onFormChange_.bind(this));
-        getEl('filter-reset')?.addEventListener('click', this.resetToDefaults.bind(this));
-      },
-    );
-
-    keepTrackApi.on(
-      KeepTrackApiEvents.uiManagerInit,
-      () => {
-        getEl('nav-mobile2')?.insertAdjacentHTML(
-          'afterbegin',
-          keepTrackApi.html`
-            <li id="top-menu-filter-li">
-              <a id="top-menu-filter-btn" class="top-menu-icons">
-                <div class="top-menu-icons bmenu-item-selected">
-                  <img id="top-menu-filter-btn-icon"
-                  src="" delayedsrc="${filterPng}" alt="" />
-                </div>
-              </a>
-            </li>
-          `,
-        );
-      },
-    );
-
-    keepTrackApi.on(
-      KeepTrackApiEvents.uiManagerFinal,
-      () => {
-        getEl('top-menu-filter-btn')?.addEventListener('click', () => {
-          keepTrackApi.emit(KeepTrackApiEvents.bottomMenuClick, this.bottomIconElementName);
-        });
-      },
-    );
+    EventBus.getInstance().on(EventBusEvent.uiManagerInit, this.uiManagerInitHtml_.bind(this));
+    EventBus.getInstance().on(EventBusEvent.uiManagerFinal, this.uiManagerFinalHtml_.bind(this));
   }
 
   addJs(): void {
     super.addJs();
-    keepTrackApi.on(
-      KeepTrackApiEvents.uiManagerFinal,
-      () => {
-        this.syncOnLoad_();
-      },
-    );
-
-    keepTrackApi.on(KeepTrackApiEvents.saveSettings, this.saveSettings_.bind(this));
-    keepTrackApi.on(KeepTrackApiEvents.loadSettings, this.loadSettings_.bind(this));
-  }
-  private saveSettings_() {
-    const persistenceManagerInstance = PersistenceManager.getInstance();
-
-    persistenceManagerInstance.saveItem(StorageKey.FILTER_SETTINGS_PAYLOADS, (settingsManager.filter.payloads as boolean)?.toString() ?? 'true');
-    persistenceManagerInstance.saveItem(StorageKey.FILTER_SETTINGS_ROCKET_BODIES, (settingsManager.filter.rocketBodies as boolean)?.toString() ?? 'true');
-    persistenceManagerInstance.saveItem(StorageKey.FILTER_SETTINGS_DEBRIS, (settingsManager.filter.debris as boolean)?.toString() ?? 'true');
-    persistenceManagerInstance.saveItem(StorageKey.FILTER_SETTINGS_UNKNOWN_TYPE, (settingsManager.filter.unknownType as boolean)?.toString() ?? 'true');
-    persistenceManagerInstance.saveItem(StorageKey.FILTER_SETTINGS_AGENCIES, (settingsManager.filter.agencies as boolean)?.toString() ?? 'true');
-    persistenceManagerInstance.saveItem(StorageKey.FILTER_SETTINGS_LEO, (settingsManager.filter.lEOSatellites as boolean)?.toString() ?? 'true');
-    persistenceManagerInstance.saveItem(StorageKey.FILTER_SETTINGS_HEO, (settingsManager.filter.hEOSatellites as boolean)?.toString() ?? 'true');
-    persistenceManagerInstance.saveItem(StorageKey.FILTER_SETTINGS_MEO, (settingsManager.filter.mEOSatellites as boolean)?.toString() ?? 'true');
-    persistenceManagerInstance.saveItem(StorageKey.FILTER_SETTINGS_GEO, (settingsManager.filter.gEOSatellites as boolean)?.toString() ?? 'true');
-    persistenceManagerInstance.saveItem(StorageKey.FILTER_SETTINGS_VIMPEL, (settingsManager.filter.vimpelSatellites as boolean)?.toString() ?? 'true');
-    persistenceManagerInstance.saveItem(StorageKey.FILTER_SETTINGS_CELESTRAK, (settingsManager.filter.celestrakSatellites as boolean)?.toString() ?? 'true');
-    persistenceManagerInstance.saveItem(StorageKey.FILTER_SETTINGS_NOTIONAL, (settingsManager.filter.notionalSatellites as boolean)?.toString() ?? 'true');
-    persistenceManagerInstance.saveItem(StorageKey.FILTER_SETTINGS_UNITED_STATES, (settingsManager.filter.unitedStates as boolean)?.toString() ?? 'true');
-    persistenceManagerInstance.saveItem(StorageKey.FILTER_SETTINGS_UNITED_KINGDOM, (settingsManager.filter.unitedKingdom as boolean)?.toString() ?? 'true');
-    persistenceManagerInstance.saveItem(StorageKey.FILTER_SETTINGS_FRANCE, (settingsManager.filter.france as boolean)?.toString() ?? 'true');
-    persistenceManagerInstance.saveItem(StorageKey.FILTER_SETTINGS_GERMANY, (settingsManager.filter.germany as boolean)?.toString() ?? 'true');
-    persistenceManagerInstance.saveItem(StorageKey.FILTER_SETTINGS_JAPAN, (settingsManager.filter.japan as boolean)?.toString() ?? 'true');
-    persistenceManagerInstance.saveItem(StorageKey.FILTER_SETTINGS_CHINA, (settingsManager.filter.china as boolean)?.toString() ?? 'true');
-    persistenceManagerInstance.saveItem(StorageKey.FILTER_SETTINGS_INDIA, (settingsManager.filter.india as boolean)?.toString() ?? 'true');
-    persistenceManagerInstance.saveItem(StorageKey.FILTER_SETTINGS_RUSSIA, (settingsManager.filter.russia as boolean)?.toString() ?? 'true');
-    persistenceManagerInstance.saveItem(StorageKey.FILTER_SETTINGS_USSR, (settingsManager.filter.uSSR as boolean)?.toString() ?? 'true');
-    persistenceManagerInstance.saveItem(StorageKey.FILTER_SETTINGS_SOUTH_KOREA, (settingsManager.filter.southKorea as boolean)?.toString() ?? 'true');
-    persistenceManagerInstance.saveItem(StorageKey.FILTER_SETTINGS_AUSTRALIA, (settingsManager.filter.australia as boolean)?.toString() ?? 'true');
-    persistenceManagerInstance.saveItem(StorageKey.FILTER_SETTINGS_OTHER_COUNTRIES, (settingsManager.filter.otherCountries as boolean)?.toString() ?? 'true');
-    persistenceManagerInstance.saveItem(StorageKey.FILTER_SETTINGS_STARLINK, (settingsManager.filter.starlinkSatellites as boolean)?.toString() ?? 'true');
+    EventBus.getInstance().on(EventBusEvent.uiManagerFinal, this.uiManagerFinalJs_.bind(this));
+    EventBus.getInstance().on(EventBusEvent.saveSettings, this.saveSettings_.bind(this));
+    EventBus.getInstance().on(EventBusEvent.loadSettings, this.loadSettings_.bind(this));
   }
 
-  private loadSettings_() {
-    const persistenceManagerInstance = PersistenceManager.getInstance();
-
-    settingsManager.filter.payloads = persistenceManagerInstance.checkIfEnabled(StorageKey.FILTER_SETTINGS_PAYLOADS, settingsManager.filter.payloads);
-    settingsManager.filter.rocketBodies = persistenceManagerInstance.checkIfEnabled(StorageKey.FILTER_SETTINGS_ROCKET_BODIES, settingsManager.filter.rocketBodies);
-    settingsManager.filter.debris = persistenceManagerInstance.checkIfEnabled(StorageKey.FILTER_SETTINGS_DEBRIS, settingsManager.filter.debris);
-    settingsManager.filter.unknownType = persistenceManagerInstance.checkIfEnabled(StorageKey.FILTER_SETTINGS_UNKNOWN_TYPE, settingsManager.filter.unknownType);
-    settingsManager.filter.agencies = persistenceManagerInstance.checkIfEnabled(StorageKey.FILTER_SETTINGS_AGENCIES, settingsManager.filter.agencies);
-    settingsManager.filter.lEOSatellites = persistenceManagerInstance.checkIfEnabled(StorageKey.FILTER_SETTINGS_LEO, settingsManager.filter.lEOSatellites);
-    settingsManager.filter.hEOSatellites = persistenceManagerInstance.checkIfEnabled(StorageKey.FILTER_SETTINGS_HEO, settingsManager.filter.hEOSatellites);
-    settingsManager.filter.mEOSatellites = persistenceManagerInstance.checkIfEnabled(StorageKey.FILTER_SETTINGS_MEO, settingsManager.filter.mEOSatellites);
-    settingsManager.filter.gEOSatellites = persistenceManagerInstance.checkIfEnabled(StorageKey.FILTER_SETTINGS_GEO, settingsManager.filter.gEOSatellites);
-    settingsManager.filter.vimpelSatellites = persistenceManagerInstance.checkIfEnabled(StorageKey.FILTER_SETTINGS_VIMPEL, settingsManager.filter.vimpelSatellites);
-    settingsManager.filter.celestrakSatellites = persistenceManagerInstance.checkIfEnabled(StorageKey.FILTER_SETTINGS_CELESTRAK, settingsManager.filter.celestrakSatellites);
-    settingsManager.filter.notionalSatellites = persistenceManagerInstance.checkIfEnabled(StorageKey.FILTER_SETTINGS_NOTIONAL, settingsManager.filter.notionalSatellites);
-    settingsManager.filter.unitedStates = persistenceManagerInstance.checkIfEnabled(StorageKey.FILTER_SETTINGS_UNITED_STATES, settingsManager.filter.unitedStates);
-    settingsManager.filter.unitedKingdom = persistenceManagerInstance.checkIfEnabled(StorageKey.FILTER_SETTINGS_UNITED_KINGDOM, settingsManager.filter.unitedKingdom);
-    settingsManager.filter.france = persistenceManagerInstance.checkIfEnabled(StorageKey.FILTER_SETTINGS_FRANCE, settingsManager.filter.france);
-    settingsManager.filter.germany = persistenceManagerInstance.checkIfEnabled(StorageKey.FILTER_SETTINGS_GERMANY, settingsManager.filter.germany);
-    settingsManager.filter.japan = persistenceManagerInstance.checkIfEnabled(StorageKey.FILTER_SETTINGS_JAPAN, settingsManager.filter.japan);
-    settingsManager.filter.china = persistenceManagerInstance.checkIfEnabled(StorageKey.FILTER_SETTINGS_CHINA, settingsManager.filter.china);
-    settingsManager.filter.india = persistenceManagerInstance.checkIfEnabled(StorageKey.FILTER_SETTINGS_INDIA, settingsManager.filter.india);
-    settingsManager.filter.russia = persistenceManagerInstance.checkIfEnabled(StorageKey.FILTER_SETTINGS_RUSSIA, settingsManager.filter.russia);
-    settingsManager.filter.uSSR = persistenceManagerInstance.checkIfEnabled(StorageKey.FILTER_SETTINGS_USSR, settingsManager.filter.uSSR);
-    settingsManager.filter.southKorea = persistenceManagerInstance.checkIfEnabled(StorageKey.FILTER_SETTINGS_SOUTH_KOREA, settingsManager.filter.southKorea);
-    settingsManager.filter.australia = persistenceManagerInstance.checkIfEnabled(StorageKey.FILTER_SETTINGS_AUSTRALIA, settingsManager.filter.australia);
-    settingsManager.filter.otherCountries = persistenceManagerInstance.checkIfEnabled(StorageKey.FILTER_SETTINGS_OTHER_COUNTRIES, settingsManager.filter.otherCountries);
-    settingsManager.filter.starlinkSatellites = persistenceManagerInstance.checkIfEnabled(StorageKey.FILTER_SETTINGS_STARLINK, settingsManager.filter.starlinkSatellites);
+  private uiManagerInitHtml_(): void {
+    getEl(TopMenu.TOP_RIGHT_ID)?.insertAdjacentHTML('afterbegin', this.buildTopMenuButtonHtml_());
   }
 
-  syncOnLoad_() {
-    FilterMenuPlugin.filters.forEach(({ name, id, checked, disabled }) => {
-      id ??= FilterMenuPlugin.generateFilterId_(name);
-      const checkbox = <HTMLInputElement>getEl(`filter-${id}`);
-
-      if (checkbox) {
-        checkbox.checked = typeof settingsManager.filter[id as string] !== 'undefined' ? settingsManager.filter[id as string] : checked ?? !disabled;
-        settingsManager.filter[id as string] = checkbox.checked;
-      }
-    });
-
-    this.updateFilterUI_();
+  private uiManagerFinalHtml_(): void {
+    getEl('filter-form')?.addEventListener('change', this.onFormChange_.bind(this));
+    getEl('filter-reset')?.addEventListener('click', this.resetToDefaults.bind(this));
+    getEl('filter-search')?.addEventListener('input', this.onSearchInput_.bind(this));
+    getEl('top-menu-filter-btn')?.addEventListener('click', () => this.bottomMenuClicked());
   }
 
-  private updateFilterUI_() {
-    if (this.checkIfDefaults()) {
-      (getEl('filter-reset') as HTMLDivElement).setAttribute('disabled', 'true');
-      hideEl('top-menu-filter-li');
-    } else {
-      (getEl('filter-reset') as HTMLDivElement).removeAttribute('disabled');
-      showEl('top-menu-filter-li');
+  private uiManagerFinalJs_(): void {
+    this.syncOnLoad_();
+  }
+
+  private buildTopMenuButtonHtml_(): string {
+    return html`
+      <li id="top-menu-filter-li">
+        <a id="top-menu-filter-btn" class="top-menu-icons">
+          <div class="top-menu-icons bmenu-item-selected">
+            <img id="top-menu-filter-btn-icon" src="" delayedsrc="${filterPng}" alt="" />
+          </div>
+        </a>
+      </li>
+    `;
+  }
+
+  private saveSettings_(): void {
+    const persistence = PersistenceManager.getInstance();
+
+    for (const [key, storageKey] of Object.entries(FILTER_STORAGE_MAP)) {
+      persistence.saveItem(storageKey, (settingsManager.filter[key] as boolean)?.toString() ?? 'true');
     }
   }
 
-  private static generateFilterId_(name: string): string {
-    return `${name.charAt(0).toLowerCase()}${name.slice(1).replace(/\s+/gu, '')}`;
+  private loadSettings_(): void {
+    const persistence = PersistenceManager.getInstance();
+
+    for (const [key, storageKey] of Object.entries(FILTER_STORAGE_MAP)) {
+      settingsManager.filter[key] = persistence.checkIfEnabled(storageKey, settingsManager.filter[key]);
+    }
   }
 
-  private onFormChange_(e: Event) {
+  /**
+   * Seed `settingsManager.filter` from persisted/default values and sync the
+   * rendered checkboxes to match. `settingsManager.filter` is the source of
+   * truth; the DOM only mirrors it.
+   */
+  syncOnLoad_(): void {
+    getFilters().forEach((filter) => {
+      const id = filter.id!;
+      const value = settingsManager.filter[id] ?? defaultFilterValue(filter);
+
+      // Seed every filter so the persisted state and the rendered checkboxes
+      // match settingsManager.
+      this.writeFilterValue_(id, value);
+    });
+
+    this.applySearchFilter_();
+    this.updateFilterUI_();
+  }
+
+  /**
+   * Write one filter's value to `settingsManager.filter`, mirror it onto the
+   * rendered checkbox when present, and keep the legacy ground-site flags in
+   * sync. Unconditional - used for load/reset seeding.
+   */
+  private writeFilterValue_(filterId: string, checked: boolean): void {
+    settingsManager.filter[filterId] = checked;
+
+    const checkbox = getEl(`filter-${filterId}`, true) as HTMLInputElement | null;
+
+    if (checkbox) {
+      checkbox.checked = checked;
+    }
+
+    // Bridge ground-site toggles to existing settings flags.
+    if (filterId === 'groundSensors') {
+      settingsManager.isDisableSensors = !checked;
+    } else if (filterId === 'launchFacilities') {
+      settingsManager.isDisableLaunchSites = !checked;
+    }
+  }
+
+  /**
+   * Set a user-driven filter value, ignoring any filters marked disabled so
+   * presets and toggles can never enable them.
+   */
+  private setFilterValue_(filterId: string, checked: boolean): void {
+    if (getFilters().find((f) => f.id === filterId)?.disabled) {
+      return;
+    }
+
+    this.writeFilterValue_(filterId, checked);
+  }
+
+  /**
+   * Apply a batch of filter changes, then play feedback, persist, and refresh.
+   * Works whether or not the side menu is currently rendered, since state lives
+   * on `settingsManager.filter`.
+   */
+  private applyPatch_(patch: Record<string, boolean>): void {
+    for (const [filterId, checked] of Object.entries(patch)) {
+      this.setFilterValue_(filterId, checked);
+    }
+
+    ServiceLocator.getSoundManager()?.play(SoundNames.TOGGLE_ON);
+    this.saveSettings_();
+    this.updateFilterUI_();
+  }
+
+  private toggleFilter_(filterId: string): void {
+    const filter = getFilters().find((f) => f.id === filterId);
+    const current = settingsManager.filter[filterId] ?? (filter ? defaultFilterValue(filter) : true);
+    const next = !current;
+
+    this.setFilterValue_(filterId, next);
+    ServiceLocator.getSoundManager()?.play(next ? SoundNames.TOGGLE_ON : SoundNames.TOGGLE_OFF);
+    this.saveSettings_();
+    this.updateFilterUI_();
+  }
+
+  private onFormChange_(e: Event): void {
     if (typeof e === 'undefined' || e === null) {
       throw new Error('e is undefined');
     }
 
-    const checkbox = <HTMLInputElement>e.target;
-    const filterId = checkbox.id;
-    const filter = FilterMenuPlugin.filters.find((f) => f.id === filterId.replace('filter-', ''));
+    const checkbox = e.target as HTMLInputElement;
+    const filterId = checkbox.id.replace('filter-', '');
 
-    if (filter && filter.cb) {
-      filter.cb(e);
-      this.saveSettings_();
-    }
-
+    this.setFilterValue_(filterId, checkbox.checked);
+    ServiceLocator.getSoundManager()?.play(checkbox.checked ? SoundNames.TOGGLE_ON : SoundNames.TOGGLE_OFF);
+    this.saveSettings_();
     this.updateFilterUI_();
   }
 
-  checkIfDefaults() {
-    const filterForm = <HTMLFormElement>getEl('filter-form');
-
-    const checkboxes = filterForm.querySelectorAll('input[type="checkbox"]') as NodeListOf<HTMLInputElement>;
-
-    let allDefault = true;
-
-    checkboxes.forEach((checkbox) => {
-      const filterId = checkbox.id.replace('filter-', '');
-      const filter = FilterMenuPlugin.filters.find((f) => f.id === filterId);
-
-      if (filter && filter.checked !== checkbox.checked) {
-        allDefault = false;
-      }
-    });
-
-    return allDefault;
+  private onSearchInput_(e: Event): void {
+    this.searchQuery_ = (e.target as HTMLInputElement).value;
+    this.applySearchFilter_();
   }
 
-  resetToDefaults() {
-    keepTrackApi.getSoundManager()?.play(SoundNames.BUTTON_CLICK);
-    const filterForm = <HTMLFormElement>getEl('filter-form');
+  /**
+   * Narrow the visible toggles to those whose label contains the query, hiding
+   * any card left with no matches. Substring match (no regex) so user input is
+   * always a safe literal.
+   */
+  private applySearchFilter_(): void {
+    const menu = getEl('filter-sections', true);
 
-    const checkboxes = filterForm.querySelectorAll('input[type="checkbox"]') as NodeListOf<HTMLInputElement>;
+    if (!menu) {
+      return;
+    }
 
-    checkboxes.forEach((checkbox) => {
-      const filterId = checkbox.id.replace('filter-', '');
-      const filter = FilterMenuPlugin.filters.find((f) => f.id === filterId);
+    const needle = this.searchQuery_.trim().toLowerCase();
 
-      if (filter) {
-        checkbox.checked = filter.checked ?? !filter.disabled;
-        settingsManager.filter[filterId] = checkbox.checked;
-      }
+    menu.querySelectorAll<HTMLElement>('.kt-section').forEach((section) => {
+      let anyVisible = false;
+
+      section.querySelectorAll<HTMLElement>('.switch.row').forEach((row) => {
+        const isMatch = needle.length === 0 || (row.textContent ?? '').toLowerCase().includes(needle);
+
+        row.style.display = isMatch ? '' : 'none';
+        if (isMatch) {
+          anyVisible = true;
+        }
+      });
+
+      section.style.display = anyVisible ? '' : 'none';
     });
+  }
 
+  private updateFilterUI_(): void {
+    const resetBtn = getEl('filter-reset', true);
+
+    if (this.checkIfDefaults()) {
+      resetBtn?.setAttribute('disabled', 'true');
+      hideEl('top-menu-filter-li');
+    } else {
+      resetBtn?.removeAttribute('disabled');
+      showEl('top-menu-filter-li');
+    }
+
+    EventBus.getInstance().emit(EventBusEvent.filterChanged);
+  }
+
+  checkIfDefaults(): boolean {
+    return isDefaultState((id) => settingsManager.filter[id]);
+  }
+
+  resetToDefaults(): void {
+    ServiceLocator.getSoundManager()?.play(SoundNames.BUTTON_CLICK);
+
+    getFilters().forEach((filter) => {
+      this.writeFilterValue_(filter.id!, defaultFilterValue(filter));
+    });
 
     this.saveSettings_();
-    this.syncOnLoad_();
+    this.applySearchFilter_();
+    this.updateFilterUI_();
   }
 }
-

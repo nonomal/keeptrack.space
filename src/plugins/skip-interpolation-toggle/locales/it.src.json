@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "SkipInterpolationToggle": {
+      "bottomIconLabel": "Salta interp.",
+      "commandPalette": {
+        "toggle": "Attiva/disattiva salto interpolazione TLE"
+      }
+    }
+  }
+}

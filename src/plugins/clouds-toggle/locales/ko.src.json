@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "CloudsToggle": {
+      "bottomIconLabel": "구름",
+      "commandPalette": {
+        "toggle": "구름 레이어 전환"
+      }
+    }
+  }
+}

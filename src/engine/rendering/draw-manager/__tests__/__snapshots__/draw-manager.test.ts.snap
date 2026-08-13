@@ -1,0 +1,9 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`drawManager > should calculate the moon's position 1`] = `
+[
+  70141.3956354281,
+  353351.3158190503,
+  178481.73019648678,
+]
+`;

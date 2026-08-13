@@ -1,194 +1,314 @@
-import { GetSatType, KeepTrackApiEvents, MenuMode } from '@app/interfaces';
-import { keepTrackApi } from '@app/keepTrackApi';
-import { getEl } from '@app/lib/get-el';
-import { showLoading } from '@app/lib/showLoading';
-import { CatalogManager } from '@app/singletons/catalog-manager';
-import { errorManagerInstance } from '@app/singletons/errorManager';
-import streamPng from '@public/img/icons/stream.png';
-
+import { CatalogManager } from '@app/app/data/catalog-manager';
+import { GetSatType, MenuMode, ToastMsgType } from '@app/engine/core/interfaces';
+import { PluginRegistry } from '@app/engine/core/plugin-registry';
+import { ServiceLocator } from '@app/engine/core/service-locator';
+import { EventBus } from '@app/engine/events/event-bus';
+import { EventBusEvent } from '@app/engine/events/event-bus-events';
+import { PersistenceManager } from '@app/engine/persistence/persistence-manager';
+import { StorageKey } from '@app/engine/persistence/storage-key';
+import { KeepTrackPlugin } from '@app/engine/plugins/base-plugin';
+import {
+  IBottomIconConfig,
+  ICommandPaletteCapable,
+  ICommandPaletteCommand,
+  IDragOptions,
+  IHelpConfig,
+  IKeyboardShortcut,
+  ISideMenuConfig,
+} from '@app/engine/plugins/core/plugin-capabilities';
+import { initMaterialSelects } from '@app/engine/ui/material-select';
+import { html } from '@app/engine/utils/development/formatter';
+import { errorManagerInstance } from '@app/engine/utils/errorManager';
+import { getEl } from '@app/engine/utils/get-el';
+import { showLoading } from '@app/engine/utils/showLoading';
 import { t7e } from '@app/locales/keys';
-import { OrbitFinder } from '@app/singletons/orbit-finder';
-import { TimeManager } from '@app/singletons/time-manager';
-import { SatMath } from '@app/static/sat-math';
-import { CruncerMessageTypes } from '@app/webworker/positionCruncher';
-import { BaseObject, DetailedSatellite, Kilometers, Tle, TleLine1, TleLine2, eci2lla } from 'ootk';
-import { ClickDragOptions, KeepTrackPlugin } from '../KeepTrackPlugin';
+import { BaseObject, Satellite } from '@ootk/src/main';
+import streamPng from '@public/img/icons/stream.png';
 import { SelectSatManager } from '../select-sat-manager/select-sat-manager';
+import { BREAKUP_PRESETS, BreakupRawForm, DEFAULT_BREAKUP_PRESET, getBreakupPreset, parseBreakupParams } from './breakup-core';
+import { clearBreakupPieces, runBreakup } from './breakup-runner';
+import './breakup.css';
 
-export class Breakup extends KeepTrackPlugin {
+export interface BreakupParams {
+  satId: number | null;
+  breakupCount: number;
+  /** Radial delta-V spread (m/s). */
+  radialDeltaV: number;
+  /** In-track delta-V spread (m/s). */
+  inTrackDeltaV: number;
+  /** Cross-track delta-V spread (m/s). */
+  crossTrackDeltaV: number;
+  startNum: number;
+}
+
+/** State captured on a successful breakup so it can be fully undone (Clear Breakup). */
+interface BreakupUndoState {
+  pieceIds: number[];
+  priorSearchLimit: number;
+}
+
+export class Breakup extends KeepTrackPlugin implements ICommandPaletteCapable {
   readonly id = 'Breakup';
   dependencies_ = [SelectSatManager.name];
   private readonly selectSatManager_: SelectSatManager;
+  private static readonly DEFAULT_START_NUM = 90000;
 
-  constructor() {
-    super();
-    this.selectSatManager_ = keepTrackApi.getPlugin(SelectSatManager) as unknown as SelectSatManager; // this will be validated in KeepTrackPlugin constructor
-  }
+  lastBreakupParams: BreakupParams | null = null;
+  /** State needed to undo the most recent breakup; null when nothing to clear. */
+  private lastBreakup_: BreakupUndoState | null = null;
 
   isRequireSatelliteSelected = true;
   isIconDisabledOnLoad = true;
   isIconDisabled = true;
 
-  menuMode: MenuMode[] = [MenuMode.ADVANCED, MenuMode.ALL];
+  constructor() {
+    super();
+    this.selectSatManager_ = PluginRegistry.getPlugin(SelectSatManager) as unknown as SelectSatManager;
+  }
 
-  bottomIconImg = streamPng;
-  private readonly maxDifApogeeVsPerigee_ = 1000;
+  // =========================================================================
+  // Composition-based configuration methods
+  // =========================================================================
 
-  bottomIconCallback = (): void => {
+  getBottomIconConfig(): IBottomIconConfig {
+    return {
+      elementName: 'breakup-bottom-icon',
+      label: t7e('plugins.Breakup.bottomIconLabel'),
+      image: streamPng,
+      menuMode: [MenuMode.CREATE, MenuMode.ALL],
+      isDisabledOnLoad: true,
+    };
+  }
+
+  /**
+   * Called when the bottom icon is clicked.
+   */
+  onBottomIconClick(): void {
     const obj = this.selectSatManager_.getSelectedSat(GetSatType.EXTRA_ONLY);
 
-    if (!obj?.isSatellite()) {
+    // Reject anything that isn't a true TLE-backed Satellite (e.g. OemSatellite returns
+    // true from isSatellite() but has no tle1/tle2/satrec, which would blow up the
+    // state-vector propagation). Any orbital regime of a real Satellite is supported.
+    if (!(obj instanceof Satellite)) {
       return;
     }
 
-    const sat = obj as DetailedSatellite;
-
-    if (sat?.apogee - sat?.perigee > this.maxDifApogeeVsPerigee_) {
-      errorManagerInstance.warn(t7e('errorMsgs.Breakup.CannotCreateBreakupForNonCircularOrbits'));
-      this.closeSideMenu();
-      this.setBottomIconToDisabled();
-
-      return;
-    }
     this.updateSccNumInMenu_();
+  }
+
+  // Bridge for legacy event system (per CLAUDE.md)
+  bottomIconCallback = (): void => {
+    this.onBottomIconClick();
   };
 
-  dragOptions: ClickDragOptions = {
-    isDraggable: true,
-  };
+  getKeyboardShortcuts(): IKeyboardShortcut[] {
+    // Bare 'B' is owned by BestPassPlugin; use Shift+B (no conflict per the registry).
+    return [
+      {
+        key: 'B',
+        shift: true,
+        callback: () => this.bottomMenuClicked(),
+      },
+    ];
+  }
 
-  sideMenuElementName: string = 'breakup-menu';
-  sideMenuElementHtml: string = keepTrackApi.html`
-  <div id="breakup-menu" class="side-menu-parent start-hidden text-select">
-    <div id="breakup-content" class="side-menu">
-      <div class="row">
-        <h5 class="center-align">Breakup Simulator</h5>
-        <form id="breakup" class="col s12">
-          <div class="input-field col s12">
-            <input disabled value="00005" id="hc-scc" type="text" />
-            <label for="disabled" class="active">Satellite SCC#</label>
-          </div>
-          <div class="input-field col s12">
-            <input id="hc-startNum" type="text" value="90000" />
-            <label for="hc-startNum" class="active">Initial Satellite Number</label>
-          </div>
-          <div class="input-field col s12">
-            <select id="hc-inc">
-              <option value="0">0 Degrees</option>
-              <option value="0.005">0.005 Degrees</option>
-              <option value="0.025">0.025 Degrees</option>
-              <option value="0.05" selected>0.05 Degrees</option>
-              <option value="0.1">0.1 Degrees</option>
-              <option value="0.2">0.2 Degrees</option>
-              <option value="0.3">0.3 Degrees</option>
-              <option value="0.4">0.4 Degrees</option>
-              <option value="0.5">0.5 Degrees</option>
-              <option value="0.6">0.6 Degrees</option>
-              <option value="0.7">0.7 Degrees</option>
-              <option value="0.8">0.8 Degrees</option>
-              <option value="0.9">0.9 Degrees</option>
-              <option value="1">1 Degrees</option>
-            </select>
-            <label>Inclination Variation</label>
-          </div>
-          <div class="input-field col s12">
-            <select id="hc-per">
-              <option value="0">0 Minutes</option>
-              <option value="0.1" selected>0.1 Minutes</option>
-              <option value="0.15">0.15 Minutes</option>
-              <option value="0.25">0.25 Minutes</option>
-              <option value="0.3">0.3 Minutes</option>
-              <option value="0.5">0.5 Minutes</option>
-              <option value="0.75">0.75 Minutes</option>
-              <option value="1">1 Minute</option>
-              <option value="1.5">1.5 Minutes</option>
-              <option value="2">2 Minutes</option>
-              <option value="2.5">2.5 Minutes</option>
-              <option value="3">3 Minutes</option>
-              <option value="4">4 Minutes</option>
-              <option value="5">5 Minutes</option>
-            </select>
-            <label>Period Variation</label>
-          </div>
-          <div class="input-field col s12">
-            <select id="hc-raan">
-            <option value="0">0 Degrees</option>
-              <option value="0.005">0.005 Degrees</option>
-              <option value="0.025">0.025 Degrees</option>
-              <option value="0.05" selected>0.05 Degrees</option>
-              <option value="0.1">0.1 Degrees</option>
-              <option value="0.2">0.2 Degrees</option>
-              <option value="0.3">0.3 Degrees</option>
-              <option value="0.4">0.4 Degrees</option>
-              <option value="0.5">0.5 Degrees</option>
-              <option value="0.6">0.6 Degrees</option>
-              <option value="0.7">0.7 Degrees</option>
-              <option value="0.8">0.8 Degrees</option>
-              <option value="0.9">0.9 Degrees</option>
-              <option value="1">1 Degrees</option>
-            </select>
-            <label>Right Ascension Variation</label>
-          </div>
-          <div class="input-field col s12">
-            <select id="hc-count">
-              <option value="5">5</option>
-              <option value="10">10</option>
-              <option value="25" selected>25</option>
-              <option value="50">50</option>
-              <option value="100">100</option>
-              <option value="200">250</option>
-              <option value="500">500</option>
-              <option value="750">750</option>
-              <option value="1000">1000</option>
-            </select>
-            <label>Pieces</label>
-          </div>
-          <div class="center-align">
-            <button class="btn btn-ui waves-effect waves-light" type="submit" name="action">Create Breakup &#9658;</button>
-          </div>
-        </form>
+  getCommandPaletteCommands(): ICommandPaletteCommand[] {
+    const category = t7e('plugins.Breakup.title');
+
+    return [
+      {
+        id: 'Breakup.create',
+        label: t7e('plugins.Breakup.commands.create' as Parameters<typeof t7e>[0]),
+        category,
+        callback: () => this.bottomMenuClicked(),
+      },
+      {
+        id: 'Breakup.clear',
+        label: t7e('plugins.Breakup.commands.clear' as Parameters<typeof t7e>[0]),
+        category,
+        callback: () => this.clearBreakup_(),
+        isAvailable: () => this.lastBreakup_ !== null,
+      },
+    ];
+  }
+
+  getSideMenuConfig(): ISideMenuConfig {
+    return {
+      elementName: 'breakup-menu',
+      title: t7e('plugins.Breakup.sideMenuTitle' as Parameters<typeof t7e>[0]),
+      html: this.buildSideMenuHtml_(),
+      dragOptions: this.getDragOptions_(),
+    };
+  }
+
+  private getDragOptions_(): IDragOptions {
+    return {
+      isDraggable: true,
+    };
+  }
+
+  private buildSideMenuHtml_(): string {
+    const l = (key: string) => t7e(`plugins.Breakup.labels.${key}` as Parameters<typeof t7e>[0]);
+
+    return html`
+      <div id="breakup-menu" class="side-menu-parent start-hidden kt-ui-v13">
+        <div id="breakup-content" class="side-menu">
+          <form id="breakup" class="col s12">
+            <section class="kt-section">
+              <div class="kt-section-label">${l('sourceSection')}</div>
+              <div class="input-field col s12">
+                <input disabled value="00005" id="hc-scc" type="text" />
+                <label for="hc-scc" class="active">${l('satelliteScc')}</label>
+              </div>
+            </section>
+            <section class="kt-section">
+              <div class="kt-section-label">${l('catalogSlotsSection')}</div>
+              <div class="input-field col s12">
+                <input id="hc-startNum" type="text" value="90000" />
+                <label for="hc-startNum" class="active">${l('initialSatelliteNumber')}</label>
+              </div>
+            </section>
+            <section class="kt-section">
+              <div class="kt-section-label">${l('dispersionSection')}</div>
+              <div class="input-field col s12">
+                <select id="hc-event-preset">
+                  ${BREAKUP_PRESETS.map((p) => `<option value="${p.id}"${p.id === DEFAULT_BREAKUP_PRESET ? ' selected' : ''}>${l(`preset_${p.id}`)}</option>`).join('')}
+                  <option value="custom">${l('preset_custom')}</option>
+                </select>
+                <label>${l('eventTypeLabel')}</label>
+              </div>
+              <!--
+                Defaults are isotropic ~40 m/s per axis, an explosion-class event
+                (rocket-body / battery / propellant breakups, which dominate the real
+                catalog). Real breakup ΔV is spherically symmetric (NASA Standard
+                Breakup Model, EVOLVE 4.0), so the three axes share one value; the
+                cloud's in-track elongation emerges from orbital dynamics, not from
+                anisotropic input. With a per-axis 1σ Gaussian the median total ΔV is
+                ≈1.54σ, so 40 m/s → ~60 m/s median (explosion fragments are ~10-100 m/s;
+                catastrophic collisions run ~100-300 m/s, small fragments to ~1 km/s).
+              -->
+              <div class="kt-field-row">
+                <div class="input-field col s4">
+                  <input id="hc-dv-radial" type="number" min="0" step="1" value="40" />
+                  <label for="hc-dv-radial" class="active">${l('radialDeltaV')}</label>
+                </div>
+                <div class="input-field col s4">
+                  <input id="hc-dv-intrack" type="number" min="0" step="1" value="40" />
+                  <label for="hc-dv-intrack" class="active">${l('inTrackDeltaV')}</label>
+                </div>
+                <div class="input-field col s4">
+                  <input id="hc-dv-crosstrack" type="number" min="0" step="1" value="40" />
+                  <label for="hc-dv-crosstrack" class="active">${l('crossTrackDeltaV')}</label>
+                </div>
+              </div>
+              <div class="kt-note">${l('dispersionHint')}</div>
+            </section>
+            <section class="kt-section">
+              <div class="kt-section-label">${l('piecesSection')}</div>
+              <div class="input-field col s12">
+                <select id="hc-count">
+                  <option value="5">5</option>
+                  <option value="10">10</option>
+                  <option value="25" selected>25</option>
+                  <option value="50">50</option>
+                  <option value="100">100</option>
+                  <option value="250">250</option>
+                  <option value="500">500</option>
+                  <option value="750">750</option>
+                  <option value="1000">1000</option>
+                </select>
+                <label>${l('pieces')}</label>
+              </div>
+            </section>
+            <button id="breakup-create-btn" class="kt-action waves-effect" type="submit" name="action">
+              <span class="kt-action-label">${t7e('plugins.Breakup.buttons.createBreakup' as Parameters<typeof t7e>[0])}</span>
+            </button>
+            <button id="breakup-clear-btn" class="kt-action kt-action-danger waves-effect" type="button" style="display:none;">
+              <span class="kt-action-label">${t7e('plugins.Breakup.buttons.clearBreakup' as Parameters<typeof t7e>[0])}</span>
+            </button>
+          </form>
+        </div>
       </div>
-    </div>
-  </div>`;
+    `;
+  }
+
+  getHelpConfig(): IHelpConfig {
+    return {
+      title: t7e('plugins.Breakup.title'),
+      sections: [
+        {
+          heading: t7e('help.overview'),
+          content: t7e('plugins.Breakup.help.overview'),
+          image: {
+            src: 'img/help/breakup/breakup-menu.png',
+            alt: t7e('plugins.Breakup.help.imgAlt'),
+            caption: t7e('plugins.Breakup.help.imgCaption'),
+          },
+        },
+        {
+          heading: t7e('plugins.Breakup.help.parametersHeading'),
+          content: t7e('plugins.Breakup.help.parameters'),
+        },
+        {
+          heading: t7e('help.howToUse'),
+          content: t7e('plugins.Breakup.help.howToUse'),
+        },
+      ],
+      tips: [t7e('plugins.Breakup.help.tip1'), t7e('plugins.Breakup.help.tip2'), t7e('plugins.Breakup.help.tip3')],
+    };
+  }
+
+  // =========================================================================
+  // Lifecycle methods
+  // =========================================================================
 
   addHtml(): void {
     super.addHtml();
 
-    keepTrackApi.on(
-      KeepTrackApiEvents.uiManagerFinal,
-      () => {
-        getEl('breakup')!.addEventListener('submit', (e: Event) => {
-          e.preventDefault();
-          showLoading(() => this.onSubmit_());
-        });
-      },
-    );
+    EventBus.getInstance().on(EventBusEvent.uiManagerFinal, () => this.uiManagerFinal_());
 
-    keepTrackApi.on(
-      KeepTrackApiEvents.selectSatData,
-      (sat: BaseObject) => {
-        if (!sat?.isSatellite()) {
-          if (this.isMenuButtonActive) {
-            this.closeSideMenu();
-          }
-          this.setBottomIconToUnselected();
-          this.setBottomIconToDisabled();
-        } else if ((sat as DetailedSatellite)?.apogee - (sat as DetailedSatellite)?.perigee > this.maxDifApogeeVsPerigee_) {
-          if (this.isMenuButtonActive) {
-            this.closeSideMenu();
-            errorManagerInstance.warn(t7e('errorMsgs.Breakup.CannotCreateBreakupForNonCircularOrbits'));
-          }
-          this.setBottomIconToUnselected();
-          this.setBottomIconToDisabled();
-        } else {
-          this.setBottomIconToEnabled();
-          if (this.isMenuButtonActive) {
-            this.updateSccNumInMenu_();
-          }
+    // Custom satellite selection handling - KEEP: Custom plugin logic
+    EventBus.getInstance().on(EventBusEvent.selectSatData, (sat: BaseObject) => {
+      // Restrict to true TLE-backed Satellite - OemSatellite passes isSatellite() but
+      // has no satrec to propagate. Any orbital regime of a real Satellite is supported.
+      if (!(sat instanceof Satellite)) {
+        if (this.isMenuButtonActive) {
+          this.closeSideMenu();
         }
-      },
-    );
+        this.setBottomIconToUnselected();
+        this.setBottomIconToDisabled();
+      } else {
+        this.setBottomIconToEnabled();
+        if (this.isMenuButtonActive) {
+          this.updateSccNumInMenu_();
+        }
+      }
+    });
   }
+
+  private uiManagerFinal_(): void {
+    getEl('breakup')?.addEventListener('submit', (e: Event) => {
+      e.preventDefault();
+      showLoading(() => this.onSubmit_());
+    });
+
+    getEl('breakup-clear-btn')?.addEventListener('click', () => {
+      showLoading(() => this.clearBreakup_());
+    });
+
+    // Selecting an event-type preset fills the per-axis delta-V fields.
+    getEl('hc-event-preset')?.addEventListener('change', (e) => {
+      this.applyPreset_((e.target as HTMLSelectElement).value);
+    });
+
+    this.restoreInputs_();
+    initMaterialSelects(getEl('breakup-menu') ?? document.body);
+    this.updateClearButton_();
+  }
+
+  // =========================================================================
+  // Private methods
+  // =========================================================================
 
   private updateSccNumInMenu_() {
     if (!this.isMenuButtonActive) {
@@ -199,224 +319,203 @@ export class Breakup extends KeepTrackPlugin {
     if (!obj?.isSatellite()) {
       return;
     }
-    (<HTMLInputElement>getEl('hc-scc')).value = (obj as DetailedSatellite).sccNum;
+    (<HTMLInputElement>getEl('hc-scc')).value = (obj as Satellite).sccNum;
   }
 
   // eslint-disable-next-line max-statements
   private onSubmit_(): void {
-    const { simulationTimeObj } = keepTrackApi.getTimeManager();
-    const catalogManagerInstance = keepTrackApi.getCatalogManager();
+    const timeManager = ServiceLocator.getTimeManager();
+    const catalogManagerInstance = ServiceLocator.getCatalogManager();
+    const { simulationTimeObj } = timeManager;
 
-    const { satId, breakupCount, rascVariation, incVariation, meanmoVariation, startNum } = Breakup.getFormData_(catalogManagerInstance);
+    const { satId, breakupCount, radialDeltaV, inTrackDeltaV, crossTrackDeltaV, startNum, startNumWasInvalid } = Breakup.getFormData_(catalogManagerInstance);
+
+    if (startNumWasInvalid) {
+      errorManagerInstance.warn(t7e('plugins.Breakup.errorMsgs.InvalidStartNum'));
+    }
+
+    this.lastBreakupParams = { satId, breakupCount, radialDeltaV, inTrackDeltaV, crossTrackDeltaV, startNum };
+    this.persistInputs_();
+
     const mainsat = catalogManagerInstance.getSat(satId ?? -1);
 
-    if (!mainsat || satId === null) {
-      errorManagerInstance.warn(t7e('errorMsgs.Breakup.SatelliteNotFound'));
+    // getSat's return type is Satellite, but at runtime it only checks isSatellite() -
+    // OemSatellite slips through that check and lacks a propagatable satrec.
+    if (!mainsat || satId === null || !(mainsat instanceof Satellite)) {
+      errorManagerInstance.warn(t7e('plugins.Breakup.errorMsgs.SatelliteNotFound'));
 
       return;
     }
 
-    const origsat = mainsat;
+    ServiceLocator.getMainCamera().state.isAutoPitchYawToTarget = false;
 
-    // Launch Points are the Satellites Current Location
-    const gmst = keepTrackApi.getTimeManager().gmst;
-    const lla = eci2lla(mainsat.position, gmst);
-    const launchLat = lla.lat;
-    const launchLon = lla.lon;
+    // The breakup happens at the parent's exact position/velocity at the current sim
+    // time. The catalog-facing orchestration lives in runBreakup so other plugins
+    // (e.g. the interceptor) can trigger a breakup at an arbitrary epoch too.
+    const result = runBreakup(mainsat, { breakupCount, radialDeltaV, inTrackDeltaV, crossTrackDeltaV, startNum }, simulationTimeObj);
 
-    const upOrDown = SatMath.getDirection(mainsat, simulationTimeObj);
-
-    if (upOrDown === 'Error') {
-      errorManagerInstance.warn(t7e('errorMsgs.Breakup.CannotCalcDirectionOfSatellite'));
-    }
-
-    const currentEpoch = TimeManager.currentEpoch(simulationTimeObj);
-
-    mainsat.tle1 = (mainsat.tle1.substring(0, 18) + currentEpoch[0] + currentEpoch[1] + mainsat.tle1.substring(32)) as TleLine1;
-
-    keepTrackApi.getMainCamera().isAutoPitchYawToTarget = false;
-
-    if (mainsat.apogee - mainsat.perigee > this.maxDifApogeeVsPerigee_) {
-      errorManagerInstance.warn(t7e('errorMsgs.Breakup.CannotCreateBreakupForNonCircularOrbits'));
+    if (result.error === 'invalidSlotRange') {
+      errorManagerInstance.warn(
+        t7e('plugins.Breakup.errorMsgs.InvalidSlotRange')
+          .replace('{start}', CatalogManager.ANALYST_START_ID.toString())
+          .replace('{end}', (CatalogManager.ANALYST_START_ID + settingsManager.maxAnalystSats - 1).toString())
+      );
 
       return;
     }
 
-    const alt = mainsat.apogee - mainsat.perigee < 300 ? 0 : lla.alt; // Ignore argument of perigee for round orbits OPTIMIZE
-    const tles = new OrbitFinder(mainsat, launchLat, launchLon, <'N' | 'S'>upOrDown, simulationTimeObj, alt as Kilometers).rotateOrbitToLatLon();
-    const tle1 = tles[0];
-    const tle2 = tles[1];
-
-    if (tle1 === 'Error') {
-      // console.error(tle2);
-      errorManagerInstance.warn(t7e('errorMsgs.Breakup.ErrorCreatingBreakup'));
+    if (result.createdIds.length === 0) {
+      errorManagerInstance.warn(t7e('plugins.Breakup.errorMsgs.ErrorCreatingBreakup'));
 
       return;
     }
 
-    const newSat = new DetailedSatellite({
-      ...mainsat,
-      ...{
-        id: satId,
-        tle1,
-        tle2: tle2 as TleLine2,
-        active: true,
-      },
-    });
-
-    catalogManagerInstance.objectCache[satId] = newSat;
-    catalogManagerInstance.satCruncher.postMessage({
-      typ: CruncerMessageTypes.SAT_EDIT,
-      id: satId,
-      tle1,
-      tle2,
-    });
-    const orbitManagerInstance = keepTrackApi.getOrbitManager();
-
-    orbitManagerInstance.changeOrbitBufferData(satId, tle1, tle2);
-
-    const eVariation = 0.00015;
-    const origEcc = mainsat.eccentricity;
-
-    // TODO: Use the values from getOrbitByLatLon (meana, raan, and rasc) to speed this up.
-
-    // NOTE: Previously we used - settingsManager.maxAnalystSats;
-    let i = 0;
-
-    for (let rascIterat = 0; rascIterat <= 4; rascIterat++) {
-      if (i >= breakupCount) {
-        break;
-      }
-      const a5Num = Tle.convert6DigitToA5((startNum + i).toString());
-      const id = catalogManagerInstance.sccNum2Id(a5Num);
-
-      catalogManagerInstance.getObject(id); // TODO: This may be unnecessary needs tested
-      const sat = origsat;
-      // Is this needed? -- let itle1 = '1 ' + (80000 + i) + tle1.substr(7) ??
-
-      const rascOffset = -rascVariation / 2 + rascVariation * (rascIterat / 4);
-      const newAlt = mainsat.apogee - mainsat.perigee < 300 ? 0 : lla.alt; // Ignore argument of perigee for round orbits OPTIMIZE
-      let iTLEs = new OrbitFinder(sat, launchLat, launchLon, <'N' | 'S'>upOrDown, simulationTimeObj, newAlt as Kilometers, rascOffset).rotateOrbitToLatLon();
-
-      if (iTLEs[0] === 'Error') {
-        /*
-         * Try a second time with a slightly different time
-         * TODO: There should be a more elegant way to do this
-         * I think a flag that has the orbit finder try to find a solution with more granularity would be better than
-         * just trying again with a different time.
-         */
-        iTLEs = new OrbitFinder(sat, launchLat, launchLon, <'N' | 'S'>upOrDown, new Date(simulationTimeObj.getTime() + 1), newAlt as Kilometers, rascOffset).rotateOrbitToLatLon();
-        if (iTLEs[0] === 'Error') {
-          // console.error(iTLEs[1]);
-          errorManagerInstance.warn(t7e('errorMsgs.Breakup.ErrorCreatingBreakup'));
-
-          return;
-        }
-      }
-
-      let iTle1 = iTLEs[0];
-      let iTle2 = iTLEs[1];
-
-      for (; i < ((rascIterat + 1) * breakupCount) / 4; i++) {
-        // Inclination
-        let inc = parseFloat(tle2.substring(8, 16));
-
-        inc = inc + Math.random() * incVariation * 2 - incVariation;
-        const incStr = inc.toFixed(4).padStart(8, '0');
-
-        if (incStr.length !== 8) {
-          throw new Error(`Inclination length is not 8 - ${incStr} - ${tle2}`);
-        }
-
-        // Ecentricity
-        sat.eccentricity = origEcc;
-        sat.eccentricity += Math.random() * eVariation * 2 - eVariation;
-
-        // Mean Motion
-        let meanmo = parseFloat(iTle2.substring(52, 62));
-
-        meanmo = meanmo + (Math.random() * meanmoVariation * 2) - meanmoVariation;
-        const meanmoStr = meanmo.toFixed(8).padStart(11, '0');
-
-        if (meanmoStr.length !== 11) {
-          throw new Error(`meanmo length is not 11 - ${meanmoStr} - ${iTle2}`);
-        }
-
-        const a5Num = Tle.convert6DigitToA5((startNum + i).toString());
-        const satId = catalogManagerInstance.sccNum2Id(a5Num);
-
-        if (!satId) {
-          errorManagerInstance.warn(t7e('errorMsgs.Breakup.SatelliteNotFound'));
-
-          return;
-        }
-
-        iTle1 = `1 ${a5Num}${iTle1.substring(7)}` as TleLine1;
-        iTle2 = `2 ${a5Num} ${incStr} ${iTle2.substring(17, 52)}${meanmoStr}${iTle2.substring(63)}`;
-
-        if (iTle1.length !== 69) {
-          throw new Error(`Invalid tle1: length is not 69 - ${iTle1}`);
-        }
-        if (iTle2.length !== 69) {
-          throw new Error(`Invalid tle1: length is not 69 - ${iTle2}`);
-        }
-
-        let newSat: DetailedSatellite;
-
-        try {
-          newSat = new DetailedSatellite({
-            ...catalogManagerInstance.objectCache[satId],
-            ...{
-              id: satId,
-              name: `Breakup Piece ${i + 1}`,
-              tle1: iTle1,
-              tle2: iTle2 as TleLine2,
-              active: true,
-            },
-          });
-        } catch (e) {
-          errorManagerInstance.error(e, 'breakup.ts', t7e('errorMsgs.Breakup.ErrorCreatingBreakup'));
-
-          return;
-        }
-
-        if (SatMath.altitudeCheck(newSat.satrec!, simulationTimeObj) > 1) {
-          catalogManagerInstance.objectCache[satId] = newSat;
-          catalogManagerInstance.satCruncher.postMessage({
-            typ: CruncerMessageTypes.SAT_EDIT,
-            id: satId,
-            active: true,
-            tle1: iTle1,
-            tle2: iTle2,
-          });
-          orbitManagerInstance.changeOrbitBufferData(satId, iTle1, iTle2);
-        } else {
-          errorManagerInstance.warn(t7e('errorMsgs.Breakup.BreakupGeneratorFailed'));
-        }
-      }
+    // No silent caps: tell the user when fragments were dropped because they reentered.
+    if (result.reenteredCount > 0) {
+      ServiceLocator.getUiManager().toast(
+        t7e('plugins.Breakup.toasts.fragmentsReentered' as Parameters<typeof t7e>[0]).replace('{count}', result.reenteredCount.toString()),
+        ToastMsgType.caution
+      );
     }
+
+    const priorSearchLimit = settingsManager.searchLimit;
 
     if (breakupCount > settingsManager.searchLimit) {
       settingsManager.searchLimit = breakupCount;
     }
-    keepTrackApi.getUiManager().doSearch(`${mainsat.sccNum},Breakup Piece`);
+
+    this.lastBreakup_ = {
+      pieceIds: result.createdIds,
+      priorSearchLimit,
+    };
+    this.updateClearButton_();
+
+    /*
+     * Pieces changed type (PAYLOAD analyst slot → DEBRIS) and active flag in
+     * objectCache, but in worker-mode the color worker only sees the typed-array
+     * snapshot taken at init. Without this nudge they'd keep rendering as
+     * orange "inactive payloads" in the Celestrak scheme.
+     */
+    ServiceLocator.getColorSchemeManager().notifyObjectsChanged();
+
+    /*
+     * Search immediately. Each piece's render-buffer position was seeded
+     * synchronously above (seedDotPosition), so the search no longer reads the
+     * placeholder 0,0,0 position and filter the pieces as "Decayed" - no need to
+     * wait on the async position cruncher (the old waitForCruncher approach was
+     * racy and showed nothing until a manual re-search). Same pattern as create-sat.
+     */
+    ServiceLocator.getUiManager().doSearch(`${mainsat.sccNum},Breakup Piece`);
   }
+
+  /**
+   * Undo the most recent breakup: return every generated piece to its reserved
+   * (inactive) analyst slot and restore the prior search limit. The parent
+   * satellite is never modified by a breakup, so nothing to restore there.
+   */
+  private clearBreakup_(): void {
+    if (!this.lastBreakup_) {
+      return;
+    }
+
+    const { pieceIds, priorSearchLimit } = this.lastBreakup_;
+
+    clearBreakupPieces(pieceIds);
+
+    settingsManager.searchLimit = priorSearchLimit;
+    this.lastBreakup_ = null;
+    this.updateClearButton_();
+
+    ServiceLocator.getColorSchemeManager().notifyObjectsChanged();
+    ServiceLocator.getUiManager().doSearch('');
+    ServiceLocator.getUiManager().toast(t7e('plugins.Breakup.toasts.cleared' as Parameters<typeof t7e>[0]), ToastMsgType.normal);
+  }
+
+  /** Fill the per-axis delta-V fields from an event-type preset ("custom" is a no-op). */
+  private applyPreset_(presetId: string): void {
+    const preset = getBreakupPreset(presetId);
+
+    if (!preset) {
+      return;
+    }
+
+    const set = (id: string, value: number) => {
+      const el = getEl(id, true) as HTMLInputElement | null;
+
+      if (el) {
+        el.value = value.toString();
+      }
+    };
+
+    set('hc-dv-radial', preset.radial);
+    set('hc-dv-intrack', preset.inTrack);
+    set('hc-dv-crosstrack', preset.crossTrack);
+  }
+
+  /** Show the Clear Breakup action only when there is a breakup to undo. */
+  private updateClearButton_(): void {
+    const btn = getEl('breakup-clear-btn', true);
+
+    if (btn) {
+      btn.style.display = this.lastBreakup_ ? 'flex' : 'none';
+    }
+  }
+
+  /** Persist the current inputs so they are restored next session. */
+  private persistInputs_(): void {
+    const settings: Record<string, string> = {};
+
+    for (const id of Breakup.PERSISTED_INPUT_IDS) {
+      const el = getEl(id, true) as HTMLInputElement | null;
+
+      if (el) {
+        settings[id] = el.value;
+      }
+    }
+
+    PersistenceManager.getInstance().saveItem(StorageKey.BREAKUP_SETTINGS, JSON.stringify(settings));
+  }
+
+  /** Restore the last-used inputs (call before initMaterialSelects). */
+  private restoreInputs_(): void {
+    const raw = PersistenceManager.getInstance().getItem(StorageKey.BREAKUP_SETTINGS);
+
+    if (!raw) {
+      return;
+    }
+
+    let settings: Record<string, string>;
+
+    try {
+      settings = JSON.parse(raw) as Record<string, string>;
+    } catch {
+      return;
+    }
+
+    for (const id of Breakup.PERSISTED_INPUT_IDS) {
+      const value = settings[id];
+      const el = getEl(id, true) as HTMLInputElement | null;
+
+      if (el && typeof value === 'string') {
+        el.value = value;
+      }
+    }
+  }
+
+  private static readonly PERSISTED_INPUT_IDS = ['hc-startNum', 'hc-event-preset', 'hc-dv-radial', 'hc-dv-intrack', 'hc-dv-crosstrack', 'hc-count'];
 
   private static getFormData_(catalogManagerInstance: CatalogManager) {
     const satId = catalogManagerInstance.sccNum2Id((<HTMLInputElement>getEl('hc-scc')).value);
-    const periodVariation = parseFloat((<HTMLInputElement>getEl('hc-per')).value);
-    const incVariation = parseFloat((<HTMLInputElement>getEl('hc-inc')).value);
-    const rascVariation = parseFloat((<HTMLInputElement>getEl('hc-raan')).value);
-    const breakupCount = parseInt((<HTMLInputElement>getEl('hc-count')).value);
-    let startNum = parseInt((<HTMLInputElement>getEl('hc-startNum')).value);
+    const raw: BreakupRawForm = {
+      radialDv: (<HTMLInputElement>getEl('hc-dv-radial')).value,
+      inTrackDv: (<HTMLInputElement>getEl('hc-dv-intrack')).value,
+      crossTrackDv: (<HTMLInputElement>getEl('hc-dv-crosstrack')).value,
+      count: (<HTMLInputElement>getEl('hc-count')).value,
+      startNum: (<HTMLInputElement>getEl('hc-startNum')).value,
+    };
 
-    if (isNaN(startNum)) {
-      errorManagerInstance.warn(t7e('errorMsgs.Breakup.InvalidStartNum'));
-      startNum = 90000;
-    }
+    const { params, startNumWasInvalid } = parseBreakupParams(raw, Breakup.DEFAULT_START_NUM);
 
-    const meanmoVariation = periodVariation / 1440;
-
-    return { satId, breakupCount, rascVariation, incVariation, meanmoVariation, startNum };
+    return { satId, ...params, startNumWasInvalid };
   }
 }

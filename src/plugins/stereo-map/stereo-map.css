@@ -1,0 +1,38 @@
+#map-menu-secondary {
+  z-index: 5 !important;
+  /* Clear the plugin-drawer rail on the left instead of pinning at 0 (where the
+     drawer would cover the settings panel). --drawer-offset tracks the rail width. */
+  left: var(--drawer-offset, 0px) !important;
+  width: 280px;
+  transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#map-menu-content {
+
+  li,
+  .row {
+    display: none;
+  }
+}
+
+#map-menu-canvas-wrap .map-look {
+  outline: 2px solid white;
+  outline-offset: -1px;
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.8);
+}
+
+/* ===== v13 secondary settings menu (Pro) ===== */
+.smp-switch-row {
+  margin: 4px 0 0;
+}
+
+/* Focus indication: swap the app-wide :focus-visible outline (which overlaps
+ * the floating label) for KeepTrack's underline. */
+#map-menu-secondary .input-field input:focus {
+  border-bottom-color: var(--color-primary) !important;
+  box-shadow: 0 1px 0 0 var(--color-primary);
+}
+
+#map-menu-secondary .input-field input:focus-visible {
+  outline: none;
+}

@@ -1,0 +1,20 @@
+{
+  "colorSchemes": {
+    "CelestrakColorScheme": { "label": "Celestrak" },
+    "ConfidenceColorScheme": { "label": "Достоверность" },
+    "CountryColorScheme": { "label": "Страна" },
+    "GpAgeColorScheme": { "label": "Возраст GP" },
+    "MissionColorScheme": { "label": "Миссия" },
+    "ObjectTypeColorScheme": { "label": "Тип объекта" },
+    "OrbitalPlaneDensityColorScheme": { "label": "Плотность орбитальной плоскости" },
+    "RcsColorScheme": { "label": "Эффективная площадь рассеяния" },
+    "ReentryRiskColorScheme": { "label": "Риск входа в атмосферу" },
+    "SmallSatColorScheme": { "label": "Малые спутники" },
+    "SourceColorScheme": { "label": "Источник данных" },
+    "SpatialDensityColorScheme": { "label": "Пространственная плотность" },
+    "StarlinkColorScheme": { "label": "Starlink" },
+    "SunlightColorScheme": { "label": "Статус освещённости" },
+    "VelocityColorScheme": { "label": "Скорость" },
+    "VisualMagnitudeColorScheme": { "label": "Стандартная звёздная величина" }
+  }
+}

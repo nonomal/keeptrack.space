@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "SatelliteEciView": {
+      "bottomIconLabel": "卫星ECI视图",
+      "commandPalette": {
+        "activate": "切换到卫星ECI视图"
+      }
+    }
+  }
+}

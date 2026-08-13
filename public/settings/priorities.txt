@@ -1,0 +1,6 @@
+# Priority Levels
+# One priority per line. Lines starting with # are comments.
+High
+Medium
+Low
+None

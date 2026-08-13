@@ -1,8 +1,21 @@
-import { Degrees, GreenwichMeanSiderealTime, Kilometers, LlaVec3, MILLISECONDS_TO_DAYS, PI, RAD2DEG, Radians, RaeVec3, Sensor, Sgp4, SpaceObjectType, rae2eci } from 'ootk';
-import { SensorObjectCruncher } from '../../interfaces';
-import { A } from '../../lib/external/meuusjs';
-import { jday } from '../../lib/transforms';
-import { oneOrZero } from '../constants';
+import {
+  Degrees,
+  GreenwichMeanSiderealTime,
+  GroundStation,
+  Kilometers,
+  LlaVec3,
+  MILLISECONDS_TO_DAYS,
+  PI,
+  RAD2DEG,
+  Radians,
+  RaeVec3,
+  rae2eci,
+  Sensor,
+  Sgp4,
+  SpaceObjectType,
+} from '@ootk/src/main';
+import { A } from '../../engine/utils/external/meuusjs';
+import { jday } from '../../engine/utils/transforms';
 
 /* Returns Current Propagation Time */
 export const propTime = (dynamicOffsetEpoch: number, staticOffset: number, propRate: number) => {
@@ -15,10 +28,10 @@ export const propTime = (dynamicOffsetEpoch: number, staticOffset: number, propR
 };
 
 export const checkSunExclusion = (
-  sensor: Sensor,
+  sensor: GroundStation,
   j: number,
   gmst: GreenwichMeanSiderealTime,
-  now: Date,
+  now: Date
 ): [isSunExclusion: boolean, sunECI: { x: number; y: number; z: number }] => {
   const jdo = new A.JulianDay(j); // now
   // eslint-disable-next-line new-cap
@@ -44,35 +57,10 @@ export const checkSunExclusion = (
   // RAE to ECI
   const sunECI = rae2eci({ az: sunAz, el: sunEl, rng: sunRange }, { lat: <Degrees>0, lon: <Degrees>0, alt: <Kilometers>0 }, gmst);
 
-
   return sensor && (sensor.type === SpaceObjectType.OPTICAL || sensor.type === SpaceObjectType.OBSERVER) && sunElRel > -6 ? [true, sunECI] : [false, sunECI];
 };
 
-export const isInFov = (sensor: SensorObjectCruncher, lookangles?: RaeVec3): oneOrZero => {
-  if (!lookangles) {
-    return 0;
-  }
-
-  const { az, el, rng } = lookangles;
-
-  if (sensor.minAz > sensor.maxAz) {
-    if (
-      ((az >= sensor.minAz || az <= sensor.maxAz) && el >= sensor.minEl && el <= sensor.maxEl && rng <= sensor.maxRng && rng >= sensor.minRng) ||
-      ((az >= sensor.minAz2 || az <= sensor.maxAz2) && el >= sensor.minEl2 && el <= sensor.maxEl2 && rng <= sensor.maxRng2 && rng >= sensor.minRng2)
-    ) {
-      return 1;
-    }
-  } else if (
-    (az >= sensor.minAz && az <= sensor.maxAz && el >= sensor.minEl && el <= sensor.maxEl && rng <= sensor.maxRng && rng >= sensor.minRng) ||
-      (az >= sensor.minAz2 && az <= sensor.maxAz2 && el >= sensor.minEl2 && el <= sensor.maxEl2 && rng <= sensor.maxRng2 && rng >= sensor.minRng2)
-  ) {
-    return 1;
-  }
-
-  return 0;
-};
-
-export const setupTimeVariables = (dynamicOffsetEpoch: number, staticOffset: number, propRate: number, isSunlightView: boolean, sensors: Sensor[] | null) => {
+export const setupTimeVariables = (dynamicOffsetEpoch: number, staticOffset: number, propRate: number, isSunlightView: boolean, sensors: (Sensor | GroundStation)[] | null) => {
   const now = propTime(dynamicOffsetEpoch, staticOffset, propRate);
 
   const j =
@@ -82,7 +70,7 @@ export const setupTimeVariables = (dynamicOffsetEpoch: number, staticOffset: num
       now.getUTCDate(),
       now.getUTCHours(),
       now.getUTCMinutes(),
-      now.getUTCSeconds(),
+      now.getUTCSeconds()
     ) +
     now.getUTCMilliseconds() * MILLISECONDS_TO_DAYS;
 
@@ -91,9 +79,9 @@ export const setupTimeVariables = (dynamicOffsetEpoch: number, staticOffset: num
   let isSunExclusion = false;
   let sunEci = { x: 0, y: 0, z: 0 };
 
-  if (isSunlightView && sensors.length === 1) {
+  if (isSunlightView && sensors?.length === 1) {
     // TODO: Sun exclusion should be calculated for each sensor
-    [isSunExclusion, sunEci] = checkSunExclusion(sensors[0], j, gmst, now);
+    [isSunExclusion, sunEci] = checkSunExclusion(sensors[0] as GroundStation, j, gmst, now);
   }
 
   const j2 =
@@ -103,7 +91,7 @@ export const setupTimeVariables = (dynamicOffsetEpoch: number, staticOffset: num
       now.getUTCDate(),
       now.getUTCHours(),
       now.getUTCMinutes(),
-      now.getUTCSeconds() + 1,
+      now.getUTCSeconds() + 1
     ) +
     now.getUTCMilliseconds() * MILLISECONDS_TO_DAYS;
 

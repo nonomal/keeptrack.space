@@ -1,0 +1,7 @@
+{
+  "plugins": {
+    "SensorFov": {
+      "bottomIconLabel": "センサー視野"
+    }
+  }
+}

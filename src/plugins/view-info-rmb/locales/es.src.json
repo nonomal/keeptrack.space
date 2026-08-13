@@ -1,0 +1,18 @@
+{
+  "plugins": {
+    "ViewInfoRmbPlugin": {
+      "rmbMenu": {
+        "title": "Ver",
+        "earthInfo": "Info de la Tierra",
+        "sensorInfo": "Info del sensor",
+        "launchSiteInfo": "Info del sitio de lanzamiento",
+        "relatedSatellites": "Satélites relacionados"
+      },
+      "errorMsgs": {
+        "launchSiteNotFound": "¡Sitio de lanzamiento no encontrado!",
+        "noRelatedSats": "¡No se encontraron satélites relacionados!",
+        "sensorNotFound": "¡Sensor no encontrado! Seleccione un sensor primero."
+      }
+    }
+  }
+}

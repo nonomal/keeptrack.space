@@ -1,0 +1,55 @@
+{
+  "plugins": {
+    "DrawLinesPlugin": {
+      "title": "Dibujar líneas",
+      "bottomIconLabel": "Dibujar líneas",
+      "rmbMenu": {
+        "title": "Dibujar",
+        "eciAxes": "Ejes ECI",
+        "xAxesGrid": "Cuadrícula de ejes X",
+        "yAxesGrid": "Cuadrícula de ejes Y",
+        "zAxesGrid": "Cuadrícula de ejes Z",
+        "xAxesRadialGrid": "Cuadrícula radial de ejes X",
+        "yAxesRadialGrid": "Cuadrícula radial de ejes Y",
+        "zAxesRadialGrid": "Cuadrícula radial de ejes Z",
+        "earthToSatellite": "Tierra a satélite",
+        "sensorToSatellite": "Sensor a satélite",
+        "satelliteToSatellite": "Satélite a satélite",
+        "satelliteRicAxes": "Ejes RIC del satélite",
+        "satelliteToSun": "Satélite al Sol",
+        "satelliteToMoon": "Satélite a la Luna",
+        "moonOrbit": "Dibujar órbita de la Luna"
+      },
+      "sections": {
+        "activeLines": "Líneas activas",
+        "referenceGeometry": "Geometría de referencia",
+        "objectLines": "Líneas de objeto"
+      },
+      "referenceFrameLabel": "Marco de referencia",
+      "clearAll": "Borrar todas las líneas",
+      "emptyList": "No hay líneas dibujadas",
+      "remove": "Eliminar",
+      "lineTypes": {
+        "reference": "Línea de referencia",
+        "satToRef": "Satélite a punto",
+        "satRic": "Ejes RIC",
+        "objToObj": "Objeto a objeto",
+        "satToSun": "Satélite al Sol",
+        "satToBody": "Satélite a cuerpo",
+        "sensorToSat": "Sensor a satélite",
+        "sensorToSun": "Sensor al Sol",
+        "sensorToMoon": "Sensor a la Luna",
+        "orbitPath": "Trayectoria orbital",
+        "satScanEarth": "Escaneo de la Tierra",
+        "sensorScanHorizon": "Escaneo del horizonte",
+        "sensorToRae": "Sensor a punto",
+        "generic": "Línea",
+        "sensorMarker": "Marcador de ubicación del sensor"
+      },
+      "errorMsgs": {
+        "noPrimarySat": "No se ha seleccionado un satélite primario para la línea de satélite a satélite.",
+        "noSatSelected": "Seleccione primero un satélite."
+      }
+    }
+  }
+}

@@ -1,0 +1,108 @@
+{
+  "plugins": {
+    "CreateSat": {
+      "bottomIconLabel": "Vytvořit satelit",
+      "title": "Vytvořit satelit",
+      "tabs": {
+        "basic": "Základní",
+        "advanced": "Pokročilé"
+      },
+      "labels": {
+        "noradId": "NORAD ID satelitu (90000-99999)",
+        "satelliteName": "Název satelitu",
+        "inclinationDeg": "Inklinace (stupně)",
+        "apogeeAltKm": "Výška apogea (km)",
+        "perigeeAltKm": "Výška perigea (km)",
+        "objectType": "Typ objektu",
+        "country": "Země",
+        "epochYear": "Rok epochy",
+        "epochDay": "Den epochy",
+        "inclination": "Inklinace",
+        "rightAscension": "Rektascenze",
+        "eccentricity": "Excentricita",
+        "argOfPerigee": "Argument perigea",
+        "meanAnomaly": "Střední anomálie",
+        "meanMotion": "Střední pohyb",
+        "period": "Perioda",
+        "dataSource": "Zdroj dat",
+        "calculatedParameters": "Vypočtené parametry",
+        "apogeeKm": "Apogeum (km)",
+        "perigeeKm": "Perigeum (km)",
+        "smaKm": "Hlavní poloosa (km)",
+        "velocityKms": "Orbitální rychlost (km/s)",
+        "sectionIdentity": "Identita",
+        "sectionOrbit": "Oběžná dráha",
+        "sectionEpoch": "Epocha",
+        "sectionElements": "Elementy dráhy",
+        "sectionPresets": "Předvolby"
+      },
+      "buttons": {
+        "createSatellite": "Vytvořit satelit",
+        "saveTle": "Uložit TLE",
+        "makeSunSync": "Slunečně synchronní sklon",
+        "cloneSelected": "Klonovat vybraný satelit"
+      },
+      "options": {
+        "payload": "Užitečné zatížení",
+        "rocketBody": "Těleso rakety",
+        "debris": "Trosky",
+        "special": "Speciální",
+        "unknown": "Neznámý"
+      },
+      "errorMsgs": {
+        "errorCreatingSat": "Chyba při vytváření satelitu!",
+        "invalidNumericValues": "Zadejte prosím platné číselné hodnoty",
+        "perigeeTooLow": "Perigeum je příliš nízké – satelit by rychle zanikl",
+        "apogeeMustBeGtePerigee": "Apogeum musí být >= perigeum",
+        "inclinationRange": "Inklinace musí být mezi 0 a 180 stupni",
+        "invalidInputParams": "Neplatné vstupní parametry",
+        "invalidSatObject": "Neplatný objekt satelitu",
+        "propagationFailed": "Nepodařilo se propagovat satelit. Zkuste jiné parametry nebo nahlaste tento problém, pokud jsou parametry správné.",
+        "noValidTle": "Žádné platné TLE k exportu",
+        "exportFailed": "Nepodařilo se exportovat TLE",
+        "invalidNoradId": "Neplatné NORAD ID. Musí to být 5místné číslo mezi 90000 a 99999.",
+        "invalidType": "Neplatný typ. Musí být 1 (Užitečné zatížení), 2 (Těleso rakety), 3 (Trosky) nebo 4 (Speciální).",
+        "invalidCountry": "Neplatná země. Musí být vybrána ze seznamu.",
+        "invalidEpochYear": "Neplatný rok epochy. Musí to být 2místné číslo.",
+        "invalidEpochDay": "Neplatný den epochy. Musí být ve formátu NNN.NNNNNNNN (např. 001.00000000).",
+        "invalidInclination": "Neplatná inklinace. Musí být ve formátu NNN.NNNN (např. 000.0000).",
+        "invalidRasc": "Neplatná rektascenze. Musí být ve formátu NNN.NNNN (např. 000.0000).",
+        "invalidEccentricity": "Neplatná excentricita. Musí to být 7místné číslo (např. 0000000).",
+        "invalidArgPe": "Neplatný argument perigea. Musí být ve formátu NNN.NNNN (např. 000.0000).",
+        "invalidMeanAnomaly": "Neplatná střední anomálie. Musí být ve formátu NNN.NNNN (např. 000.0000).",
+        "invalidMeanMotion": "Neplatný střední pohyb. Musí být ve formátu NN.NNNNN (např. 16.00000).",
+        "invalidPeriod": "Neplatná perioda. Musí být ve formátu NN.NNNN až NNNN.NNNN (např. 90.0000, 9999.9999) s celkem 8 číslicemi.",
+        "invalidSource": "Neplatný zdroj. Nesmí být prázdný.",
+        "invalidName": "Neplatný název. Nesmí být prázdný.",
+        "slotOccupied": "Přepisuje se stávající satelit {name} ve slotu {scc}.",
+        "noFreeSlots": "Nezbývají žádné volné analytické sloty (90000-99999 jsou všechny obsazené).",
+        "noSatSelected": "Nejprve vyberte satelit ke klonování."
+      },
+      "successMsgs": {
+        "satCreated": "Satelit {name} ({scc}) byl úspěšně vytvořen",
+        "tleExported": "TLE bylo úspěšně exportováno"
+      },
+      "help": {
+        "overview": "Menu Vytvořit satelit přidá do katalogu zcela nový satelit z orbitálních elementů, které zadáte. Použijte je k modelování plánovaného startu, k obnovení objektu z publikovaných elementů nebo k vytváření testovacích případů. Vytvořené satelity zabírají analytické sloty (NORAD ID 90000 až 99999) a existují pouze ve vaší relaci.",
+        "imgAlt": "Menu Vytvořit satelit se zobrazenou kartou Základní",
+        "imgCaption": "Karta Základní sestaví orbitu jen z apogea, perigea a inklinace.",
+        "tabsHeading": "Karty Základní a Pokročilé",
+        "tabs": "Karta <strong>Základní</strong> vyžaduje pouze NORAD ID, název a pole <strong>Inklinace</strong>, <strong>Výška apogea</strong> a <strong>Výška perigea</strong>; zbytek orbity se odvodí automaticky. Karta <strong>Pokročilé</strong> zpřístupňuje úplnou sadu elementů: <strong>Typ objektu</strong>, <strong>Země</strong>, epochu a pole <strong>Rektascenze</strong>, <strong>Excentricita</strong>, <strong>Argument perigea</strong>, <strong>Střední anomálie</strong> a <strong>Střední pohyb</strong> nebo <strong>Perioda</strong> (úprava jednoho přepočítá druhé). Panel <strong>Vypočtené parametry</strong> průběžně ukazuje výsledné apogeum, perigeum, hlavní poloosu a orbitální rychlost.",
+        "howToUse": "<ol><li>Otevřete menu <strong>Vytvořit satelit</strong> ze spodní lišty.</li><li>Zvolte volné NORAD ID mezi 90000 a 99999 a pojmenujte satelit.</li><li>Na kartě <strong>Základní</strong> zadejte inklinaci, apogeum a perigeum; nebo přepněte na kartu <strong>Pokročilé</strong> pro úplnou sadu elementů.</li><li>Klikněte na <strong>Vytvořit satelit</strong>. Nový objekt se okamžitě objeví a potvrzovací oznámení zobrazí jeho název a číslo.</li><li>Pomocí <strong>Uložit TLE</strong> exportujete elementy vytvořeného satelitu do souboru, který lze později znovu načíst.</li></ol>",
+        "tip1": "Každé pole je validováno s konkrétní chybovou zprávou; pokud vytvoření selže, oznámení vám přesně řekne, kterou hodnotu opravit.",
+        "tip2": "Perigeum pod zhruba 100 km je odmítnuto, protože satelit by okamžitě zanikl.",
+        "tip3": "Vytvořené satelity platí jen pro aktuální relaci; pokud si chcete objekt ponechat na jindy, exportujte TLE."
+      },
+      "presets": {
+        "placeholder": "Načíst předvolbu…",
+        "selectLabel": "Předvolba dráhy",
+        "leoIss": "LEO (jako ISS)",
+        "sso": "Slunečně synchronní (800 km)",
+        "geo": "Geostacionární (GEO)",
+        "gto": "Přechodová ke GEO (GTO)",
+        "molniya": "Molnija",
+        "polar": "Polární (600 km)"
+      }
+    }
+  }
+}

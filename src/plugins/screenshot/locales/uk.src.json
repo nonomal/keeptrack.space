@@ -1,0 +1,15 @@
+{
+  "plugins": {
+    "Screenshot": {
+      "bottomIconLabel": "Зробити фото",
+      "rmbMenu": {
+        "title": "Зберегти зображення"
+      },
+      "commands": {
+        "take4k": "Знімок екрана (4K)",
+        "takeHd": "Знімок екрана (HD)",
+        "take8k": "Знімок екрана (8K)"
+      }
+    }
+  }
+}

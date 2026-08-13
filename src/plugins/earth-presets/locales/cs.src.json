@@ -1,0 +1,14 @@
+{
+  "plugins": {
+    "EarthPresetsPlugin": {
+      "rmbMenu": {
+        "title": "Styl Země",
+        "satelliteImages": "Satelitní snímky",
+        "alternateSatelliteImages": "Alternativní satelitní snímky",
+        "engineeringTool": "Inženýrský nástroj",
+        "operationsCenter": "Operační centrum",
+        "nineties": "Grafika 90. let"
+      }
+    }
+  }
+}

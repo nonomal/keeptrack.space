@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "GraticuleToggle": {
+      "bottomIconLabel": "Координатна сітка",
+      "commandPalette": {
+        "toggle": "Перемкнути координатну сітку (лінії сітки)"
+      }
+    }
+  }
+}

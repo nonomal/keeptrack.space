@@ -22,32 +22,145 @@
  * /////////////////////////////////////////////////////////////////////////////
  */
 
-import { GetSatType, KeepTrackApiEvents, MenuMode, ToastMsgType } from '@app/interfaces';
-import { keepTrackApi } from '@app/keepTrackApi';
-import { clickAndDragWidth } from '@app/lib/click-and-drag';
-import { getEl, hideEl, showEl } from '@app/lib/get-el';
-import { SensorToSatLine } from '@app/singletons/draw-manager/line-manager/sensor-to-sat-line';
-import { errorManagerInstance } from '@app/singletons/errorManager';
-import { PersistenceManager, StorageKey } from '@app/singletons/persistence-manager';
-import { isThisNode } from '@app/static/isThisNode';
+import { SoundNames } from '@app/engine/audio/sounds';
+import { GetSatType, MenuMode, ToastMsgType } from '@app/engine/core/interfaces';
+import { PluginRegistry } from '@app/engine/core/plugin-registry';
+import { ServiceLocator } from '@app/engine/core/service-locator';
+import { EventBus } from '@app/engine/events/event-bus';
+import { EventBusEvent } from '@app/engine/events/event-bus-events';
+import { SensorToSatLine } from '@app/engine/rendering/line-manager/sensor-to-sat-line';
+import { clickAndDragWidth } from '@app/engine/utils/click-and-drag';
+import { html } from '@app/engine/utils/development/formatter';
+import { errorManagerInstance } from '@app/engine/utils/errorManager';
+import { getEl, hideEl, showEl } from '@app/engine/utils/get-el';
+import { isThisNode } from '@app/engine/utils/isThisNode';
+import { PersistenceManager, StorageKey } from '@app/engine/utils/persistence-manager';
+import { t7e } from '@app/locales/keys';
+import { SatLabelMode } from '@app/settings/ui-settings';
+import { BaseObject, CatalogSource, Satellite } from '@ootk/src/main';
 import bookmarkAddPng from '@public/img/icons/bookmark-add.png';
 import bookmarkRemovePng from '@public/img/icons/bookmark-remove.png';
 import bookmarksPng from '@public/img/icons/bookmarks.png';
 import saveAs from 'file-saver';
-import { BaseObject, CatalogSource, DetailedSatellite } from 'ootk';
-import { KeepTrackPlugin } from '../KeepTrackPlugin';
-import { EL as SAT_INFO_EL, SatInfoBox } from '../sat-info-box/sat-info-box';
+import { KeepTrackPlugin } from '../../engine/plugins/base-plugin';
+import { IContextMenuConfig, IHelpConfig, IKeyboardShortcut, ISettingsContribution, ISettingsContributor, RmbMenuContext } from '../../engine/plugins/core/plugin-capabilities';
+import { SatInfoBox } from '../sat-info-box/sat-info-box';
+import { EL as SAT_INFO_EL } from '../sat-info-box/sat-info-box-html';
 import { SelectSatManager } from '../select-sat-manager/select-sat-manager';
-import { SoundNames } from '../sounds/sounds';
+import { TopMenu } from '../top-menu/top-menu';
+import './watchlist.css';
 
-interface UpdateWatchlistParams {
-  updateWatchlistList?: { id: number, inView: boolean }[];
+export interface UpdateWatchlistParams {
+  updateWatchlistList?: { id: number; inView: boolean }[];
   isSkipSearch?: boolean;
 }
 
-export class WatchlistPlugin extends KeepTrackPlugin {
+export class WatchlistPlugin extends KeepTrackPlugin implements ISettingsContributor {
   readonly id = 'WatchlistPlugin';
   dependencies_ = [];
+
+  private static tRmb_(key: string): string {
+    return t7e(`plugins.WatchlistPlugin.rmbMenu.${key}` as Parameters<typeof t7e>[0]);
+  }
+
+  getContextMenuConfig(): IContextMenuConfig {
+    return {
+      level1ElementName: 'watchlist-rmb',
+      level1Html: html`<li class="rmb-menu-item" id="watchlist-rmb"><a href="#">${WatchlistPlugin.tRmb_('addToWatchlist')}</a></li>`,
+      order: 4,
+      isVisible: (ctx: RmbMenuContext) => ctx.target instanceof Satellite,
+    };
+  }
+
+  /** Relabel the entry to add/remove depending on the clicked satellite. */
+  onContextMenuOpen(ctx: RmbMenuContext): void {
+    const label = ctx.target instanceof Satellite ? getEl('watchlist-rmb', true)?.querySelector('a') : null;
+
+    if (label) {
+      label.textContent = WatchlistPlugin.tRmb_(this.isOnWatchlist(ctx.targetId) ? 'removeFromWatchlist' : 'addToWatchlist');
+    }
+  }
+
+  onContextMenuAction(targetId: string, clickedSatId?: number): void {
+    if (targetId !== 'watchlist-rmb' || clickedSatId === undefined || clickedSatId < 0) {
+      return;
+    }
+
+    ServiceLocator.getSoundManager()?.play(SoundNames.CLICK);
+    if (this.isOnWatchlist(clickedSatId)) {
+      this.removeSat(clickedSatId);
+    } else {
+      this.addSat(clickedSatId);
+    }
+  }
+
+  getHelpConfig(): IHelpConfig {
+    return {
+      title: t7e('plugins.WatchlistPlugin.title'),
+      sections: [
+        {
+          heading: t7e('help.overview'),
+          content: t7e('plugins.WatchlistPlugin.help.overview'),
+          image: {
+            src: 'img/help/watchlist/watchlist-menu.png',
+            alt: t7e('plugins.WatchlistPlugin.help.imgAlt'),
+            caption: t7e('plugins.WatchlistPlugin.help.imgCaption'),
+          },
+        },
+        {
+          heading: t7e('plugins.WatchlistPlugin.help.managingHeading'),
+          content: t7e('plugins.WatchlistPlugin.help.managing'),
+        },
+        {
+          heading: t7e('help.howToUse'),
+          content: t7e('plugins.WatchlistPlugin.help.howToUse'),
+        },
+      ],
+      tips: [t7e('plugins.WatchlistPlugin.help.tip1'), t7e('plugins.WatchlistPlugin.help.tip2'), t7e('plugins.WatchlistPlugin.help.tip3')],
+      shortcuts: [{ keys: ['W'], description: t7e('plugins.WatchlistPlugin.help.shortcutToggle') }],
+    };
+  }
+
+  getSettingsContribution(): ISettingsContribution {
+    const l = (key: string) => t7e(`plugins.WatchlistPlugin.settings.satLabelMode.${key}` as Parameters<typeof t7e>[0]);
+
+    return {
+      sectionId: this.id,
+      sectionLabel: this.bottomIconLabel,
+      controls: [
+        {
+          type: 'select',
+          id: 'satLabelMode',
+          label: l('label'),
+          helpText: l('helpText'),
+          options: [
+            { value: String(SatLabelMode.OFF), label: l('options.off') },
+            { value: String(SatLabelMode.FOV_ONLY), label: l('options.fovOnly') },
+            { value: String(SatLabelMode.ALL), label: l('options.all') },
+          ],
+          get: () => String(settingsManager.satLabelMode),
+          set: (next) => {
+            const parsed = parseInt(next, 10) as SatLabelMode;
+
+            settingsManager.satLabelMode = parsed;
+            PersistenceManager.getInstance().saveItem(StorageKey.SETTINGS_SAT_LABEL_MODE_V2, parsed.toString());
+          },
+        },
+      ],
+    };
+  }
+
+  getKeyboardShortcuts(): IKeyboardShortcut[] {
+    return [
+      {
+        key: 'W',
+        callback: () => {
+          this.bottomMenuClicked();
+        },
+      },
+    ];
+  }
+
   bottomIconCallback = () => {
     // The accounts for clicking the button again before the animation is done
     if (!this.isMenuButtonActive) {
@@ -58,73 +171,143 @@ export class WatchlistPlugin extends KeepTrackPlugin {
   };
 
   EL = {
-    ADD_WATCHLIST: 'sat-add-watchlist',
-    REMOVE_WATCHLIST: 'sat-remove-watchlist',
+    WATCHLIST_TOGGLE: 'sat-watchlist-toggle',
   };
 
   bottomIconElementName: string = 'menu-watchlist';
   bottomIconImg = bookmarksPng;
 
-  menuMode: MenuMode[] = [MenuMode.ADVANCED, MenuMode.ALL];
+  menuMode: MenuMode[] = [MenuMode.CATALOG, MenuMode.ALL];
 
   isWatchlistChanged: boolean | null = null;
-  sideMenuElementHtml = keepTrackApi.html`
-    <div id="watchlist-menu" class="side-menu-parent start-hidden text-select">
+  // v13+ "FAANG card" layout. The root carries the kt-ui-v13 marker directly
+  // (this HTML is self-authored, not generated, so no JS opt-in is needed here).
+  sideMenuElementHtml = html`
+    <div id="watchlist-menu" class="side-menu-parent start-hidden kt-ui-v13">
       <div id="watchlist-content" class="side-menu">
-        <div class="row">
-          <h5 class="center-align">Satellite Watchlist</h5>
-          <div id="watchlist-list">
-          </div>
-          <br />
-          <div class="row">
-            <div class="input-field col s10 m10 l10">
-              <form id="watchlist-submit">
-                <input placeholder="xxxxx,xxxxx,xxxxx..." id="watchlist-new" type="text" />
-                <label for="watchlist-new">New Satellite(s)</label>
-              </form>
+        <section class="kt-section">
+          <div class="kt-section-label">${t7e('plugins.WatchlistPlugin.labels.satellitesHeader' as Parameters<typeof t7e>[0])}</div>
+          <div id="watchlist-list"></div>
+          <form id="watchlist-submit" class="watchlist-add-row">
+            <div class="input-field">
+              <input placeholder="xxxxx,xxxxx,xxxxx..." id="watchlist-new" type="text" />
+              <label for="watchlist-new">${t7e('plugins.WatchlistPlugin.labels.newSatellites' as Parameters<typeof t7e>[0])}</label>
             </div>
-            <div class="col s2 m2 l2 center-align add-icon">
-              <img
-                id="watchlist-add"
-                class="watchlist-add"
-                src="" delayedsrc="${bookmarkAddPng}" style="cursor: pointer;"/>
-            </div>
-          </div>
-          <div class="center-align row">
-            <button id="watchlist-save" class="btn btn-ui waves-effect waves-light" type="button" name="action">Save List &#9658;</button>
-          </div>
-          <div class="center-align row">
-            <button id="watchlist-open" class="btn btn-ui waves-effect waves-light" type="button" name="action">Load List &#9658;</button>
-            <input id="watchlist-file" type="file" name="files[]" style="display: none;" />
-          </div>
-          <div class="center-align row">
-            <button id="watchlist-clear" class="btn btn-ui waves-effect waves-light" type="button" name="action">Clear List &#9658;</button>
-          </div>
-        </div>
+            <img id="watchlist-add" class="watchlist-add" src="" delayedsrc="${bookmarkAddPng}" style="cursor: pointer;"/>
+          </form>
+        </section>
+        <section class="kt-section">
+          <div class="kt-section-label">${t7e('plugins.WatchlistPlugin.labels.actionsHeader' as Parameters<typeof t7e>[0])}</div>
+          <button id="watchlist-save" type="button" class="kt-action waves-effect">
+            <span class="kt-action-label">${t7e('plugins.WatchlistPlugin.labels.saveList' as Parameters<typeof t7e>[0])}</span>
+          </button>
+          <input id="watchlist-file" type="file" name="files[]" style="display: none;" />
+          <button id="watchlist-open" type="button" class="kt-action waves-effect">
+            <span class="kt-action-label">${t7e('plugins.WatchlistPlugin.labels.loadList' as Parameters<typeof t7e>[0])}</span>
+          </button>
+          <button id="watchlist-clear" type="button" class="kt-action waves-effect">
+            <span class="kt-action-label">${t7e('plugins.WatchlistPlugin.labels.clearList' as Parameters<typeof t7e>[0])}</span>
+          </button>
+        </section>
       </div>
     </div>`;
 
   sideMenuElementName: string = 'watchlist-menu';
-  watchlistList: { id: number, inView: boolean }[] = [];
+  sideMenuTitle = 'Watchlist';
+
+  sideMenuSecondaryHtml = html`
+    <section class="kt-section">
+      <div class="kt-section-label">${t7e('plugins.WatchlistPlugin.labels.displayHeader' as Parameters<typeof t7e>[0])}</div>
+      <div class="switch row">
+        <label>
+          <input id="watchlist-hide-others" type="checkbox" />
+          <span class="lever"></span>
+          ${t7e('plugins.WatchlistPlugin.labels.hideOtherObjects' as Parameters<typeof t7e>[0])}
+        </label>
+      </div>
+    </section>
+    <section class="kt-section">
+      <div class="kt-section-label">${t7e('plugins.WatchlistPlugin.labels.labelsHeader' as Parameters<typeof t7e>[0])}</div>
+      <div class="row" style="margin-top: 5px;">
+        <label>
+          <input id="watchlist-label-always" name="watchlist-label-mode" type="radio" value="2" />
+          <span>${t7e('plugins.WatchlistPlugin.labels.labelAlways' as Parameters<typeof t7e>[0])}</span>
+        </label>
+      </div>
+      <div class="row">
+        <label>
+          <input id="watchlist-label-fov" name="watchlist-label-mode" type="radio" value="1" checked />
+          <span>${t7e('plugins.WatchlistPlugin.labels.labelFovOnly' as Parameters<typeof t7e>[0])}</span>
+        </label>
+      </div>
+      <div class="row">
+        <label>
+          <input id="watchlist-label-off" name="watchlist-label-mode" type="radio" value="0" />
+          <span>${t7e('plugins.WatchlistPlugin.labels.labelOff' as Parameters<typeof t7e>[0])}</span>
+        </label>
+      </div>
+    </section>
+  `;
+
+  sideMenuSecondaryOptions = {
+    width: 280,
+    leftOffset: null,
+    zIndex: 3,
+  };
+
+  isFilterActive = false;
+  watchlistList: { id: number; inView: boolean }[] = [];
+
+  /**
+   * Centralized filter state management. Syncs the secondary menu checkbox,
+   * the utility panel button, and applies or clears the search filter.
+   */
+  setFilterActive(active: boolean): void {
+    this.isFilterActive = active;
+
+    // Sync secondary menu checkbox
+    const hideOthersEl = getEl('watchlist-hide-others') as HTMLInputElement | null;
+
+    if (hideOthersEl) {
+      hideOthersEl.checked = active;
+    }
+
+    // Sync utility panel button (by element ID to avoid circular imports)
+    const filterIconEl = getEl('watchlist-filter-icon');
+
+    if (filterIconEl) {
+      if (active) {
+        filterIconEl.classList.add('bmenu-item-selected');
+      } else {
+        filterIconEl.classList.remove('bmenu-item-selected');
+      }
+    }
+
+    // Apply or clear filter
+    if (active && this.watchlistList.length > 0) {
+      this.applyWatchlistFilter_();
+    } else if (!active) {
+      ServiceLocator.getUiManager().doSearch('');
+      ServiceLocator.getColorSchemeManager().calculateColorBuffers(true);
+    }
+  }
 
   addHtml(): void {
     super.addHtml();
 
-    keepTrackApi.on(KeepTrackApiEvents.uiManagerFinal, this.uiManagerFinal_.bind(this));
-    keepTrackApi.on(KeepTrackApiEvents.onCruncherReady, this.onCruncherReady_.bind(this));
-    keepTrackApi.on(KeepTrackApiEvents.satInfoBoxFinal, this.satInfoBoxFinal_.bind(this));
+    EventBus.getInstance().on(EventBusEvent.uiManagerFinal, this.uiManagerFinal_.bind(this));
+    EventBus.getInstance().on(EventBusEvent.onCruncherReady, this.onCruncherReady_.bind(this));
+    EventBus.getInstance().on(EventBusEvent.satInfoBoxFinal, this.satInfoBoxFinal_.bind(this));
 
-    keepTrackApi.on(
-      KeepTrackApiEvents.uiManagerInit,
-      () => {
-        if (!settingsManager.isWatchlistTopMenuNotification) {
-          return;
-        }
+    EventBus.getInstance().on(EventBusEvent.uiManagerInit, () => {
+      if (!settingsManager.isWatchlistTopMenuNotification) {
+        return;
+      }
 
-        // Optional if top-menu is enabled
-        getEl('nav-mobile2', true)?.insertAdjacentHTML(
-          'afterbegin',
-          keepTrackApi.html`
+      // Optional if top-menu is enabled
+      getEl(TopMenu.TOP_RIGHT_ID, true)?.insertAdjacentHTML(
+        'afterbegin',
+        html`
                 <li id="top-menu-watchlist-li" class="hidden">
                   <a id="top-menu-watchlist-btn" class="top-menu-icons">
                     <div class="top-menu-icons bmenu-item-selected">
@@ -133,65 +316,91 @@ export class WatchlistPlugin extends KeepTrackPlugin {
                     </div>
                   </a>
                 </li>
-              `,
-        );
-      },
-    );
+              `
+      );
+    });
 
-    keepTrackApi.on(
-      KeepTrackApiEvents.uiManagerFinal,
-      () => {
-        if (!settingsManager.isWatchlistTopMenuNotification) {
-          return;
+    EventBus.getInstance().on(EventBusEvent.uiManagerFinal, () => {
+      if (!settingsManager.isWatchlistTopMenuNotification) {
+        return;
+      }
+
+      // Optional if top-menu is enabled
+      getEl('top-menu-watchlist-btn', true)?.addEventListener('click', () => {
+        ServiceLocator.getSoundManager()?.play(SoundNames.MENU_BUTTON);
+
+        if (!this.isMenuButtonActive) {
+          this.openSideMenu();
+          this.setBottomIconToSelected();
+          this.bottomIconCallback();
+        } else {
+          this.setBottomIconToUnselected();
+          this.closeSideMenu();
         }
-
-        // Optional if top-menu is enabled
-        getEl('top-menu-watchlist-btn', true)?.addEventListener('click', () => {
-          keepTrackApi.emit(KeepTrackApiEvents.bottomMenuClick, this.bottomIconElementName);
-        });
-      },
-    );
+      });
+    });
   }
 
   addJs(): void {
     super.addJs();
 
-    const satInfoBoxPlugin = keepTrackApi.getPlugin(SatInfoBox)!;
+    const satInfoBoxPlugin = PluginRegistry.getPlugin(SatInfoBox)!;
 
-    keepTrackApi.on(KeepTrackApiEvents.satInfoBoxAddListeners, () => {
-      getEl(this.EL.ADD_WATCHLIST)?.addEventListener('click', satInfoBoxPlugin.withClickSound(this.addRemoveWatchlist_.bind(this)));
-      getEl(this.EL.REMOVE_WATCHLIST)?.addEventListener('click', satInfoBoxPlugin.withClickSound(this.addRemoveWatchlist_.bind(this)));
+    EventBus.getInstance().on(EventBusEvent.satInfoBoxAddListeners, () => {
+      getEl(this.EL.WATCHLIST_TOGGLE)?.addEventListener('click', satInfoBoxPlugin.withClickSound(this.addRemoveWatchlist_.bind(this)));
     });
 
-    keepTrackApi.on(KeepTrackApiEvents.selectSatData, this.selectSatData_.bind(this));
+    EventBus.getInstance().on(EventBusEvent.selectSatData, this.selectSatData_.bind(this));
+
+    // Account sync applied a cloud-newer watchlist: reload it from persistence
+    EventBus.getInstance().on(EventBusEvent.remoteSettingsApplied, (changedKeys) => {
+      if (changedKeys.includes(StorageKey.WATCHLIST_LIST)) {
+        this.reloadFromPersistence_();
+      }
+    });
   }
 
-  private satInfoBoxFinal_() {
-    // Add html to EL.TITLE
-    getEl(SAT_INFO_EL.NAME)?.insertAdjacentHTML('beforebegin', keepTrackApi.html`
-      <img id="${this.EL.ADD_WATCHLIST}" src="${bookmarkAddPng}"/>
-      <img id="${this.EL.REMOVE_WATCHLIST}" src="${bookmarkRemovePng}"/>
-    `);
+  /** Re-apply the persisted watchlist (used when cloud sync updates it post-boot). */
+  protected reloadFromPersistence_(): void {
+    const watchlistString = PersistenceManager.getInstance().getItem(StorageKey.WATCHLIST_LIST) ?? '[]';
+    const newWatchlist = this.createNewWatchlist(watchlistString);
+
+    this.updateWatchlist({ updateWatchlistList: newWatchlist, isSkipSearch: true });
   }
 
-  private selectSatData_(obj?: BaseObject) {
+  protected satInfoBoxFinal_() {
+    getEl(SAT_INFO_EL.NAME)?.insertAdjacentHTML(
+      'beforebegin',
+      html`
+      <img id="${this.EL.WATCHLIST_TOGGLE}" src="${bookmarkAddPng}" class="sat-watchlist-icon off-watchlist"/>
+    `
+    );
+  }
+
+  protected selectSatData_(obj?: BaseObject) {
     if (!obj) {
       return;
     }
 
+    const toggleEl = getEl(this.EL.WATCHLIST_TOGGLE) as HTMLImageElement | null;
+
+    if (!toggleEl) {
+      return;
+    }
+
     if (this.isOnWatchlist(obj.id)) {
-      getEl(this.EL.REMOVE_WATCHLIST)!.style.display = 'block';
-      getEl(this.EL.ADD_WATCHLIST)!.style.display = 'none';
+      toggleEl.src = bookmarkRemovePng;
+      toggleEl.classList.replace('off-watchlist', 'on-watchlist');
     } else {
-      getEl(this.EL.ADD_WATCHLIST)!.style.display = 'block';
-      getEl(this.EL.REMOVE_WATCHLIST)!.style.display = 'none';
+      toggleEl.src = bookmarkAddPng;
+      toggleEl.classList.replace('on-watchlist', 'off-watchlist');
     }
   }
 
-  private addRemoveWatchlist_() {
-    const id = keepTrackApi.getPlugin(SelectSatManager)!.selectedSat;
+  protected addRemoveWatchlist_() {
+    const id = PluginRegistry.getPlugin(SelectSatManager)!.selectedSat;
 
-    keepTrackApi.getSoundManager()?.play(SoundNames.CLICK);
+    ServiceLocator.getSoundManager()?.play(SoundNames.CLICK);
     if (this.isOnWatchlist(id)) {
       this.removeSat(id);
     } else {
@@ -203,14 +412,11 @@ export class WatchlistPlugin extends KeepTrackPlugin {
    * Handles the logic when the Cruncher is ready.
    * @returns A promise that resolves to void.
    */
-  private async onCruncherReady_(): Promise<void> {
-    if (!settingsManager.offlineMode) {
-      return;
-    }
-
+  protected async onCruncherReady_(): Promise<void> {
     let watchlistString = PersistenceManager.getInstance().getItem(StorageKey.WATCHLIST_LIST);
 
-    if (!watchlistString || watchlistString === '[]') {
+    // Offline builds bootstrap a default watchlist from disk; web builds start empty
+    if ((!watchlistString || watchlistString === '[]') && settingsManager.offlineMode) {
       try {
         watchlistString = await fetch(`${settingsManager.installDirectory}tle/watchlist.json`).then((response) => response.text());
       } catch {
@@ -225,34 +431,37 @@ export class WatchlistPlugin extends KeepTrackPlugin {
     }
   }
 
-  createNewWatchlist(watchlistString: string): { id: number, inView: boolean }[] {
-    let newWatchlist: { id: number, inView: boolean }[];
+  createNewWatchlist(watchlistString: string): { id: number; inView: boolean }[] {
+    let newWatchlist: { id: number; inView: boolean }[];
     // We save it as an array of sccNums
     const savedSatList: string[] = this.unserialize(watchlistString);
+    const catalogManagerInstance = ServiceLocator.getCatalogManager();
 
     if (savedSatList.length > 0) {
       // We need to convert it to an array of objects
-      newWatchlist = savedSatList.map((sccNum: string) => ({ id: parseInt(sccNum), inView: false }));
+      // sccNum2Id accepts the string directly; parseInt would drop alpha-5 / extended IDs.
+      newWatchlist = savedSatList.map((sccNum: string) => ({ id: catalogManagerInstance.sccNum2Id(sccNum) ?? -1, inView: false }));
     } else {
       newWatchlist = [];
     }
 
-    const catalogManagerInstance = keepTrackApi.getCatalogManager();
-
     for (const obj of newWatchlist) {
-      const sat = catalogManagerInstance.getObject(catalogManagerInstance.sccNum2Id(obj.id), GetSatType.EXTRA_ONLY);
+      const sat = catalogManagerInstance.getObject(obj.id, GetSatType.EXTRA_ONLY);
 
       if (sat !== null) {
         obj.id = sat.id;
         obj.inView = false;
       } else {
-        errorManagerInstance.warn('Watchlist File Format Incorret');
+        errorManagerInstance.warn('List File Format Incorrect');
 
         return [];
       }
     }
     if (newWatchlist.length > 0) {
-      keepTrackApi.getUiManager().toast(`Watchlist Loaded with ${newWatchlist.length} Satellites`, ToastMsgType.normal);
+      ServiceLocator.getUiManager().toast(
+        t7e('plugins.WatchlistPlugin.msgs.watchlistLoaded' as Parameters<typeof t7e>[0]).replace('{count}', newWatchlist.length.toString()),
+        ToastMsgType.normal
+      );
     }
 
     return newWatchlist;
@@ -289,8 +498,32 @@ export class WatchlistPlugin extends KeepTrackPlugin {
    * Initializes the UI manager for the watchlist feature.
    * Attaches event listeners to various elements in the watchlist menu.
    */
-  private uiManagerFinal_(): void {
+  protected uiManagerFinal_(): void {
     clickAndDragWidth(getEl('watchlist-menu'));
+
+    // Opt the generated secondary menu into the v13 UI (its content is authored
+    // in sideMenuSecondaryHtml as kt-section cards; the wrapper is generated).
+    getEl('watchlist-menu-secondary')?.classList.add('kt-ui-v13');
+
+    // Secondary menu: Hide non-watchlist objects toggle
+    getEl('watchlist-hide-others')?.addEventListener('change', () => {
+      const isChecked = (<HTMLInputElement>getEl('watchlist-hide-others')).checked;
+
+      this.setFilterActive(isChecked);
+    });
+
+    // Secondary menu: Label mode radio buttons
+    this.syncLabelRadios_();
+
+    getEl('watchlist-label-always')?.addEventListener('change', () => {
+      settingsManager.satLabelMode = SatLabelMode.ALL;
+    });
+    getEl('watchlist-label-fov')?.addEventListener('change', () => {
+      settingsManager.satLabelMode = SatLabelMode.FOV_ONLY;
+    });
+    getEl('watchlist-label-off')?.addEventListener('change', () => {
+      settingsManager.satLabelMode = SatLabelMode.OFF;
+    });
 
     // Add button selected on watchlist menu
     getEl('watchlist-add')?.addEventListener('click', () => {
@@ -304,12 +537,12 @@ export class WatchlistPlugin extends KeepTrackPlugin {
 
     // Remove button selected on watchlist menu
     getEl('watchlist-list')?.addEventListener('click', (evt: Event) => {
-      keepTrackApi.getSoundManager()?.play(SoundNames.CLICK);
+      ServiceLocator.getSoundManager()?.play(SoundNames.CLICK);
       if ((<HTMLElement>evt.target).classList.contains('sat-name')) {
         const satName = (<HTMLElement>evt.target).dataset.satName;
 
         if (satName) {
-          this.selectSat(parseInt(satName));
+          this.selectSat(parseInt(satName, 10));
         } else {
           errorManagerInstance.debug('sat-name is null');
         }
@@ -317,7 +550,7 @@ export class WatchlistPlugin extends KeepTrackPlugin {
         const satId = (<HTMLElement>evt.target).dataset.satId;
 
         if (satId) {
-          this.removeSat(parseInt(satId));
+          this.removeSat(parseInt(satId, 10));
         } else {
           errorManagerInstance.debug('sat-id is null');
         }
@@ -339,7 +572,7 @@ export class WatchlistPlugin extends KeepTrackPlugin {
     });
 
     getEl('watchlist-open')?.addEventListener('click', () => {
-      keepTrackApi.getSoundManager()?.play(SoundNames.MENU_BUTTON);
+      ServiceLocator.getSoundManager()?.play(SoundNames.MENU_BUTTON);
       getEl('watchlist-file')?.click();
     });
 
@@ -366,29 +599,30 @@ export class WatchlistPlugin extends KeepTrackPlugin {
       return;
     }
     this.isWatchlistChanged = this.isWatchlistChanged !== null;
-    let watchlistString = '';
-    let watchlistListHTML = '';
-    let sat: DetailedSatellite | null;
-    const catalogManagerInstance = keepTrackApi.getCatalogManager();
+    const catalogManagerInstance = ServiceLocator.getCatalogManager();
 
-    for (let i = 0; i < this.watchlistList.length; i++) {
-      sat = catalogManagerInstance.getSat(this.watchlistList[i].id, GetSatType.EXTRA_ONLY);
-      if (sat === null) {
-        this.watchlistList.splice(i, 1);
-      } else {
-        watchlistListHTML += `
+    // Drop entries whose satellite is no longer in the catalog. Filtering up
+    // front avoids splicing the array during the render loop, which skipped the
+    // entry immediately after every removed one.
+    this.watchlistList = this.watchlistList.filter(({ id }) => catalogManagerInstance.getSat(id, GetSatType.EXTRA_ONLY) !== null);
+
+    let watchlistListHTML = '';
+
+    for (const { id } of this.watchlistList) {
+      const sat = catalogManagerInstance.getSat(id, GetSatType.EXTRA_ONLY)!;
+
+      watchlistListHTML += `
         <div class="row">
           <div class="col s3 m3 l3">
              <span class="sat-sccnum" data-sat-sccnum="${sat.id}" style="cursor: pointer;">${sat.sccNum}</span>
           </div>
           <div class="col s7 m7 l7">
-             <span class="sat-name" data-sat-name="${sat.id || 'Unknown'}" style="cursor: pointer;">${sat.name || 'Unknown'}</span>
+             <span class="sat-name" data-sat-name="${sat.id}" style="cursor: pointer;">${sat.name || t7e('Common.unknown')}</span>
           </div>
           <div class="col s2 m2 l2 center-align remove-icon">
             <img class="watchlist-remove" data-sat-id="${sat.id}" src="${bookmarkRemovePng}" style="cursor: pointer;"></img>
           </div>
         </div>`;
-      }
     }
 
     const watchlistElement = getEl('watchlist-list');
@@ -397,15 +631,9 @@ export class WatchlistPlugin extends KeepTrackPlugin {
       watchlistElement.innerHTML = watchlistListHTML;
     }
 
-    keepTrackApi.emit(KeepTrackApiEvents.onWatchlistUpdated, this.watchlistList);
+    EventBus.getInstance().emit(EventBusEvent.onWatchlistUpdated, this.watchlistList);
 
-    for (let i = 0; i < this.watchlistList.length; i++) {
-      // No duplicates
-      watchlistString += catalogManagerInstance.getSat(this.watchlistList[i].id, GetSatType.EXTRA_ONLY)?.sccNum ?? '';
-      if (i !== this.watchlistList.length - 1) {
-        watchlistString += ',';
-      }
-    }
+    const watchlistString = this.watchlistList.map(({ id }) => catalogManagerInstance.getSat(id, GetSatType.EXTRA_ONLY)?.sccNum ?? '').join(',');
 
     if (this.watchlistList.length > 0) {
       showEl('top-menu-watchlist-li');
@@ -413,20 +641,18 @@ export class WatchlistPlugin extends KeepTrackPlugin {
       hideEl('top-menu-watchlist-li');
     }
 
-    if (!isSkipSearch) {
-      keepTrackApi.getUiManager().doSearch(watchlistString, true);
+    if (!isSkipSearch || this.isFilterActive) {
+      ServiceLocator.getUiManager().doSearch(watchlistString, true);
     }
-    const colorSchemeManager = keepTrackApi.getColorSchemeManager();
+    const colorSchemeManager = ServiceLocator.getColorSchemeManager();
 
     colorSchemeManager.calculateColorBuffers(true); // force color recalc
 
-    if (settingsManager.offlineMode) {
-      PersistenceManager.getInstance().saveItem(StorageKey.WATCHLIST_LIST, this.serialize());
-    }
+    PersistenceManager.getInstance().saveItem(StorageKey.WATCHLIST_LIST, this.serialize());
   }
 
   selectSat(id: number) {
-    const selectSatManagerInstance = keepTrackApi.getPlugin(SelectSatManager);
+    const selectSatManagerInstance = PluginRegistry.getPlugin(SelectSatManager);
 
     selectSatManagerInstance?.selectSat(id);
   }
@@ -441,24 +667,28 @@ export class WatchlistPlugin extends KeepTrackPlugin {
       return;
     }
 
-    keepTrackApi.getOrbitManager().removeInViewOrbit(this.watchlistList[idxMatch].id);
+    ServiceLocator.getOrbitManager().removeInViewOrbit(this.watchlistList[idxMatch].id);
     this.watchlistList.splice(idxMatch, 1);
 
-    keepTrackApi.getLineManager().lines.forEach((line) => {
+    ServiceLocator.getLineManager().lines.forEach((line) => {
       if (line instanceof SensorToSatLine && line.sat.id === id) {
         line.isGarbage = true;
       }
     });
 
     this.updateWatchlist();
-    keepTrackApi.emit(KeepTrackApiEvents.onWatchlistRemove, this.watchlistList);
+    EventBus.getInstance().emit(EventBusEvent.onWatchlistRemove, this.watchlistList);
 
-    const uiManagerInstance = keepTrackApi.getUiManager();
-    const colorSchemeManagerInstance = keepTrackApi.getColorSchemeManager();
+    const uiManagerInstance = ServiceLocator.getUiManager();
+    const colorSchemeManagerInstance = ServiceLocator.getColorSchemeManager();
 
     if (this.watchlistList.length <= 0) {
-      uiManagerInstance.doSearch('');
-      colorSchemeManagerInstance.calculateColorBuffers(true);
+      if (this.isFilterActive) {
+        this.setFilterActive(false);
+      } else {
+        uiManagerInstance.doSearch('');
+        colorSchemeManagerInstance.calculateColorBuffers(true);
+      }
     }
   }
 
@@ -468,63 +698,117 @@ export class WatchlistPlugin extends KeepTrackPlugin {
     if (!isDuplicate) {
       this.watchlistList.push({ id, inView: false });
     } else {
-      const sat = keepTrackApi.getCatalogManager().getSat(id);
+      const sat = ServiceLocator.getCatalogManager().getSat(id);
 
       if (sat?.sccNum) {
-        errorManagerInstance.warn(`NORAD: ${sat.sccNum} already in watchlist!`, true);
+        errorManagerInstance.warnToast(t7e('plugins.WatchlistPlugin.errorMsgs.NoradAlreadyInList' as Parameters<typeof t7e>[0]).replace('{sccNum}', `${sat.sccNum}`));
       } else if (sat) {
         const jscString = sat.source === CatalogSource.VIMPEL ? ` (JSC Vimpel ${sat.altId})` : '';
 
-        errorManagerInstance.warn(`Object ${id}${jscString} already in watchlist!`, true);
+        errorManagerInstance.warnToast(t7e('plugins.WatchlistPlugin.errorMsgs.ObjectAlreadyInList' as Parameters<typeof t7e>[0]).replace('{id}', `${id}${jscString}`));
       }
     }
 
     if (!isMultiAdd) {
       this.watchlistList.sort(({ id: a }, { id: b }) => {
-        const satA = keepTrackApi.getCatalogManager().getSat(a);
-        const satB = keepTrackApi.getCatalogManager().getSat(b);
+        const satA = ServiceLocator.getCatalogManager().getSat(a);
+        const satB = ServiceLocator.getCatalogManager().getSat(b);
 
         if (satA === null || satB === null) {
           return 0;
         }
 
-        return parseInt(satA.sccNum) - parseInt(satB.sccNum);
+        return satA.sccNum.localeCompare(satB.sccNum, 'en', { numeric: true });
       });
       this.updateWatchlist();
-      keepTrackApi.emit(KeepTrackApiEvents.onWatchlistAdd, this.watchlistList);
+      EventBus.getInstance().emit(EventBusEvent.onWatchlistAdd, this.watchlistList);
     }
   }
 
   isOnWatchlist(id: number) {
-    if (id === null) {
+    if (typeof id !== 'number') {
       return false;
     }
 
     return this.watchlistList.some(({ id: id_ }) => id_ === id);
   }
 
+  /**
+   * The display color (#rrggbb) of the active watchlist, or null when the
+   * default styling should be used. The OSS plugin has a single, uncolored
+   * list; the pro plugin overrides this with the current list's color so the
+   * overlay rows and in-view orbit lines can reflect it.
+   */
+  getListColor(): string | null {
+    return null;
+  }
+
   getSatellites() {
-    return this.watchlistList.map(({
-      id,
-    }) => id);
+    return this.watchlistList.map(({ id }) => id);
   }
 
   hasAnyInView() {
     return this.watchlistList.some(({ inView }) => inView);
   }
 
+  protected syncLabelRadios_(): void {
+    const mode = settingsManager.satLabelMode.toString();
+    const always = getEl('watchlist-label-always') as HTMLInputElement | null;
+    const fov = getEl('watchlist-label-fov') as HTMLInputElement | null;
+    const off = getEl('watchlist-label-off') as HTMLInputElement | null;
+
+    if (always) {
+      always.checked = mode === '2';
+    }
+    if (fov) {
+      fov.checked = mode === '1';
+    }
+    if (off) {
+      off.checked = mode === '0';
+    }
+  }
+
+  private applyWatchlistFilter_(): void {
+    if (this.watchlistList.length === 0) {
+      return;
+    }
+
+    const catalogManagerInstance = ServiceLocator.getCatalogManager();
+    const uiManagerInstance = ServiceLocator.getUiManager();
+    const searchString = this.watchlistList
+      .map(({ id }) => catalogManagerInstance.getSat(id, GetSatType.EXTRA_ONLY)?.sccNum)
+      .filter(Boolean)
+      .join(',');
+
+    uiManagerInstance.doSearch(searchString, true);
+
+    // doSearch(str, true) skips fillResultBox which normally sets isResultsOpen.
+    // Without it, getCurrentSearch() returns '' and preValidateColorScheme_
+    // clears isUseGroupColorScheme on every calculateColorBuffers call.
+    uiManagerInstance.searchManager.isResultsOpen = true;
+    ServiceLocator.getColorSchemeManager().calculateColorBuffers(true);
+  }
+
   /**
    * Handles the event when a new satellite is added to the watchlist.
    */
   private onAddEvent_() {
-    keepTrackApi.getSoundManager()?.play(SoundNames.CLICK);
+    ServiceLocator.getSoundManager()?.play(SoundNames.CLICK);
     const sats = (<HTMLInputElement>getEl('watchlist-new')).value.split(/[\s,]+/u);
 
     sats.forEach((satNum: string) => {
-      const id = keepTrackApi.getCatalogManager().sccNum2Id(parseInt(satNum));
+      if (!satNum.trim()) {
+        return;
+      }
 
-      if (id === null) {
-        errorManagerInstance.warn(`Sat ${id} not found!`, true);
+      // Pass the raw string to sccNum2Id, which handles every sccNum form
+      // (numeric, alpha-5 "T0001", 6-digit, extended) plus leading-zero
+      // normalization. parseInt would turn "T0001" into NaN and silently
+      // drop alpha-5 / extended watchlist entries.
+      const id = ServiceLocator.getCatalogManager().sccNum2Id(satNum.trim()) ?? -1;
+
+      if (id === -1) {
+        errorManagerInstance.warnToast(t7e('plugins.WatchlistPlugin.errorMsgs.SatNotFound' as Parameters<typeof t7e>[0]).replace('{id}', `${satNum}`));
 
         return;
       }
@@ -532,14 +816,14 @@ export class WatchlistPlugin extends KeepTrackPlugin {
     });
 
     this.watchlistList.sort(({ id: a }, { id: b }) => {
-      const satA = keepTrackApi.getCatalogManager().getSat(a);
-      const satB = keepTrackApi.getCatalogManager().getSat(b);
+      const satA = ServiceLocator.getCatalogManager().getSat(a);
+      const satB = ServiceLocator.getCatalogManager().getSat(b);
 
       if (satA === null || satB === null) {
         return 0;
       }
 
-      return parseInt(satA.sccNum) - parseInt(satB.sccNum);
+      return satA.sccNum.localeCompare(satB.sccNum, 'en', { numeric: true });
     });
     this.updateWatchlist();
     (<HTMLInputElement>getEl('watchlist-new')).value = ''; // Clear the search box after enter pressed/selected
@@ -550,18 +834,25 @@ export class WatchlistPlugin extends KeepTrackPlugin {
    * Removes the satellites from the watchlist and clears the lines from sensors to satellites.
    */
   private onClearClicked_() {
-    keepTrackApi.getSoundManager()?.play(SoundNames.MENU_BUTTON);
+    ServiceLocator.getSoundManager()?.play(SoundNames.MENU_BUTTON);
     this.clear();
   }
 
   clear() {
-    const orbitManagerInstance = keepTrackApi.getOrbitManager();
+    const wasFilterActive = this.isFilterActive;
+
+    // Reset filter state and sync UI before clearing list
+    if (wasFilterActive) {
+      this.setFilterActive(false);
+    }
+
+    const orbitManagerInstance = ServiceLocator.getOrbitManager();
 
     for (const obj of this.watchlistList) {
       orbitManagerInstance.removeInViewOrbit(obj.id);
     }
 
-    keepTrackApi.getLineManager().lines.forEach((line) => {
+    ServiceLocator.getLineManager().lines.forEach((line) => {
       if (line instanceof SensorToSatLine) {
         line.isGarbage = true;
       }
@@ -578,7 +869,7 @@ export class WatchlistPlugin extends KeepTrackPlugin {
     const target = evt.target;
 
     if (!target) {
-      errorManagerInstance.error(new Error('target is null'), 'watchlist.ts', 'Error reading watchlist!');
+      errorManagerInstance.error(new Error('target is null'), 'watchlist.ts', 'Error reading list!');
 
       return;
     }
@@ -588,12 +879,12 @@ export class WatchlistPlugin extends KeepTrackPlugin {
     }
 
     if (evt.target.error) {
-      errorManagerInstance.error(evt.target.error, 'watchlist.ts', 'Error reading watchlist!');
+      errorManagerInstance.error(evt.target.error, 'watchlist.ts', 'Error reading list!');
 
       return;
     }
 
-    let newWatchlist: { id: number, inView: boolean }[];
+    let newWatchlist: { id: string; inView: boolean }[];
 
     try {
       // We save it as an array of sccNums
@@ -601,32 +892,34 @@ export class WatchlistPlugin extends KeepTrackPlugin {
 
       if (savedSatList.length > 0) {
         // We need to convert it to an array of objects
-        newWatchlist = savedSatList.map((sccNum: string) => ({ id: parseInt(sccNum), inView: false }));
+        const catalogManagerInstance = ServiceLocator.getCatalogManager();
+
+        newWatchlist = savedSatList.map((sccNum: string) => ({ id: String(catalogManagerInstance.sccNum2Id(sccNum) ?? '-1'), inView: false }));
       } else {
         newWatchlist = [];
       }
     } catch {
-      errorManagerInstance.warn('Watchlist File Format Incorret');
+      errorManagerInstance.warn('List File Format Incorrect');
 
       return;
     }
 
     if (newWatchlist.length === 0) {
-      errorManagerInstance.warn('Watchlist File Format Incorret');
+      errorManagerInstance.warn('List File Format Incorrect');
 
       return;
     }
 
     this.watchlistList = [];
-    const catalogManagerInstance = keepTrackApi.getCatalogManager();
+    const catalogManagerInstance = ServiceLocator.getCatalogManager();
 
     for (const obj of newWatchlist) {
-      const sat = catalogManagerInstance.getObject(catalogManagerInstance.sccNum2Id(obj.id), GetSatType.EXTRA_ONLY);
+      const sat = catalogManagerInstance.getObject(obj.id, GetSatType.EXTRA_ONLY);
 
-      if (sat !== null && sat.id > 0) {
+      if (sat !== null && sat.id !== -1) {
         this.watchlistList.push({ id: sat.id, inView: false });
       } else {
-        errorManagerInstance.warn(`Sat ${obj.id} not found!`, true);
+        errorManagerInstance.warnToast(t7e('plugins.WatchlistPlugin.errorMsgs.SatNotFound' as Parameters<typeof t7e>[0]).replace('{id}', `${obj.id}`));
       }
     }
     this.updateWatchlist();
@@ -638,7 +931,7 @@ export class WatchlistPlugin extends KeepTrackPlugin {
    * @param evt - The click event object.
    */
   private onSaveClicked_(evt: Event) {
-    keepTrackApi.getSoundManager()?.play(SoundNames.MENU_BUTTON);
+    ServiceLocator.getSoundManager()?.play(SoundNames.MENU_BUTTON);
     const watchlistString = this.serialize();
     const blob = new Blob([watchlistString], {
       type: 'text/plain;charset=utf-8',
@@ -648,39 +941,28 @@ export class WatchlistPlugin extends KeepTrackPlugin {
       saveAs(blob, 'watchlist.json');
     } catch (e) {
       if (!isThisNode()) {
-        errorManagerInstance.error(e, 'watchlist.ts', 'Error saving watchlist!');
+        errorManagerInstance.error(e, 'watchlist.ts', 'Error saving list!');
       }
     }
     evt.preventDefault();
   }
 
   serialize() {
-    const satIds: string[] = [];
+    const catalogManager = ServiceLocator.getCatalogManager();
 
-    for (let i = 0; i < this.watchlistList.length; i++) {
-      const sat = keepTrackApi.getCatalogManager().getSat(this.watchlistList[i].id, GetSatType.EXTRA_ONLY);
+    // Build from a filtered copy - serialize must not mutate watchlistList.
+    const satIds = this.watchlistList.map(({ id }) => catalogManager.getSat(id, GetSatType.EXTRA_ONLY)?.sccNum).filter((sccNum): sccNum is string => typeof sccNum === 'string');
 
-      if (sat === null) {
-        errorManagerInstance.warn(`Sat ${this.watchlistList[i].id} not found!`, true);
-
-        continue;
-      }
-      satIds[i] = sat.sccNum;
-    }
-    const watchlistString = JSON.stringify(satIds);
-
-
-    return watchlistString;
+    return JSON.stringify(satIds);
   }
 
   unserialize(watchlistString: string): string[] {
     try {
       const savedSatList: string[] = JSON.parse(watchlistString);
 
-
       return savedSatList;
     } catch {
-      errorManagerInstance.warn('Watchlist File Format Incorrect');
+      errorManagerInstance.warn('List File Format Incorrect');
 
       return [];
     }

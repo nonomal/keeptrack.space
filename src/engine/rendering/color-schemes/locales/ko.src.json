@@ -1,0 +1,20 @@
+{
+  "colorSchemes": {
+    "CelestrakColorScheme": { "label": "Celestrak" },
+    "ConfidenceColorScheme": { "label": "신뢰도" },
+    "CountryColorScheme": { "label": "국가" },
+    "GpAgeColorScheme": { "label": "GP 경과시간" },
+    "MissionColorScheme": { "label": "임무" },
+    "ObjectTypeColorScheme": { "label": "객체 유형" },
+    "OrbitalPlaneDensityColorScheme": { "label": "궤도면 밀도" },
+    "RcsColorScheme": { "label": "레이더 단면적" },
+    "ReentryRiskColorScheme": { "label": "재진입 위험" },
+    "SmallSatColorScheme": { "label": "소형 위성" },
+    "SourceColorScheme": { "label": "데이터 출처" },
+    "SpatialDensityColorScheme": { "label": "공간 밀도" },
+    "StarlinkColorScheme": { "label": "Starlink" },
+    "SunlightColorScheme": { "label": "일조 상태" },
+    "VelocityColorScheme": { "label": "속도" },
+    "VisualMagnitudeColorScheme": { "label": "표준 등급" }
+  }
+}

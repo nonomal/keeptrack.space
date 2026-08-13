@@ -1,0 +1,7 @@
+{
+  "plugins": {
+    "SatelliteViewPlugin": {
+      "bottomIconLabel": "Satellite View"
+    }
+  }
+}

@@ -1,0 +1,61 @@
+@import url('../../public/css/style.common.css');
+
+:root {
+  /* Legacy aliases (match loading-screen.css) */
+  --color-primary: #046eb6 !important;
+  --color-primary-light: #add8e6 !important;
+  --color-primary-dark: #023456 !important;
+  --color-dark-background: #002d47 !important;
+  --color-dark-border: #004270 !important;
+  --color-dark-text-accent: #add8e6 !important;
+  --color-dark-text-muted: #6b6b6b !important;
+  --colorTertiary: #046eb6 !important;
+
+  /* New design-token primitives (override the red palette) */
+  --kt-red-400: #2a8ed1 !important;
+  --kt-red-500: #046eb6 !important;
+  --kt-red-600: #023456 !important;
+
+  /* New semantic tokens that resolve directly to the red palette */
+  --kt-accent: #046eb6 !important;
+  --kt-accent-light: #2a8ed1 !important;
+  --kt-accent-dark: #023456 !important;
+  --kt-text-accent: #add8e6 !important;
+}
+
+
+/* File-specific CSS rules */
+
+.bmenu-item {
+  padding: 5px;
+  text-align: center;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  height: 100%;
+}
+
+#layers-icon img,
+#tutorial-icon img,
+#fullscreen-icon img,
+#search-icon img,
+.top-menu-icons__blue-img,
+.bmenu-item:not(.bmenu-item-disabled, .bmenu-item-selected, .bmenu-item-help) .bmenu-item-inner *,
+.bmenu-filter-item:not(.bmenu-item-disabled, .bmenu-item-selected, .bmenu-item-help) .bmenu-filter-item-inner * {
+  filter: hue-rotate(0deg) brightness(0.7) saturate(4);
+}
+
+.dropdown-content {
+  max-height: 770% !important;
+}
+
+.ui-icon-circle-triangle-e {
+  background-position: -33px -17px;
+  filter: brightness(1.9) sepia(1) hue-rotate(160deg) saturate(2.5);
+}
+
+.ui-icon-circle-triangle-w {
+  background-position: -97px -17px;
+  filter: brightness(1.9) sepia(1) hue-rotate(160deg) saturate(2.5);
+}

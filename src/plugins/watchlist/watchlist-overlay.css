@@ -1,0 +1,119 @@
+/* Watchlist Overlay – Tier-based urgency colors for 200+ satellite ops */
+
+#info-overlay-menu {
+  --wl-color-active: #ffd700;
+  --wl-color-imminent: #00ff88;
+  --wl-color-upcoming: #00cfff;
+  --wl-color-aware: #0077dd;
+  --wl-color-background: rgba(180, 180, 200, 0.7);
+  --wl-color-departed: rgba(140, 140, 160, 0.5);
+}
+
+/* Override global overflow: hidden to allow scrolling with 200+ entries */
+#info-overlay-content {
+  overflow-y: auto !important;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+#info-overlay-content::-webkit-scrollbar {
+  width: 4px;
+}
+
+#info-overlay-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#info-overlay-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+}
+
+/* Compact entry row */
+.wl-entry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1.4;
+  transition: background 0.15s;
+}
+
+.wl-entry:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.wl-name {
+  flex-shrink: 0;
+  min-width: 50px;
+}
+
+/* Per-list color dot (pro multi-list feature) */
+.wl-list-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+.wl-countdown {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.wl-time {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Tier color classes – sized for large TV displays viewed at distance */
+
+.wl-tier-active {
+  color: var(--wl-color-active);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.wl-tier-imminent {
+  color: var(--wl-color-imminent);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.wl-tier-upcoming {
+  color: var(--wl-color-upcoming);
+  font-size: 15px;
+}
+
+.wl-tier-aware {
+  color: var(--wl-color-aware);
+  font-size: 15px;
+}
+
+.wl-tier-background {
+  color: var(--wl-color-background);
+  font-size: 14px;
+}
+
+.wl-tier-departed {
+  color: var(--wl-color-departed);
+  font-size: 14px;
+  font-style: italic;
+}
+
+/* Group headers between tiers */
+.wl-group-header {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.35);
+  padding: 6px 8px 2px;
+  user-select: none;
+  pointer-events: none;
+}

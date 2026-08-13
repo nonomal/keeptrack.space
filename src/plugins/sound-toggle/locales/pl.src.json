@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "SoundToggle": {
+      "tooltip": "Przełącz dźwięk wł./wył.",
+      "errorMsgs": {
+        "notEnabled": "SoundManager nie jest włączony. Sprawdź ustawienia!"
+      }
+    }
+  }
+}

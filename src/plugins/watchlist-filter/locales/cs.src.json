@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "WatchlistFilter": {
+      "bottomIconLabel": "Zobrazit pouze seznam satelitů",
+      "errorMsgs": {
+        "noSatellitesInList": "Žádné satelity v seznamu"
+      }
+    }
+  }
+}

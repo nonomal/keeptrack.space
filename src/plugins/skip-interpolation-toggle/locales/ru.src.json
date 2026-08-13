@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "SkipInterpolationToggle": {
+      "bottomIconLabel": "Пропуск интерп.",
+      "commandPalette": {
+        "toggle": "Переключить пропуск интерполяции TLE"
+      }
+    }
+  }
+}

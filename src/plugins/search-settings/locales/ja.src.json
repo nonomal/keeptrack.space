@@ -1,0 +1,51 @@
+{
+  "plugins": {
+    "SearchSettingsPlugin": {
+      "bottomIconLabel": "検索設定",
+      "title": "検索設定",
+      "sections": {
+        "resultLimits": "結果の上限",
+        "objectTypes": "オブジェクトタイプ",
+        "searchFields": "検索フィールド",
+        "filters": "フィルター",
+        "actions": "アクション"
+      },
+      "labels": {
+        "maxResults": "検索の最大結果数",
+        "minSearchChars": "検索を開始する最小文字数",
+        "showDecayed": "崩壊した衛星を表示",
+        "showVimpel": "Vimpel オブジェクトを含める",
+        "reset": "デフォルトに戻す",
+        "fields": {
+          "name": "名称",
+          "altName": "別名",
+          "bus": "衛星バス",
+          "noradId": "NORAD ID",
+          "intlDes": "国際識別符号",
+          "launchVehicle": "打ち上げロケット"
+        },
+        "types": {
+          "satellite": "衛星",
+          "missile": "ミサイル",
+          "star": "恒星",
+          "sensor": "センサー",
+          "launchSite": "打上げサイト",
+          "planet": "惑星"
+        }
+      },
+      "tooltips": {
+        "maxResults": "検索に表示する衛星の最大数",
+        "minSearchChars": "検索が実行されるまでに入力する最小文字数",
+        "showDecayed": "崩壊した衛星（位置 0,0,0）を検索結果に表示する",
+        "showVimpel": "Vimpel（アナリスト）オブジェクトを検索結果に含めます。検索が遅くなる場合があります。"
+      },
+      "toasts": {
+        "reset": "検索設定をデフォルトに戻しました"
+      },
+      "errorMsgs": {
+        "InvalidMaxResults": "検索最大結果数の値が無効です！",
+        "InvalidMinSearchChars": "検索の最小文字数の値が無効です！"
+      }
+    }
+  }
+}

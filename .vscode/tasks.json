@@ -25,6 +25,34 @@
       "problemMatcher": []
     },
     {
+      "label": "App: Update Translations",
+      "command": "npm run generate-t7e",
+      "type": "shell",
+      "args": [],
+      "isBackground": true,
+      "problemMatcher": [],
+      "icon": {
+        "id": "symbol-key",
+        "color": "terminal.ansiCyan"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "runOptions": {
+        "instanceLimit": 1
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": false,
+        "clear": true,
+        "group": "dev"
+      }
+    },
+    {
       "label": "App: Build",
       "command": "npm run build:watch",
       "type": "shell",
@@ -87,7 +115,7 @@
       "windows": {
         "command": "C:/Program Files/BraveSoftware/Brave-Browser/Application/brave.exe",
         "args": [
-          "http://localhost:8080"
+          "http://localhost:5544"
         ]
       },
       "icon": {
@@ -184,8 +212,7 @@
   ],
   "extensions": {
     "recommendations": [
-      "prettier.prettier-vscode",
-      "dbaeumer.vscode-eslint",
+      "biomejs.biome",
       "steoates.autoimport",
       "vivaxy.vscode-conventional-commits",
       "usernamehw.errorlens",

@@ -1,0 +1,42 @@
+{
+  "plugins": {
+    "SatInfoBoxSensor": {
+      "sectionTitle": "传感器数据",
+      "labels": {
+        "range": "距离",
+        "azimuth": "方位角",
+        "elevation": "仰角",
+        "ra": "RA",
+        "dec": "Dec",
+        "beamWidth": "波束宽度",
+        "maxTmxTime": "最大 Tmx 时间",
+        "sun": "太阳",
+        "visMag": "视星等",
+        "nextPass": "下次过境"
+      },
+      "tooltips": {
+        "range": "距传感器的距离",
+        "azimuth": "距传感器的角度（左/右）",
+        "elevation": "距传感器的角度（上/下）",
+        "ra": "赤经",
+        "dec": "赤纬",
+        "beamWidth": "目标距离处的线性宽度",
+        "maxTmxTime": "RF/光到达目标并返回的时间",
+        "sun": "太阳是否影响传感器",
+        "visMag": "视星等（数值越低越亮）",
+        "nextPass": "下次进入覆盖范围的时间"
+      },
+      "values": {
+        "noEffect": "无影响",
+        "sunExclusion": "太阳排除",
+        "noSunlight": "无阳光",
+        "limitedSunlight": "有限阳光",
+        "directSunlight": "直射阳光",
+        "unableToCalculate": "无法计算",
+        "outOfFov": "超出 FOV",
+        "unavailable": "不可用",
+        "beyondMaxRange": "超出最大距离"
+      }
+    }
+  }
+}

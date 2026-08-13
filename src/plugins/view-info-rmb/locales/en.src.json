@@ -1,0 +1,18 @@
+{
+  "plugins": {
+    "ViewInfoRmbPlugin": {
+      "rmbMenu": {
+        "title": "View",
+        "earthInfo": "Earth Info",
+        "sensorInfo": "Sensor Info",
+        "launchSiteInfo": "Launch Site Info",
+        "relatedSatellites": "Related Satellites"
+      },
+      "errorMsgs": {
+        "launchSiteNotFound": "Launch site not found!",
+        "noRelatedSats": "No related satellites found!",
+        "sensorNotFound": "Sensor not found! Select a sensor first."
+      }
+    }
+  }
+}

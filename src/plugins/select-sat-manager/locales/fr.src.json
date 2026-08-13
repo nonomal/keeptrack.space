@@ -1,0 +1,17 @@
+{
+  "SelectSatManager": {
+    "objectInsideEarth": "L'objet est à l'intérieur de la Terre, sélection impossible",
+    "secondaryObjectSet": "Objet secondaire défini : {name}"
+  },
+  "plugins": {
+    "SelectSatManager": {
+      "sectionLabel": "Satellite Selection",
+      "settings": {
+        "focusOnSatWhenSelected": {
+          "label": "Focus on Satellite When Selected",
+          "helpText": "Zoom in on the satellite when selected."
+        }
+      }
+    }
+  }
+}

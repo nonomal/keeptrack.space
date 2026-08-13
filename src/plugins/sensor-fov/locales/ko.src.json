@@ -1,0 +1,7 @@
+{
+  "plugins": {
+    "SensorFov": {
+      "bottomIconLabel": "센서 시야각"
+    }
+  }
+}

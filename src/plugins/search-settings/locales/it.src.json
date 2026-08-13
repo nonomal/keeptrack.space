@@ -1,0 +1,51 @@
+{
+  "plugins": {
+    "SearchSettingsPlugin": {
+      "bottomIconLabel": "Impostazioni di ricerca",
+      "title": "Impostazioni di ricerca",
+      "sections": {
+        "resultLimits": "Limiti dei risultati",
+        "objectTypes": "Tipi di oggetto",
+        "searchFields": "Campi di ricerca",
+        "filters": "Filtri",
+        "actions": "Azioni"
+      },
+      "labels": {
+        "maxResults": "Risultati massimi nella ricerca",
+        "minSearchChars": "Caratteri minimi prima della ricerca",
+        "showDecayed": "Mostra satelliti decaduti",
+        "showVimpel": "Includi oggetti Vimpel",
+        "reset": "Ripristina impostazioni predefinite",
+        "fields": {
+          "name": "Nome",
+          "altName": "Nome alternativo",
+          "bus": "Bus del satellite",
+          "noradId": "ID NORAD",
+          "intlDes": "Designatore internazionale",
+          "launchVehicle": "Veicolo di lancio"
+        },
+        "types": {
+          "satellite": "Satelliti",
+          "missile": "Missili",
+          "star": "Stelle",
+          "sensor": "Sensori",
+          "launchSite": "Siti di lancio",
+          "planet": "Pianeti"
+        }
+      },
+      "tooltips": {
+        "maxResults": "Numero massimo di satelliti da visualizzare nella ricerca",
+        "minSearchChars": "Numero minimo di caratteri da digitare prima che venga eseguita una ricerca",
+        "showDecayed": "Mostra satelliti decaduti (posizione 0,0,0) nei risultati di ricerca",
+        "showVimpel": "Includi oggetti Vimpel (analista) nei risultati di ricerca. Questo può rallentare le ricerche."
+      },
+      "toasts": {
+        "reset": "Impostazioni di ricerca ripristinate ai valori predefiniti"
+      },
+      "errorMsgs": {
+        "InvalidMaxResults": "Valore massimo dei risultati di ricerca non valido!",
+        "InvalidMinSearchChars": "Valore minimo dei caratteri di ricerca non valido!"
+      }
+    }
+  }
+}

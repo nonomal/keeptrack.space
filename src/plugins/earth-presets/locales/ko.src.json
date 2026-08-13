@@ -1,0 +1,14 @@
+{
+  "plugins": {
+    "EarthPresetsPlugin": {
+      "rmbMenu": {
+        "title": "지구 스타일",
+        "satelliteImages": "위성 이미지",
+        "alternateSatelliteImages": "대체 위성 이미지",
+        "engineeringTool": "엔지니어링 도구",
+        "operationsCenter": "운영 센터",
+        "nineties": "90년대 그래픽"
+      }
+    }
+  }
+}

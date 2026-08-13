@@ -1,0 +1,80 @@
+{
+  "SatInfoBoxOrbital": {
+    "title": "Orbitální data",
+    "Apogee": {
+      "label": "Apogeum",
+      "tooltip": "Nejvyšší bod oběžné dráhy"
+    },
+    "Perigee": {
+      "label": "Perigeum",
+      "tooltip": "Nejnižší bod oběžné dráhy"
+    },
+    "Inclination": {
+      "label": "Inklinace",
+      "tooltip": "Úhel měřený od rovníku ve vzestupném uzlu"
+    },
+    "Eccentricity": {
+      "label": "Excentricita",
+      "tooltip": "Jak kruhová je oběžná dráha (0 je kruh)"
+    },
+    "RightAsc": {
+      "label": "Rektascenze",
+      "tooltip": "Kde stoupá nad rovník"
+    },
+    "ArgOfPerigee": {
+      "label": "Arg. perigea",
+      "tooltip": "Kde se nachází nejnižší část oběžné dráhy"
+    },
+    "Latitude": {
+      "label": "Zem. šířka",
+      "tooltip": "Aktuální zeměpisná šířka nad Zemí",
+      "north": "S",
+      "south": "J"
+    },
+    "Longitude": {
+      "label": "Zem. délka",
+      "tooltip": "Aktuální zeměpisná délka nad Zemí",
+      "east": "V",
+      "west": "Z"
+    },
+    "Altitude": {
+      "label": "Výška",
+      "tooltip": "Aktuální výška nad hladinou moře"
+    },
+    "Period": {
+      "label": "Perioda",
+      "tooltip": "Čas jednoho úplného oběhu kolem Země",
+      "meanMotion": "Střední pohyb",
+      "revPerDay": "ob/den",
+      "min": "min"
+    },
+    "Velocity": {
+      "label": "Rychlost",
+      "tooltip": "Aktuální rychlost satelitu (čím blíže k Zemi, tím vyšší)"
+    },
+    "AgeOfGP": {
+      "label": "Stáří GP",
+      "tooltip": "Čas od výpočtu oficiální dráhy (starší data GP jsou obvykle méně přesná)",
+      "days": "Dny",
+      "hours": "Hodiny",
+      "epochYear": "Rok epochy",
+      "epochDay": "Den epochy"
+    },
+    "RadialSigma": {
+      "label": "Radiální sigma",
+      "tooltip": "Radiální nejistota (metry)"
+    },
+    "InTrackSigma": {
+      "label": "Podélná sigma",
+      "tooltip": "Podélná nejistota (metry)"
+    },
+    "CrossTrackSigma": {
+      "label": "Příčná sigma",
+      "tooltip": "Příčná nejistota (metry)"
+    },
+    "meter": "m",
+    "kilometer": "km",
+    "second": "s",
+    "unknown": "Neznámý"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "plugins": {
+    "SensorSurvFence": {
+      "bottomIconLabel": "Cerca del Sensor"
+    }
+  }
+}

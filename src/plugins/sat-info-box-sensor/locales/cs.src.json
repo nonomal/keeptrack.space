@@ -1,0 +1,42 @@
+{
+  "plugins": {
+    "SatInfoBoxSensor": {
+      "sectionTitle": "Data senzoru",
+      "labels": {
+        "range": "Vzdálenost",
+        "azimuth": "Azimut",
+        "elevation": "Elevace",
+        "ra": "RA",
+        "dec": "Dek",
+        "beamWidth": "Šířka svazku",
+        "maxTmxTime": "Max. čas Tmx",
+        "sun": "Slunce",
+        "visMag": "Viz. mag.",
+        "nextPass": "Další přelet"
+      },
+      "tooltips": {
+        "range": "Vzdálenost od senzoru",
+        "azimuth": "Úhel (vlevo/vpravo) od senzoru",
+        "elevation": "Úhel (nahoru/dolů) od senzoru",
+        "ra": "Rektascenze",
+        "dec": "Deklinace",
+        "beamWidth": "Lineární šířka v dosahu cíle",
+        "maxTmxTime": "Čas potřebný pro RF/světlo k dosažení cíle a zpět",
+        "sun": "Ovlivňuje Slunce senzor",
+        "visMag": "Vizuální magnituda (nižší čísla znamenají vyšší jas)",
+        "nextPass": "Příští průchod v pokrytí"
+      },
+      "values": {
+        "noEffect": "Bez vlivu",
+        "sunExclusion": "Vyloučení Slunce",
+        "noSunlight": "Bez slunečního svitu",
+        "limitedSunlight": "Omezený sluneční svit",
+        "directSunlight": "Přímý sluneční svit",
+        "unableToCalculate": "Nelze vypočítat",
+        "outOfFov": "Mimo zorné pole",
+        "unavailable": "Nedostupné",
+        "beyondMaxRange": "Za maximálním dosahem"
+      }
+    }
+  }
+}

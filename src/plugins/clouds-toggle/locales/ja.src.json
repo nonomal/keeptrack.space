@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "CloudsToggle": {
+      "bottomIconLabel": "雲",
+      "commandPalette": {
+        "toggle": "雲レイヤーの切り替え"
+      }
+    }
+  }
+}

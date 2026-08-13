@@ -1,0 +1,56 @@
+{
+  "SatInfoBoxObject": {
+    "title": "Data objektu",
+    "Type": {
+      "label": "Typ",
+      "tooltip": "Typ objektu",
+      "unknown": "Bude oznámeno",
+      "payload": "Užitečné zatížení",
+      "rocketBody": "Tělo rakety",
+      "debris": "Trosky",
+      "special": "Speciální",
+      "missile": "Balistická střela"
+    },
+    "Status": {
+      "label": "Stav",
+      "tooltip": "Provozní stav objektu",
+      "operational": "Provozní",
+      "nonOperational": "Neprovozní",
+      "partiallyOperational": "Částečně provozní",
+      "extendedMission": "Rozšířená mise",
+      "backupStandby": "Záloha/Pohotovost",
+      "spare": "Rezervní",
+      "unknown": "Neznámý"
+    },
+    "Country": {
+      "label": "Země",
+      "tooltip": "Země původu"
+    },
+    "LaunchSite": {
+      "label": "Místo startu",
+      "tooltip": "Místo, odkud byl objekt vypuštěn"
+    },
+    "LaunchVehicle": {
+      "label": "Nosná raketa",
+      "tooltip": "Raketa nebo nosič použitý k vypuštění objektu"
+    },
+    "Configuration": {
+      "label": "Konfigurace",
+      "tooltip": "Konfigurace rakety nebo nosného prostředku"
+    },
+    "RCS": {
+      "label": "RCS",
+      "tooltip": "Radarový průřez – jak odrazivý je objekt pro radarový signál (v m²)"
+    },
+    "StdMag": {
+      "label": "Std. magnituda",
+      "tooltip": "Standardní magnituda – nižší čísla znamenají vyšší jas"
+    },
+    "AppMag": {
+      "label": "Zdánl. magnituda",
+      "tooltip": "Zdánlivá vizuální magnituda pozorovaná z vybraného senzoru v aktuálním simulačním čase"
+    },
+    "estimatedSuffix": "(odh.)",
+    "unknown": "Neznámý"
+  }
+}

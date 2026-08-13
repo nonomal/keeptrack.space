@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "SkipInterpolationToggle": {
+      "bottomIconLabel": "Interp. überspr.",
+      "commandPalette": {
+        "toggle": "TLE-Interpolation überspringen umschalten"
+      }
+    }
+  }
+}

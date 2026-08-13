@@ -1,242 +1,273 @@
-import { ObjDataJson } from '@app/singletons/orbitManager';
-import { DEG2RAD, Degrees, EciVec3, Kilometers, SatelliteRecord, Sgp4, TAU, eci2ecf } from 'ootk';
-import { RADIUS_OF_EARTH } from '../lib/constants';
-import { jday } from '../lib/transforms';
-import { OrbitCruncherCachedObject } from './constants';
-import { propTime } from './positionCruncher/calculations';
+import { DEG2RAD, eci2ecef, GreenwichMeanSiderealTime, Kilometers, lla2eci, Radians, Sgp4, TemeVec3 } from '@ootk/src/main';
+import { rebaseToAnchor } from '../engine/math/orbit-anchor-math';
+import { jday } from '../engine/utils/transforms';
+import {
+  OrbitCruncherCachedObject,
+  OrbitCruncherInMsgChangeOrbitType,
+  OrbitCruncherInMsgInit,
+  OrbitCruncherInMsgMissileUpdate,
+  OrbitCruncherInMsgSatelliteUpdate,
+  OrbitCruncherInMsgSettingsUpdate,
+  OrbitCruncherInMsgs,
+  OrbitCruncherMissileObject,
+  OrbitCruncherMsgType,
+  OrbitCruncherOtherObject,
+  OrbitCruncherSatelliteObject,
+  OrbitDrawTypes,
+} from './orbit-cruncher-messages';
+import { handleSgp4WasmBackendMsg, isSgp4WasmBackendMsg } from './shared/sgp4-wasm-backend-handler';
 
-let dynamicOffsetEpoch: number;
-let staticOffset = 0;
-let propRate = 1.0;
-
-export enum OrbitCruncherType {
-  INIT,
-  UPDATE,
-  CHANGE_ORBIT_TYPE,
-  MISSILE_UPDATE,
-  SATELLITE_UPDATE,
-  SETTINGS_UPDATE,
-}
-
-export enum OrbitDrawTypes {
-  ORBIT,
-  TRAIL,
-}
-
-/** CONSTANTS */
+/** Earth's sidereal rotation rate (rad/s) — the rate GMST advances. */
+const EARTH_ROTATION_RAD_PER_SEC = 7.2921159e-5;
 
 const objCache = [] as OrbitCruncherCachedObject[];
 let numberOfSegments: number;
 let orbitType = OrbitDrawTypes.ORBIT;
 let orbitFadeFactor = 1.0;
 let numberOfOrbitsToDraw = 1;
+/** Tracks the last catalog-swap seqNum; per-id update messages older than this are discarded as stale. */
+let currentSeqNum = 0;
 
-// Handles Incomming Messages to sat-cruncher from main thread
-try {
-  onmessage = (m) => onmessageProcessing(m);
-} catch (e) {
-  // If Jest isn't running then throw the error
-  if (!process) {
-    throw e;
+const isStaleUpdate_ = (seqNum?: number): boolean => typeof seqNum === 'number' && seqNum < currentSeqNum;
+
+export const onMessage = (m: { data: OrbitCruncherInMsgs }) => {
+  const msg = m.data;
+
+  if (isSgp4WasmBackendMsg(msg)) {
+    handleSgp4WasmBackendMsg(msg);
+
+    return;
   }
-}
 
-export const onmessageProcessing = (m: {
-  data: {
-    typ: OrbitCruncherType;
-    id: number;
-    // Init Only
-    objData?: string;
-    numSegs: number;
-    orbitFadeFactor?: number;
-    numberOfOrbitsToDraw?: number;
-    // Change Orbit Type Only
-    orbitType?: OrbitDrawTypes.ORBIT;
-    // Satellite Update Only
-    tle1?: string;
-    tle2?: string;
-    // Missile Update Only
-    latList: Degrees[];
-    lonList: Degrees[];
-    altList: Kilometers[];
-    // Both Updates
-    dynamicOffsetEpoch?: number;
-    staticOffset?: number;
-    propRate?: number;
-    isEcfOutput?: boolean;
-  };
-}) => {
-  switch (m.data.typ) {
-    case OrbitCruncherType.INIT:
-      orbitFadeFactor = m.data.orbitFadeFactor ?? 1.0;
-      numberOfOrbitsToDraw = m.data.numberOfOrbitsToDraw ?? 1;
-      numberOfSegments = m.data.numSegs;
+  switch (msg.typ) {
+    case OrbitCruncherMsgType.INIT:
+      handleMsgInit_(msg);
       break;
-    case OrbitCruncherType.SATELLITE_UPDATE:
-      // If new orbit
-      if (m.data.tle1) {
-        objCache[m.data.id].satrec = Sgp4.createSatrec(m.data.tle1, m.data.tle2);
+    case OrbitCruncherMsgType.SATELLITE_UPDATE:
+      if (isStaleUpdate_(msg.seqNum)) {
+        break;
       }
+      handleMsgSatelliteUpdate_(msg);
+      updateOrbitData_(msg);
       break;
-    case OrbitCruncherType.MISSILE_UPDATE:
-      // If new orbit
-      if (m.data.latList) {
-        objCache[m.data.id].latList = m.data.latList;
-        objCache[m.data.id].lonList = m.data.lonList;
-        objCache[m.data.id].altList = m.data.altList;
+    case OrbitCruncherMsgType.MISSILE_UPDATE:
+      if (isStaleUpdate_(msg.seqNum)) {
+        break;
       }
-      // Don't Add Anything Else
+      handleMsgMissileUpdate_(msg);
+      updateOrbitData_(msg);
       break;
-    case OrbitCruncherType.SETTINGS_UPDATE:
-      numberOfOrbitsToDraw = m.data.numberOfOrbitsToDraw ?? numberOfOrbitsToDraw;
+    case OrbitCruncherMsgType.SETTINGS_UPDATE:
+      handleMsgSettingsUpdate_(msg);
       break;
-    case OrbitCruncherType.CHANGE_ORBIT_TYPE:
-      orbitType = m.data.orbitType;
-
-      return;
+    case OrbitCruncherMsgType.CHANGE_ORBIT_TYPE:
+      handleMsgChangeOrbitType(msg);
+      break;
     default:
-      return;
+      break;
   }
+};
 
-  if (m.data.typ === OrbitCruncherType.INIT) {
-    const objData = JSON.parse(m.data.objData) as ObjDataJson[];
-    const sLen = objData.length - 1;
-    let i = -1;
+const updateOrbitData_ = (data: OrbitCruncherInMsgSatelliteUpdate | OrbitCruncherInMsgMissileUpdate) => {
+  /*
+   * TODO: figure out how to calculate the orbit points on constant
+   * position slices, not timeslices (ugly perigees on HEOs)
+   */
 
-    while (i < sLen) {
-      i++;
-      if (objData[i].missile) {
-        objCache[i] = objData[i];
-      } else if (objData[i].ignore) {
-        objCache[i] = { ignore: true };
-      } else if (objData[i].tle1) {
-        objCache[i] = {
-          satrec: Sgp4.createSatrec(objData[i].tle1, objData[i].tle2),
-        };
-      } else {
-        throw new Error('Invalid Object Data');
-      }
-    }
-  }
+  const nowDate = new Date(data.simulationTime);
+  const id = data.id;
+  const isEcfOutput = data.isEcfOutput || false;
+  const isPolarViewEcf = data.isPolarViewEcf || false;
+  // Float64 scratch: quantized to float32 only AFTER the anchor rebase below.
+  const points = new Float64Array((numberOfSegments + 1) * 4);
 
-  if (m.data.typ === OrbitCruncherType.SATELLITE_UPDATE || m.data.typ === OrbitCruncherType.MISSILE_UPDATE) {
-    /*
-     * TODO: figure out how to calculate the orbit points on constant
-     * position slices, not timeslices (ugly perigees on HEOs)
-     */
-
-    dynamicOffsetEpoch = m.data.dynamicOffsetEpoch;
-    staticOffset = m.data.staticOffset;
-    propRate = m.data.propRate;
-
-    const id = m.data.id;
-    let isEcfOutput = m.data.isEcfOutput || false;
+  // Defensive bounds check: a catalog swap can shrink objCache, but in-flight
+  // update messages for old ids may still arrive. Reply with the zero buffer
+  // so the consumer (orbit-cruncher-thread-manager) sees a normal response
+  // and any waiting state (inProgress_, orbitCache) gets cleared.
+  if (id >= objCache.length || !objCache[id]) {
     const pointsOut = new Float32Array((numberOfSegments + 1) * 4);
 
-    const len = numberOfSegments + 1;
-    let i = 0;
-    // Calculate Missile Orbits
+    postMessage(
+      {
+        typ: OrbitCruncherMsgType.RESPONSE_DATA,
+        pointsOut,
+        anchor: [0, 0, 0],
+        satId: id,
+        seqNum: currentSeqNum,
+      },
+      { transfer: [pointsOut.buffer as ArrayBuffer] }
+    );
 
-    if (objCache[id].missile) {
+    return;
+  }
+
+  const len = numberOfSegments + 1;
+  let i = 0;
+  // Calculate Missile Orbits
+
+  if ((objCache[id] as OrbitCruncherMissileObject).missile) {
+    const missile = objCache[id] as OrbitCruncherMissileObject;
+    const hasTrajectory = missile.latList && missile.lonList && missile.altList && missile.altList.length > 0;
+
+    if (!hasTrajectory) {
+      // Nothing to draw until the missile trajectory is populated
+      const pointsOut = new Float32Array((numberOfSegments + 1) * 4);
+
+      postMessage(
+        {
+          typ: OrbitCruncherMsgType.RESPONSE_DATA,
+          pointsOut,
+          anchor: [0, 0, 0],
+          satId: id,
+          seqNum: currentSeqNum,
+        },
+        { transfer: [pointsOut.buffer as ArrayBuffer] }
+      );
+
+      return;
+    }
+
+    // Each sample is a ground-referenced point captured at launch + x seconds, so it
+    // must be rotated to ECI by the GMST at *its* time. When the launch epoch is known
+    // we derive a per-sample GMST from it (essential for multi-hour trajectories such
+    // as a GEO intercept, which spans ~78° of Earth rotation); otherwise we fall back
+    // to a single GMST at the current time (accurate enough for short ballistic arcs).
+    const startMs = missile.startTime;
+    const usePerSampleGmst = typeof startMs === 'number';
+    const gmstAnchorDate = typeof startMs === 'number' ? new Date(startMs) : nowDate;
+    const gmstAnchorJ =
+      jday(
+        gmstAnchorDate.getUTCFullYear(),
+        gmstAnchorDate.getUTCMonth() + 1,
+        gmstAnchorDate.getUTCDate(),
+        gmstAnchorDate.getUTCHours(),
+        gmstAnchorDate.getUTCMinutes(),
+        gmstAnchorDate.getUTCSeconds()
+      ) +
+      gmstAnchorDate.getUTCMilliseconds() * 1.15741e-8;
+    const gmstAnchor = Sgp4.gstime(gmstAnchorJ);
+
+    while (i < len) {
+      drawMissileSegment_(missile, i, points, len, gmstAnchor, usePerSampleGmst);
+      i++;
+    }
+  } else if ((objCache[id] as OrbitCruncherOtherObject).ignore || !(objCache[id] as OrbitCruncherSatelliteObject).satrec) {
+    // Invalid objects or OemSatellite with no TLEs
+    const pointsOut = new Float32Array((numberOfSegments + 1) * 4);
+
+    postMessage(
+      {
+        typ: OrbitCruncherMsgType.RESPONSE_DATA,
+        pointsOut,
+        anchor: [0, 0, 0],
+        satId: id,
+        seqNum: currentSeqNum,
+      },
+      { transfer: [pointsOut.buffer as ArrayBuffer] }
+    );
+
+    return;
+  } else {
+    const nowJ =
+      jday(nowDate.getUTCFullYear(), nowDate.getUTCMonth() + 1, nowDate.getUTCDate(), nowDate.getUTCHours(), nowDate.getUTCMinutes(), nowDate.getUTCSeconds()) +
+      nowDate.getUTCMilliseconds() * 1.15741e-8; // days per millisecond
+    const satelliteObject = objCache[id] as OrbitCruncherSatelliteObject;
+    const satrec = satelliteObject.satrec;
+
+    const now = (nowJ - satrec.jdsatepoch) * 1440.0; // in minutes
+
+    // Calculate Satellite Orbits
+    const period = (2 * Math.PI) / satrec.no; // convert rads/min to min
+    let timeslice = period / numberOfSegments;
+
+    // If ECF output and geostationary orbit, draw multiple orbits to show the figure-8 pattern
+    const isGeo = period > 1420 && period < 1460 && satrec.ecco < 0.05;
+
+    if (isEcfOutput && isGeo) {
+      timeslice *= numberOfOrbitsToDraw;
+    }
+
+    /*
+     * Quantize the sampling start to the timeslice grid so constant-redraw
+     * resamples reuse IDENTICAL sample times until sim time crosses the next
+     * slice boundary. Sampling from the raw `now` slid every vertex along the
+     * track each frame, and the coarse polyline's chords swayed laterally
+     * within the curve's sagitta - a visible shimmer on zoomed-in ECF lines
+     * (ECI hides it because the slide is along-track near the satellite). The
+     * per-frame head-vertex patch (OrbitManager.writePathToGpu_) keeps the
+     * line glued to the dot between boundary crossings.
+     */
+    const quantizedNow = Math.floor(now / timeslice) * timeslice;
+
+    // For polar view, center the orbit on the current position (±half period)
+    const orbitStart = isPolarViewEcf ? quantizedNow - period / 2 : quantizedNow;
+
+    if (orbitType === OrbitDrawTypes.ORBIT) {
       while (i < len) {
-        const missile = objCache[id];
-
-        if (missile.latList?.length === 0) {
-          pointsOut[i * 4] = 0;
-          pointsOut[i * 4 + 1] = 0;
-          pointsOut[i * 4 + 2] = 0;
-          pointsOut[i * 4 + 3] = 0;
-          i++;
-        } else {
-          drawMissileSegment_(missile, i, pointsOut, len);
-          i++;
-        }
+        drawTleOrbitSegment_(orbitStart, i, timeslice, id, isEcfOutput, points, len, isPolarViewEcf, satrec.jdsatepoch);
+        i++;
       }
-    } else {
-      const nowDate = propTime(dynamicOffsetEpoch, staticOffset, propRate);
-      const nowJ =
-        jday(nowDate.getUTCFullYear(), nowDate.getUTCMonth() + 1, nowDate.getUTCDate(), nowDate.getUTCHours(), nowDate.getUTCMinutes(), nowDate.getUTCSeconds()) +
-        nowDate.getUTCMilliseconds() * 1.15741e-8; // days per millisecond
-      const satrec = objCache[id].satrec as SatelliteRecord;
-      const now = (nowJ - satrec.jdsatepoch) * 1440.0; // in minutes
-
-      // Calculate Satellite Orbits
-      const period = (2 * Math.PI) / satrec.no; // convert rads/min to min
-      let timeslice = period / numberOfSegments;
-
-      // If a ECF output and  Geostationary orbit, then we can draw multiple orbits
-      if (isEcfOutput && period > 1420 && period < 1460 && satrec.ecco < 0.05) {
-        timeslice *= numberOfOrbitsToDraw;
-      } else {
-        isEcfOutput = false;
-      }
-
-      if (orbitType === OrbitDrawTypes.ORBIT) {
-        while (i < len) {
-          drawOrbitSegment_(now, i, timeslice, id, isEcfOutput, period, pointsOut, len);
-          i++;
-        }
-      } else if (orbitType === OrbitDrawTypes.TRAIL) {
-        while (i < len) {
-          drawOrbitSegmentTrail_(now, i, timeslice, id, isEcfOutput, period, pointsOut, len);
-          i++;
-        }
+    } else if (orbitType === OrbitDrawTypes.TRAIL) {
+      while (i < len) {
+        drawTleOrbitSegmentTrail_(orbitStart, i, timeslice, id, isEcfOutput, points, len, isPolarViewEcf, satrec.jdsatepoch);
+        i++;
       }
     }
-
-    postMessageProcessing({ pointsOut, satId: id });
   }
-};
 
-interface OrbitCruncherMessageWorker {
-  pointsOut: Float32Array;
-  satId: number;
-}
-export const postMessageProcessing = ({ pointsOut, satId }: OrbitCruncherMessageWorker) => {
-  try {
-    // TODO: Explore SharedArrayBuffer Options
-    postMessage({
+  const { pointsOut, anchor } = rebaseToAnchor(points);
+
+  postMessage(
+    {
+      typ: OrbitCruncherMsgType.RESPONSE_DATA,
       pointsOut,
-      satId,
-    } as OrbitCruncherMessageWorker);
-  } catch (e) {
-    // If Jest isn't running then throw the error
-    if (!process) {
-      throw e;
-    }
-  }
+      anchor,
+      satId: id,
+      seqNum: currentSeqNum,
+    },
+    { transfer: [pointsOut.buffer as ArrayBuffer] }
+  );
 };
 
-const drawMissileSegment_ = (missile: OrbitCruncherCachedObject, i: number, pointsOut: Float32Array, len: number) => {
-  const x = Math.round(missile.altList.length * (i / numberOfSegments));
+const drawMissileSegment_ = (missile: OrbitCruncherMissileObject, i: number, pointsOut: Float64Array, len: number, gmstAnchor: number, usePerSampleGmst: boolean) => {
+  // Clamp so the final segment (i === numberOfSegments) does not read one past the
+  // end of the lists (which produced a NaN vertex).
+  const x = Math.min(missile.altList.length - 1, Math.round(missile.altList.length * (i / numberOfSegments)));
+  // Sample x is captured at launch + x seconds (1 Hz cadence). With a known launch
+  // epoch, rotate it to ECI by the GMST at that time (anchor + Earth rotation over x
+  // seconds); a single GMST for the whole arc spins a multi-hour trajectory off its
+  // dots. Without a launch epoch, gmstAnchor is already the current-time GMST.
+  const gmst = usePerSampleGmst ? gmstAnchor + EARTH_ROTATION_RAD_PER_SEC * x : gmstAnchor;
 
-  const missileTime = propTime(dynamicOffsetEpoch, staticOffset, propRate);
-  const j =
-    jday(
-      missileTime.getUTCFullYear(),
-      missileTime.getUTCMonth() + 1, // Note, this function requires months in range 1-12.
-      missileTime.getUTCDate(),
-      missileTime.getUTCHours(),
-      missileTime.getUTCMinutes(),
-      missileTime.getUTCSeconds(),
-    ) +
-    missileTime.getUTCMilliseconds() * 1.15741e-8; // days per millisecond
-  const gmst = Sgp4.gstime(j);
+  // Use the ellipsoidal (WGS84) lat/lon/alt -> ECI conversion, the same one
+  // MissileObject.eci() and every other object use. A spherical approximation
+  // (geocentric, fixed 6371 km radius) drifts ~15-20 km from the true position at
+  // high latitude, putting the line off the dot/model near a polar apogee.
+  const eci = lla2eci(
+    { lat: (missile.latList[x] * DEG2RAD) as Radians, lon: (missile.lonList[x] * DEG2RAD) as Radians, alt: missile.altList[x] as Kilometers },
+    gmst as GreenwichMeanSiderealTime
+  );
 
-  const cosLat = Math.cos(missile.latList[x] * DEG2RAD);
-  const sinLat = Math.sin(missile.latList[x] * DEG2RAD);
-  const cosLon = Math.cos(missile.lonList[x] * DEG2RAD + gmst);
-  const sinLon = Math.sin(missile.lonList[x] * DEG2RAD + gmst);
-
-  pointsOut[i * 4] = (RADIUS_OF_EARTH + missile.altList[x]) * cosLat * cosLon;
-  pointsOut[i * 4 + 1] = (RADIUS_OF_EARTH + missile.altList[x]) * cosLat * sinLon;
-  pointsOut[i * 4 + 2] = (RADIUS_OF_EARTH + missile.altList[x]) * sinLat;
+  pointsOut[i * 4] = eci.x;
+  pointsOut[i * 4 + 1] = eci.y;
+  pointsOut[i * 4 + 2] = eci.z;
   pointsOut[i * 4 + 3] = Math.min(orbitFadeFactor * (len / (i + 1)), 1.0);
 };
 
-const drawOrbitSegmentTrail_ = (now: number, i: number, timeslice: number, id: number, isEcfOutput: boolean, period: number, pointsOut: Float32Array, len: number) => {
+const drawTleOrbitSegmentTrail_ = (
+  now: number,
+  i: number,
+  timeslice: number,
+  id: number,
+  isEcfOutput: boolean,
+  pointsOut: Float64Array,
+  len: number,
+  isPolarViewEcf: boolean,
+  jdsatepoch: number
+) => {
   const t = now + i * timeslice;
-  const sv = Sgp4.propagate(objCache[id].satrec, t);
+  const sv = Sgp4.propagate((objCache[id] as OrbitCruncherSatelliteObject).satrec, t);
 
   if (!sv) {
     pointsOut[i * 4] = 0;
@@ -247,10 +278,12 @@ const drawOrbitSegmentTrail_ = (now: number, i: number, timeslice: number, id: n
     return;
   }
 
-  let pos = sv.position as EciVec3;
+  let pos = sv.position as TemeVec3;
 
-  if (isEcfOutput) {
-    pos = eci2ecf(pos, (i * timeslice * TAU) / period);
+  if (isPolarViewEcf || isEcfOutput) {
+    const gmst = Sgp4.gstime(jdsatepoch + t / 1440.0);
+
+    pos = eci2ecef(pos, gmst);
   }
   pointsOut[i * 4] = pos.x;
   pointsOut[i * 4 + 1] = pos.y;
@@ -258,9 +291,19 @@ const drawOrbitSegmentTrail_ = (now: number, i: number, timeslice: number, id: n
   pointsOut[i * 4 + 3] = i < len / 40 ? Math.min(orbitFadeFactor * (len / 40 / (2 * (i + 1))), 1.0) : 0.0;
 };
 
-const drawOrbitSegment_ = (now: number, i: number, timeslice: number, id: number, isEcfOutput: boolean, period: number, pointsOut: Float32Array, len: number) => {
+const drawTleOrbitSegment_ = (
+  now: number,
+  i: number,
+  timeslice: number,
+  id: number,
+  isEcfOutput: boolean,
+  pointsOut: Float64Array,
+  len: number,
+  isPolarViewEcf: boolean,
+  jdsatepoch: number
+) => {
   const t = now + i * timeslice;
-  const sv = Sgp4.propagate(objCache[id].satrec, t);
+  const sv = Sgp4.propagate((objCache[id] as OrbitCruncherSatelliteObject).satrec, t);
 
   if (!sv) {
     pointsOut[i * 4] = 0;
@@ -271,13 +314,111 @@ const drawOrbitSegment_ = (now: number, i: number, timeslice: number, id: number
     return;
   }
 
-  let pos = sv.position as EciVec3;
+  let pos = sv.position as TemeVec3;
 
-  if (isEcfOutput) {
-    pos = eci2ecf(pos, (i * timeslice * TAU) / period);
+  if (isPolarViewEcf || isEcfOutput) {
+    const gmst = Sgp4.gstime(jdsatepoch + t / 1440.0);
+
+    pos = eci2ecef(pos, gmst);
   }
   pointsOut[i * 4] = pos.x;
   pointsOut[i * 4 + 1] = pos.y;
   pointsOut[i * 4 + 2] = pos.z;
   pointsOut[i * 4 + 3] = Math.min(orbitFadeFactor * (len / (i + 1)), 1.0);
 };
+
+const handleMsgInit_ = (data: OrbitCruncherInMsgInit) => {
+  orbitFadeFactor = data.orbitFadeFactor ?? 1.0;
+  numberOfOrbitsToDraw = data.numberOfOrbitsToDraw ?? 1;
+  numberOfSegments = data.numSegs;
+  if (typeof data.seqNum === 'number') {
+    currentSeqNum = data.seqNum;
+  }
+
+  // A malformed payload (e.g. a producer sending undefined before the catalog
+  // loads, issue #1420) must never kill the worker mid-init - that skips
+  // postMessage('ready') and leaves the app with no orbit lines at all. Treat
+  // it as an empty catalog instead.
+  let objData: OrbitCruncherCachedObject[];
+
+  try {
+    objData = typeof data.objData === 'string' ? (JSON.parse(data.objData) as OrbitCruncherCachedObject[]) : [];
+  } catch {
+    objData = [];
+  }
+  const sLen = objData.length - 1;
+  let i = -1;
+
+  while (i < sLen) {
+    i++;
+    if ((objData[i] as OrbitCruncherMissileObject).missile) {
+      objCache[i] = objData[i];
+    } else if ((objData[i] as OrbitCruncherOtherObject).ignore) {
+      objCache[i] = { ignore: true };
+    } else if ((objData[i] as OrbitCruncherSatelliteObject).tle1 && (objData[i] as OrbitCruncherSatelliteObject).tle2) {
+      try {
+        objCache[i] = {
+          satrec: Sgp4.createSatrec((objData[i] as OrbitCruncherSatelliteObject).tle1, (objData[i] as OrbitCruncherSatelliteObject).tle2),
+        } as OrbitCruncherSatelliteObject;
+      } catch {
+        // A single malformed TLE must never abort the whole catalog init - that
+        // leaves the worker without ever calling postMessage('ready'), so boot
+        // hangs at "Building 3D Models…". Skip it; the object just gets no orbit
+        // line, exactly like an `ignore` entry (handled below at draw time).
+        objCache[i] = { ignore: true };
+      }
+    } else {
+      // No usable TLE (e.g. a Satellite whose TLE failed to parse ends up with
+      // empty tle1/tle2). Previously `throw new Error('Invalid Object Data')`,
+      // which stalled the entire cruncher on one bad object; ignore it instead.
+      objCache[i] = { ignore: true };
+    }
+  }
+
+  // Drop residual entries from the previous (larger) catalog so SATELLITE_UPDATE
+  // for an id beyond the new range can't mutate a stale object.
+  objCache.length = objData.length;
+
+  postMessage('ready');
+};
+
+const handleMsgSatelliteUpdate_ = (data: OrbitCruncherInMsgSatelliteUpdate) => {
+  if (data.id >= objCache.length || !objCache[data.id]) {
+    return;
+  }
+  // If new orbit
+  if (data.tle1 && data.tle2) {
+    const satelliteCacheEntry = objCache[data.id] as OrbitCruncherSatelliteObject;
+
+    satelliteCacheEntry.satrec = Sgp4.createSatrec(data.tle1, data.tle2);
+  }
+};
+
+const handleMsgMissileUpdate_ = (data: OrbitCruncherInMsgMissileUpdate) => {
+  if (data.id >= objCache.length || !objCache[data.id]) {
+    return;
+  }
+  const missileCacheEntry = objCache[data.id] as OrbitCruncherMissileObject;
+
+  if (data.latList && data.lonList && data.altList) {
+    missileCacheEntry.latList = data.latList;
+    missileCacheEntry.lonList = data.lonList;
+    missileCacheEntry.altList = data.altList;
+  }
+  // Sent every redraw once known; cache it so per-frame updates (which omit the
+  // heavy lists) still have the launch epoch for per-sample GMST.
+  if (typeof data.startTime === 'number') {
+    missileCacheEntry.startTime = data.startTime;
+  }
+};
+
+const handleMsgSettingsUpdate_ = (data: OrbitCruncherInMsgSettingsUpdate) => {
+  numberOfOrbitsToDraw = data.numberOfOrbitsToDraw ?? numberOfOrbitsToDraw;
+};
+
+const handleMsgChangeOrbitType = (data: OrbitCruncherInMsgChangeOrbitType) => {
+  orbitType = data.orbitType;
+};
+
+// Set up the web worker
+self.onmessage = onMessage;

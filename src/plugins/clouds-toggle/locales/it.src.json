@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "CloudsToggle": {
+      "bottomIconLabel": "Nuvole",
+      "commandPalette": {
+        "toggle": "Attiva/disattiva livello nuvole"
+      }
+    }
+  }
+}

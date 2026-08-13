@@ -1,0 +1,20 @@
+@import url("../../public/css/loading-screen.common.css");
+
+:root {
+  /* Bright blue from the star */
+  --colorTertiary: #046eb6 !important;
+  /* Deep navy background for contrast */
+  --color-dark-background: #002d47 !important;
+  /* Complementary to primary */
+  --color-dark-border: #004270 !important;
+  /* Light blue as highlight */
+  --color-dark-text-accent: #add8e6 !important;
+  /* Neutral gray for muted text */
+  --color-dark-text-muted: #6b6b6b !important;
+  /* Bright blue from the star */
+  --color-primary: #046eb6 !important;
+  /* Light blue accent */
+  --color-primary-light: #add8e6 !important;
+  /* Deep blue for accents */
+  --color-primary-dark: #023456 !important;
+}

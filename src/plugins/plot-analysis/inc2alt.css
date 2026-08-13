@@ -1,0 +1,35 @@
+#inc2alt-plots-menu.side-menu-parent {
+  z-index: 10001 !important;
+  width: 100% !important;
+  min-width: 100% !important;
+  max-width: 100% !important;
+}
+
+#inc2alt-plots-menu .side-menu {
+  height: 100%;
+  position: relative !important;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.plot-analysis-chart.plot-analysis-menu-maximized {
+  width: 100%;
+  flex: 1;
+  min-height: 200px;
+}
+
+#inc2alt-stats {
+  padding: 10px;
+  color: #fff;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+#inc2alt-constellation-counts {
+  margin-top: 5px;
+}
+
+#inc2alt-constellation-counts span {
+  margin-right: 10px;
+}

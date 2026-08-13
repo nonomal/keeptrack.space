@@ -1,0 +1,38 @@
+{
+  "entryPoints": [
+    "src/app",
+    "src/engine",
+    "src/plugins",
+    "src/plugins-pro",
+    "src/settings",
+    "src/webworker",
+    "src/keeptrack.ts",
+    "src/keepTrackApi.ts"
+  ],
+  "entryPointStrategy": "expand",
+  "out": "docs/api",
+  "tsconfig": "tsconfig.build.json",
+  "plugin": [
+    "./build/typedoc-group-plugin.mjs",
+    "typedoc-plugin-merge-modules"
+  ],
+  "mergeModulesMergeMode": "module",
+  "mergeModulesRenameDefaults": true,
+  "exclude": [
+    "**/__tests__/**",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/locales/**",
+    "src/engine/ootk/**"
+  ],
+  "excludePrivate": true,
+  "excludeInternal": true,
+  "includeVersion": true,
+  "name": "KeepTrack API",
+  "readme": "none",
+  "categorizeByGroup": true,
+  "navigation": {
+    "includeCategories": true,
+    "includeGroups": true
+  }
+}

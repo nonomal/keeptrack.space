@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "GraticuleToggle": {
+      "bottomIconLabel": "Reticolo",
+      "commandPalette": {
+        "toggle": "Attiva/Disattiva reticolo (linee griglia)"
+      }
+    }
+  }
+}

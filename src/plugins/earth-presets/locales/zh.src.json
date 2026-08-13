@@ -1,0 +1,14 @@
+{
+  "plugins": {
+    "EarthPresetsPlugin": {
+      "rmbMenu": {
+        "title": "地球样式",
+        "satelliteImages": "卫星图像",
+        "alternateSatelliteImages": "备选卫星图像",
+        "engineeringTool": "工程工具",
+        "operationsCenter": "运营中心",
+        "nineties": "90年代图形"
+      }
+    }
+  }
+}

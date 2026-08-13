@@ -1,0 +1,15 @@
+{
+  "plugins": {
+    "Screenshot": {
+      "bottomIconLabel": "Pořídit snímek",
+      "rmbMenu": {
+        "title": "Uložit obrázek"
+      },
+      "commands": {
+        "take4k": "Snímek obrazovky (4K)",
+        "takeHd": "Snímek obrazovky (HD)",
+        "take8k": "Snímek obrazovky (8K)"
+      }
+    }
+  }
+}

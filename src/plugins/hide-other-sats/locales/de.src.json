@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "HideOtherSatellitesPlugin": {
+      "bottomIconLabel": "Andere ausblenden",
+      "commandPalette": {
+        "toggle": "Andere Satelliten ein-/ausblenden"
+      }
+    }
+  }
+}

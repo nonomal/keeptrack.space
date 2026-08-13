@@ -1,0 +1,8 @@
+{
+  "plugins": {
+    "OrbitReferences": {
+      "tooltip": "在轨道中创建分析卫星",
+      "linkText": "生成轨道参考卫星..."
+    }
+  }
+}

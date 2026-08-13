@@ -1,0 +1,15 @@
+{
+  "plugins": {
+    "Screenshot": {
+      "bottomIconLabel": "Tomar Foto",
+      "rmbMenu": {
+        "title": "Guardar imagen"
+      },
+      "commands": {
+        "take4k": "Captura de pantalla (4K)",
+        "takeHd": "Captura de pantalla (HD)",
+        "take8k": "Captura de pantalla (8K)"
+      }
+    }
+  }
+}

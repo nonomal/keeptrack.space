@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "GraticuleToggle": {
+      "bottomIconLabel": "Координатная сетка",
+      "commandPalette": {
+        "toggle": "Переключить координатную сетку (линии сетки)"
+      }
+    }
+  }
+}

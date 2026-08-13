@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "GraticuleToggle": {
+      "bottomIconLabel": "Graticule",
+      "commandPalette": {
+        "toggle": "Basculer le graticule (lignes de grille)"
+      }
+    }
+  }
+}

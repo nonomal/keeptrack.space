@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "WatchlistFilter": {
+      "bottomIconLabel": "仅显示卫星列表",
+      "errorMsgs": {
+        "noSatellitesInList": "列表中没有卫星"
+      }
+    }
+  }
+}

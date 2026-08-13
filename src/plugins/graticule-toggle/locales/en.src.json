@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "GraticuleToggle": {
+      "bottomIconLabel": "Graticule",
+      "commandPalette": {
+        "toggle": "Toggle Graticule (Grid Lines)"
+      }
+    }
+  }
+}

@@ -1,0 +1,85 @@
+{
+  "plugins": {
+    "PlanetsMenuPlugin": {
+      "bottomIconLabel": "Planeten",
+      "title": "Planetenlisten-Menü",
+      "sections": {
+        "planets": "Planeten",
+        "dwarfPlanets": "Zwergplaneten",
+        "moons": "Monde",
+        "otherCelestialBodies": "Andere Himmelskörper",
+        "star": "Stern",
+        "terrestrialPlanets": "Terrestrische Planeten",
+        "asteroidBelt": "Asteroidengürtel",
+        "gasGiants": "Gasriesen",
+        "iceGiants": "Eisriesen",
+        "transNeptunian": "Transneptunische Objekte"
+      },
+      "bodies": {
+        "Mercury": "Merkur",
+        "Venus": "Venus",
+        "Earth": "Erde",
+        "Mars": "Mars",
+        "Jupiter": "Jupiter",
+        "Saturn": "Saturn",
+        "Uranus": "Uranus",
+        "Neptune": "Neptun",
+        "Pluto": "Pluto",
+        "Makemake": "Makemake",
+        "Eris": "Eris",
+        "Haumea": "Haumea",
+        "Ceres": "Ceres",
+        "Sedna": "Sedna",
+        "Quaoar": "Quaoar",
+        "Orcus": "Orcus",
+        "Gonggong": "Gonggong",
+        "Charon": "Charon",
+        "Moon": "Mond",
+        "Phobos": "Phobos",
+        "Deimos": "Deimos",
+        "Io": "Io",
+        "Europa": "Europa",
+        "Ganymede": "Ganymed",
+        "Callisto": "Kallisto",
+        "Mimas": "Mimas",
+        "Enceladus": "Enceladus",
+        "Tethys": "Tethys",
+        "Dione": "Dione",
+        "Rhea": "Rhea",
+        "Titan": "Titan",
+        "Iapetus": "Iapetus",
+        "Miranda": "Miranda",
+        "Ariel": "Ariel",
+        "Umbriel": "Umbriel",
+        "Titania": "Titania",
+        "Oberon": "Oberon",
+        "Triton": "Triton",
+        "Sun": "Sonne",
+        "Vesta": "Vesta",
+        "Pallas": "Pallas",
+        "Juno": "Juno",
+        "Hygiea": "Hygiea"
+      },
+      "tooltips": {
+        "centerCamera": "Kamera auf {body} zentrieren.",
+        "plannedFuture": "Für zukünftiges Update geplant."
+      },
+      "filterPlaceholder": "Körper filtern…",
+      "commands": {
+        "toggleMenu": "Planetenmenü umschalten",
+        "centerOn": "Kamera auf {body} zentrieren"
+      },
+      "help": {
+        "overview": "Das Planeten-Menü macht KeepTrack zu einem Sonnensystem-Viewer: Wählen Sie einen Planeten, Zwergplaneten, den Mond oder die Sonne, um die Kamera darauf zu zentrieren. Es ist der schnellste Weg, cislunare Geometrie und Geometrie im tiefen Weltraum neben dem Katalog der Erdumlaufbahnen zu untersuchen.",
+        "imgAlt": "Das Planetenlisten-Menü mit Planeten, Zwergplaneten und anderen Körpern",
+        "imgCaption": "Klicken Sie auf einen Körper, um die Kamera darauf zu zentrieren.",
+        "howToUse": "<ol><li>Öffnen Sie das Menü <strong>Planeten</strong> über die untere Leiste oder drücken Sie <strong>P</strong>.</li><li>Klicken Sie auf einen Körper, zum Beispiel <strong>Mars</strong> oder <strong>Mond</strong>. Die Kamera zentriert sich darauf und die Zoomgrenzen passen sich dem neuen Maßstab an.</li><li>Drücken Sie <strong>Home</strong>, um zur Erde zurückzukehren, oder <strong>Shift</strong>+<strong>Home</strong>, um die Erde wieder im Bild zu zentrieren.</li></ol>",
+        "tip1": "Die Bahn eines Mondes wird nur innerhalb des Systems seines Planeten gezeichnet - zentrieren Sie also zuerst Jupiter oder Saturn.",
+        "tip2": "Sie können auch mit der rechten Maustaste in den leeren Raum klicken und einen Körper im Kontextmenü auswählen.",
+        "shortcutToggle": "Planeten-Menü umschalten",
+        "shortcutHome": "Erde als Zentralkörper festlegen",
+        "shortcutCenterEarth": "Kamera auf die Erde zentrieren"
+      }
+    }
+  }
+}

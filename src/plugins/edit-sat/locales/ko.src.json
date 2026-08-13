@@ -1,0 +1,63 @@
+{
+  "plugins": {
+    "EditSat": {
+      "bottomIconLabel": "위성 편집",
+      "title": "위성 편집 메뉴",
+      "help": {
+        "overview": "위성 편집 메뉴를 사용하면 선택한 위성의 궤도 요소를 변경하여 사실상 TLE를 다시 작성하고, TLE를 파일로 저장하거나 불러올 수 있습니다. 실제 객체의 궤도에 대한 가상 실험을 위한 필수 도구입니다.",
+        "imgAlt": "궤도 요소 필드가 있는 위성 편집 메뉴",
+        "imgCaption": "각 필드는 TLE 값에 대응합니다. 주기와 평균 운동은 자동으로 동기화됩니다.",
+        "fieldsHeading": "궤도 요소",
+        "fields": "<ul><li><strong>에포크 연도 / 일</strong>: 궤도 요소가 측정된 시점: 두 자리 연도와 소수점이 포함된 연중 일수(예: 173.25 = 173일째 정오).</li><li><strong>경사각</strong>: 적도에 대한 궤도의 기울기(도 단위).</li><li><strong>적경</strong>: 궤도가 적도를 북쪽으로 가로지르는 위치(도 단위).</li><li><strong>이심률</strong>: \"0.\" 뒤의 숫자만 입력하세요(예: 0001234는 0.0001234를 의미).</li><li><strong>근지점 인수</strong>: 궤도 최저점의 방향(도 단위).</li><li><strong>평균 근점 이각</strong>: 에포크 시점에 위성이 궤도상 어디에 있었는지(도 단위).</li><li><strong>평균 운동 / 주기</strong>: 하루당 공전 수와 궤도당 분 수; 하나를 편집하면 다른 하나가 다시 계산됩니다.</li></ul>",
+        "howToUse": "<ol><li>위성을 선택한 다음 하단 바에서 메뉴를 열거나, E 키를 누르거나, 위성을 마우스 오른쪽 버튼으로 클릭하고 위성 편집을 선택하세요.</li><li>필드를 편집하고 <strong>위성 업데이트</strong>를 클릭하여 적용하세요. 위성이 즉시 새 궤도로 이동합니다.</li><li><strong>에포크를 현재로 업데이트</strong>는 기존 궤도의 시각을 현재 순간으로 다시 맞추어 위성을 현재 위치 위에 유지합니다.</li><li><strong>TLE 저장</strong>은 현재 궤도 요소를 JSON 파일로 내보내고, <strong>TLE 불러오기</strong>는 이전에 저장한 파일을 적용합니다.</li></ol>",
+        "tip1": "새 궤도가 대기권 아래로 내려가는 경우 업데이트가 거부됩니다. 토스트 알림이 다른 매개변수를 시도하라고 안내합니다.",
+        "tip2": "이심률은 가장 흔한 입력 실수입니다: 맨 앞의 \"0.\" 없이 소수 부분 숫자만 입력합니다.",
+        "tip3": "편집 내용은 세션 동안만 유지되며 실제 카탈로그에는 절대 영향을 주지 않습니다. 페이지를 새로 고치면 원래 궤도가 복원됩니다.",
+        "shortcutToggle": "위성 편집 메뉴 전환"
+      },
+      "sections": {
+        "identity": "식별 정보",
+        "epoch": "기준 시각",
+        "elements": "궤도 요소",
+        "calculated": "계산된 매개변수",
+        "actions": "작업"
+      },
+      "labels": {
+        "apogeeKm": "원지점 (km)",
+        "perigeeKm": "근지점 (km)",
+        "periodMin": "주기 (분)",
+        "scc": "위성 SCC#",
+        "country": "국가",
+        "epochYear": "에포크 연도",
+        "epochDay": "에포크 일",
+        "inclination": "경사각",
+        "rightAscension": "적경",
+        "eccentricity": "이심률",
+        "argOfPerigee": "근지점 인수",
+        "meanAnomaly": "평균 근점 이각",
+        "meanMotion": "평균 운동",
+        "period": "주기",
+        "error": "오류"
+      },
+      "buttons": {
+        "resetOriginal": "원본으로 재설정",
+        "updateSatellite": "위성 업데이트",
+        "updateEpoch": "에포크를 현재로 업데이트",
+        "saveTle": "TLE 저장",
+        "loadTle": "TLE 불러오기"
+      },
+      "contextMenu": {
+        "editSat": "위성 편집",
+        "setSecondarySat": "보조 위성으로 설정",
+        "editSatellite": "위성 편집"
+      },
+      "errorMsgs": {
+        "errorReadingFile": "파일 읽기 중 오류 발생!",
+        "satelliteNotFound": "위성 {sccNum}을(를) 찾을 수 없습니다!",
+        "failedToPropagate": "위성 전파에 실패했습니다. 다른 매개변수를 시도하거나, 올바르다고 확신하는 경우 이 문제를 보고해 주세요.",
+        "cannotCalculateDirection": "위성 방향을 계산할 수 없습니다. 나중에 다시 시도해 주세요.",
+        "notRealSatellite": "실제 위성이 아닙니다"
+      }
+    }
+  }
+}

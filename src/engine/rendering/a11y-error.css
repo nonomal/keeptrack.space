@@ -1,0 +1,154 @@
+/* ==========================================================================
+   FATAL ERROR PAGE — ACCESSIBILITY-FIRST
+   Self-contained: no dependency on app CSS vars (they may not be loaded yet).
+   ========================================================================== */
+
+.a11y-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  margin: 0;
+  padding: 2rem;
+  box-sizing: border-box;
+  background: #111;
+  color: #e0e0e0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- Card ---------- */
+
+.a11y-error__card {
+  max-width: 620px;
+  width: 100%;
+  padding: 2.5rem;
+  border: 2px solid #ba160c;
+  border-radius: 8px;
+  background: #1a1a1a;
+}
+
+/* ---------- Header / Logo ---------- */
+
+.a11y-error__header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid #333;
+}
+
+.a11y-error__logo {
+  max-width: 220px;
+  height: auto;
+  filter: drop-shadow(0 0 6px rgba(0, 0, 0, 0.75));
+}
+
+/* ---------- Alert content ---------- */
+
+.a11y-error__icon {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.a11y-error__title {
+  margin: 0 0 0.75rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.a11y-error__description {
+  margin: 0 0 1.5rem;
+  font-size: 1rem;
+  color: #bbb;
+}
+
+.a11y-error__section-title {
+  margin: 0 0 0.5rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #e0e0e0;
+}
+
+.a11y-error__list {
+  margin: 0 0 1.5rem;
+  padding-left: 1.25rem;
+}
+
+.a11y-error__list li {
+  margin-bottom: 0.4rem;
+}
+
+.a11y-error__list li::marker {
+  color: #ba160c;
+}
+
+/* ---------- Technical detail ---------- */
+
+.a11y-error__detail {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #333;
+}
+
+.a11y-error__detail-label {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.a11y-error__detail-value {
+  display: block;
+  padding: 0.5rem 0.75rem;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+  font-size: 0.85rem;
+  color: #e88;
+  background: #222;
+  border-radius: 4px;
+  word-break: break-word;
+}
+
+/* ---------- Footer ---------- */
+
+.a11y-error__footer {
+  left: 0px;
+  padding-left: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #333;
+  font-size: 0.8rem;
+  color: #666;
+}
+
+.a11y-error__version {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+}
+
+.a11y-error__copyright {
+  text-align: center;
+}
+
+/* ---------- Links & focus ---------- */
+
+.a11y-error a:focus-visible {
+  outline: 2px solid #ba160c;
+  outline-offset: 2px;
+}
+
+.a11y-error a {
+  color: #6ea8fe;
+}
+
+.a11y-error a:hover {
+  color: #9ec5fe;
+}

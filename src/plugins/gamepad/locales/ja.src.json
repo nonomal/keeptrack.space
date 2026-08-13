@@ -1,0 +1,8 @@
+{
+  "plugins": {
+    "GamepadPlugin": {
+      "connected": "ゲームパッドが接続されました",
+      "disconnected": "ゲームパッドが切断されました"
+    }
+  }
+}

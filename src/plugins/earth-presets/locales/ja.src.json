@@ -1,0 +1,14 @@
+{
+  "plugins": {
+    "EarthPresetsPlugin": {
+      "rmbMenu": {
+        "title": "地球スタイル",
+        "satelliteImages": "衛星画像",
+        "alternateSatelliteImages": "代替衛星画像",
+        "engineeringTool": "エンジニアリングツール",
+        "operationsCenter": "オペレーションセンター",
+        "nineties": "90年代グラフィックス"
+      }
+    }
+  }
+}

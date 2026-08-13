@@ -1,100 +1,107 @@
 // src/scripts/build.ts
 /* eslint-disable no-process-exit */
-import { MultiCompiler, MultiRspackOptions, MultiStats, rspack } from '@rspack/core';
+import { MultiCompiler, MultiRspackOptions, MultiStats, rspack, StatsCompilation } from '@rspack/core';
+import { readFileSync } from 'node:fs';
+import { relative, resolve } from 'node:path';
+import { gzipSync } from 'node:zlib';
 import { BuildError, ConsoleStyles, ErrorCodes, handleBuildError, logWithStyle } from './lib/build-error';
 import { ConfigManager } from './lib/config-manager';
 import { FileSystemManager } from './lib/filesystem-manager';
-import { PluginManager } from './lib/plugin-manager';
+import { reporter } from './lib/reporter';
 import { VersionManager } from './lib/version-manager';
 import { WebpackManager } from './webpack-manager';
+
+/** Human-friendly step labels for the named compiler children. */
+const COMPILER_LABELS: Record<string, string> = {
+  MainFiles: 'Compile main app',
+  WebWorkers: 'Compile web workers',
+  AuthFiles: 'Compile auth pages',
+};
+
+/** Number of individual assets listed in the final summary table. */
+const ASSET_TABLE_ROWS = 8;
 
 class BuildManager {
   /**
    * Main build process
    */
   static build() {
-    try {
-      console.clear();
-      logWithStyle('Starting build process', ConsoleStyles.INFO);
+    const startedAt = Date.now();
 
+    try {
       // Initialize utilities
       const fileManager = new FileSystemManager(import.meta.url);
       const configManager = new ConfigManager();
-      const pluginManager = new PluginManager(fileManager);
       const versionManager = new VersionManager(fileManager);
 
-      // Check for .env file - if it is missing copy from .env.example
-      if (!fileManager.fileExists('./.env')) {
+      // In legacy .env mode, ensure .env exists before loading config
+      const isProfileMode = process.argv.some((arg) => arg.startsWith('--profile='));
+
+      if (!isProfileMode && !fileManager.fileExists('./.env')) {
         fileManager.copyFile('./.env.example', './.env', { force: false });
         logWithStyle('.env file not found, copied from .env.example', ConsoleStyles.WARNING);
       }
 
-      // Load configuration
-      const config = configManager.loadConfig(process.argv.slice(2));
+      // Load configuration (pass rootDir so ProfileLoader can find configs/)
+      const config = configManager.loadConfig(process.argv.slice(2), fileManager.rootDir);
+      const appVersion = JSON.parse(fileManager.readFile('./package.json')).version as string;
 
-      // Prepare build directory
-      fileManager.prepareBuildDirectory('./dist');
+      reporter.banner('KeepTrack', `v${appVersion} · ${config.edition} · ${config.mode}`);
 
-      // Copy static files
-      logWithStyle('Copying static files', ConsoleStyles.DEBUG);
-      fileManager.copyTopLevelFiles('./public', './dist');
+      reporter.phase('Prepare dist', () => fileManager.prepareBuildDirectory('./dist'));
 
-      // Copy resource directories
-      const resourceDirs = ['img/favicons', 'img/pwa', 'img/achievements', 'data', 'meshes', 'res', 'simulation', 'textures', 'tle'];
+      reporter.phase('Copy static assets', () => {
+        fileManager.copyTopLevelFiles('./public', './dist');
 
-      resourceDirs.forEach((dir) => {
-        fileManager.copyDirectory(`public/${dir}`, `dist/${dir}`, { recursive: true });
+        // Copy resource directories
+        const resourceDirs = ['img/favicons', 'img/pwa', 'img/achievements', 'data', 'meshes', 'res', 'settings', 'simulation', 'textures', 'tle'];
+
+        resourceDirs.forEach((dir) => {
+          fileManager.copyDirectory(`public/${dir}`, `dist/${dir}`, { recursive: true });
+        });
+
+        // Copy pro examples if available
+        fileManager.copyDirectory('src/plugins-pro/examples', 'dist/examples', { isOptional: true, recursive: true });
+
+        /*
+         * Bundle the USSF Astro Standards Sgp4Prop WebAssembly artifacts for Pro
+         * builds only. They live in the proprietary plugins-pro submodule
+         * (src/plugins-pro/wasm/sgp4prop/) together with LICENSE.txt (the USSF
+         * Open Source Agreement), which is copied alongside so a copy of the
+         * Agreement travels with each distribution (Agreement 3.A.1). OSS builds
+         * ship without them and fall back to ootk's pure-TypeScript SGP4.
+         */
+        if (config.isPro) {
+          fileManager.copyDirectory('src/plugins-pro/wasm/sgp4prop', 'dist/wasm/sgp4prop', { isOptional: true, recursive: true });
+        }
+
+        // Copy profile-specific runtime files (not bundled by webpack)
+        if (config.settingsPath && config.settingsPath !== 'public/settings/settingsOverride.js') {
+          fileManager.copyFile(config.settingsPath, './dist/settings/settingsOverride.js', { force: true });
+        }
+        if (config.favIconPath && config.favIconPath !== 'public/img/favicons/favicon.ico') {
+          fileManager.copyFile(config.favIconPath, './dist/img/favicons/favicon.ico', { force: true });
+        }
       });
 
-      // Apply custom configurations
-      fileManager.copyDirectory('src/plugins-pro/examples', 'dist/examples', { isOptional: true, recursive: true });
-
-      // Apply custom configurations
-      if (config.textLogoPath) {
-        fileManager.copyFile(config.textLogoPath, './dist/img/logo.png', { force: true });
-      }
-      if (config.primaryLogoPath) {
-        fileManager.copyFile(config.primaryLogoPath, './dist/img/logo-primary.png', { force: true });
-      }
-
-      if (config.secondaryLogoPath) {
-        fileManager.copyFile(config.secondaryLogoPath, './dist/img/logo-secondary.png', { force: true });
-      }
-
-      if (config.styleCssPath) {
-        // Verify the file exists
-        if (!fileManager.fileExists(config.styleCssPath)) {
-          throw new BuildError(`Style CSS file not found: ${config.styleCssPath}`, ErrorCodes.FILE_NOT_FOUND);
-        }
-      }
-
-      if (config.loadingScreenCssPath) {
-        // Verify the file exists
-        if (!fileManager.fileExists(config.loadingScreenCssPath)) {
-          throw new BuildError(`Loading screen CSS file not found: ${config.loadingScreenCssPath}`, ErrorCodes.FILE_NOT_FOUND);
-        }
-      }
-
-      if (config.favIconPath) {
-        fileManager.copyFile(config.favIconPath, './dist/img/favicons/favicon.ico', { force: true });
-      }
-
-      if (config.settingsPath) {
-        fileManager.copyFile(config.settingsPath, './dist/settings/settingsOverride.js', { force: true });
-      }
-
-      if (config.isPro) {
-        // Merge locales files
-        fileManager.mergeLocales('src/locales', 'src/plugins-pro/locales');
+      /*
+       * Every npm script and CI step runs generate-translation.ts immediately before
+       * this (via prebuild or an explicit chain), which already merges all locale
+       * files into src/locales. Those callers pass --skip-locales so the ~2,000
+       * .src.json files are not re-read and re-merged a second time per build.
+       */
+      if (process.argv.includes('--skip-locales')) {
+        reporter.skip('Locales', 'pre-merged by generate-translation');
+      } else if (config.isPro) {
+        reporter.phase('Merge locales', () => fileManager.mergeLocales('src', 'src/plugins-pro'), (result) => `${result.languages} languages`);
       } else {
-        fileManager.compileLocales('src/locales');
+        reporter.phase('Compile locales', () => fileManager.compileLocales('src'));
       }
 
-      // Configure plugins
-      pluginManager.configurePlugins(config.isPro);
-
-      // Update version information
-      versionManager.generateVersionFile('./package.json', 'src/settings/version.js');
+      reporter.phase('Update version', () => {
+        versionManager.updateVersionReferences('./package.json');
+        versionManager.updateServiceWorkerVersion('./package.json');
+      }, () => `v${appVersion}`);
 
       // Generate webpack configuration
       const webpackConfig = WebpackManager.createConfig(config) as MultiRspackOptions;
@@ -111,8 +118,7 @@ class BuildManager {
         logWithStyle('Watching for changes...', ConsoleStyles.INFO);
         BuildManager.watchCompilers(compiler);
       } else {
-        logWithStyle('Running one-time build', ConsoleStyles.INFO);
-        BuildManager.runCompilers(compiler);
+        BuildManager.runCompilers(compiler, startedAt);
       }
     } catch (error) {
       handleBuildError(error);
@@ -123,6 +129,9 @@ class BuildManager {
    * Handles compiler results
    */
   static handleCompilerResults(err: Error | null, stats?: MultiStats) {
+    // The progress bar line must not survive into the results output
+    reporter.clearProgress();
+
     if (err) {
       handleBuildError(err, false);
 
@@ -152,6 +161,32 @@ class BuildManager {
           source: false,
         }),
       );
+
+      BuildManager.hintExternalPluginFailure(stats);
+    }
+  }
+
+  /**
+   * When a compile error originates in an installed third-party plugin, point the
+   * user at the plugin CLI instead of leaving them to decode an engine-internal
+   * stack from code they did not write.
+   */
+  private static hintExternalPluginFailure(stats: MultiStats) {
+    const errorsText = JSON.stringify(stats.toJson({ errors: true, all: false }).children ?? []);
+    const names = new Set<string>();
+    const re = /src[\\/]plugins-external[\\/]([^\\/"]+)/gu;
+    let m: RegExpExecArray | null = re.exec(errorsText);
+
+    while (m !== null) {
+      names.add(m[1]);
+      m = re.exec(errorsText);
+    }
+
+    for (const name of names) {
+      logWithStyle(
+        `External plugin "${name}" failed to compile. Try "npm run plugin -- update ${name}" or "npm run plugin -- remove ${name}".`,
+        ConsoleStyles.WARNING,
+      );
     }
   }
 
@@ -159,8 +194,20 @@ class BuildManager {
    * Sets up watch mode for the compilers
    */
   static watchCompilers(compilers: MultiCompiler) {
+    let isFirstBuild = true;
+
     compilers.watch({}, (err: Error | null, stats?: MultiStats) => {
       BuildManager.handleCompilerResults(err, stats);
+
+      if (!err && stats && !stats.hasErrors()) {
+        const children = stats.toJson({ assets: false, timings: true, modules: false, chunks: false, errors: false, warnings: false }).children ?? [];
+        const slowest = Math.max(...children.map((child) => child.time ?? 0), 0);
+
+        reporter.rebuilt(slowest, isFirstBuild ? 'built' : 'rebuilt');
+        isFirstBuild = false;
+      } else {
+        logWithStyle('Rebuild failed', ConsoleStyles.ERROR);
+      }
     });
 
     // Setup process signal handlers for graceful shutdown
@@ -170,9 +217,11 @@ class BuildManager {
   /**
    * Runs the compilers once
    */
-  static runCompilers(compilers: MultiCompiler) {
+  static runCompilers(compilers: MultiCompiler, startedAt: number) {
     compilers.run((err: Error | null, stats?: MultiStats) => {
       BuildManager.handleCompilerResults(err, stats);
+
+      const failed = Boolean(err) || Boolean(stats?.hasErrors());
 
       // Close the compiler to let the process exit
       compilers.close((closeErr: Error | null) => {
@@ -180,9 +229,69 @@ class BuildManager {
           handleBuildError(closeErr, false);
         }
 
-        logWithStyle('Build completed successfully!', ConsoleStyles.SUCCESS);
+        if (failed || closeErr) {
+          // A failed compile must exit non-zero so CI catches it here rather than
+          // serving an app-less dist to the downstream smoke tests.
+          logWithStyle('Build failed.', ConsoleStyles.ERROR);
+          process.exit(1);
+        }
+
+        BuildManager.printBuildSummary(stats, startedAt);
       });
     });
+  }
+
+  /**
+   * Prints per-compiler timings, the largest emitted assets with their gzip
+   * sizes, and the total build duration.
+   */
+  static printBuildSummary(stats: MultiStats, startedAt: number) {
+    const children: StatsCompilation[] = stats.toJson({ assets: true, timings: true, outputPath: true, modules: false, chunks: false, errors: false, warnings: false }).children ?? [];
+
+    for (const child of children) {
+      const label = COMPILER_LABELS[child.name ?? ''] ?? `Compile ${child.name ?? 'bundle'}`;
+
+      reporter.stepDone(label, child.time ?? 0);
+    }
+
+    // Asset names are relative to each child's own output dir (dist/js or dist/auth)
+    const distDir = resolve('dist');
+    const assets = children
+      .flatMap((child) => {
+        const outDir = child.outputPath ?? resolve('dist/js');
+
+        return (child.assets ?? []).map((asset) => ({
+          path: resolve(outDir, asset.name),
+          size: asset.size,
+        }));
+      })
+      .filter((asset) => !asset.path.endsWith('.map') && !asset.path.endsWith('.LICENSE.txt'));
+
+    const rows = [...assets]
+      .sort((a, b) => b.size - a.size)
+      .slice(0, ASSET_TABLE_ROWS)
+      .map((asset) => ({
+        name: `dist/${relative(distDir, asset.path).replaceAll('\\', '/')}`,
+        size: asset.size,
+        gzipSize: BuildManager.tryGzipSize_(asset.path),
+      }));
+
+    const totalBytes = assets.reduce((sum, asset) => sum + asset.size, 0);
+
+    reporter.assetSummary(rows, assets.length, totalBytes);
+    reporter.done(Date.now() - startedAt);
+  }
+
+  /**
+   * Returns the gzip size of an emitted file, or undefined when it cannot be
+   * read (the table then simply omits the gzip column for that row).
+   */
+  private static tryGzipSize_(filePath: string): number | undefined {
+    try {
+      return gzipSync(readFileSync(filePath)).length;
+    } catch {
+      return undefined;
+    }
   }
 
   /**
@@ -199,7 +308,7 @@ class BuildManager {
     });
 
     process.on('exit', () => {
-      logWithStyle('Exiting build process', ConsoleStyles.INFO);
+      logWithStyle('Exiting build process', ConsoleStyles.DEBUG);
     });
   }
 }

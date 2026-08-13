@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "SkipInterpolationToggle": {
+      "bottomIconLabel": "跳过插值",
+      "commandPalette": {
+        "toggle": "切换跳过 TLE 插值"
+      }
+    }
+  }
+}

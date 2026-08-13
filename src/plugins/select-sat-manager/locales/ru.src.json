@@ -1,0 +1,17 @@
+{
+  "SelectSatManager": {
+    "objectInsideEarth": "Объект находится внутри Земли, выбор невозможен",
+    "secondaryObjectSet": "Вторичный объект установлен: {name}"
+  },
+  "plugins": {
+    "SelectSatManager": {
+      "sectionLabel": "Satellite Selection",
+      "settings": {
+        "focusOnSatWhenSelected": {
+          "label": "Focus on Satellite When Selected",
+          "helpText": "Zoom in on the satellite when selected."
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "SkipInterpolationToggle": {
+      "bottomIconLabel": "보간 건너뛰기",
+      "commandPalette": {
+        "toggle": "TLE 보간 건너뛰기 전환"
+      }
+    }
+  }
+}

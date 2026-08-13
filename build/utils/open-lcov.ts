@@ -1,8 +1,8 @@
-import opener from 'opener';
-import path from 'path';
+import path from 'node:path';
+import { openFile } from './open-file';
 
 const __dirname = path.resolve(path.dirname(''));
-const filePath = path.join(__dirname, '/coverage/lcov-report/index.html');
+const filePath = path.join(__dirname, '/coverage/index.html');
 
 console.log(filePath);
-opener(filePath);
+openFile(filePath);

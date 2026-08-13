@@ -1,0 +1,7 @@
+{
+  "SatInfoBoxManeuver": {
+    "noEventDetected": "Aucun événement détecté",
+    "orbitOutOfFamily": "Orbite hors famille",
+    "stabilityChange": "Changement de stabilité"
+  }
+}

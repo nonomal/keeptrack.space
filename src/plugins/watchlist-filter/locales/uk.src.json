@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "WatchlistFilter": {
+      "bottomIconLabel": "Показати лише список супутників",
+      "errorMsgs": {
+        "noSatellitesInList": "Немає супутників у списку"
+      }
+    }
+  }
+}

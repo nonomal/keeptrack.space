@@ -19,37 +19,45 @@
  * /////////////////////////////////////////////////////////////////////////////
  */
 
-import { KeepTrackApiEvents, MenuMode } from '@app/interfaces';
-import { keepTrackApi } from '@app/keepTrackApi';
+import { DetailedSensor } from '@app/app/sensors/DetailedSensor';
+import { MenuMode } from '@app/engine/core/interfaces';
+import { PluginRegistry } from '@app/engine/core/plugin-registry';
+import { EventBus } from '@app/engine/events/event-bus';
+import { EventBusEvent } from '@app/engine/events/event-bus-events';
+import { KeepTrackPlugin } from '@app/engine/plugins/base-plugin';
+import { IBottomIconConfig, IconPlacement, UtilityGroup } from '@app/engine/plugins/core/plugin-capabilities';
 import fencePng from '@public/img/icons/fence.png';
-import { DetailedSensor } from 'ootk';
-import { KeepTrackPlugin } from '../KeepTrackPlugin';
 import { SensorFov } from '../sensor-fov/sensor-fov';
 import { SensorListPlugin } from '../sensor-list/sensor-list';
 
 export class SensorSurvFence extends KeepTrackPlugin {
   readonly id = 'SensorSurvFence';
   dependencies_: string[] = [SensorListPlugin.name];
-  bottomIconCallback = () => {
-    if (!this.isMenuButtonActive) {
-      this.disableSurvView();
-    } else {
-      this.enableSurvView_();
-    }
-  };
 
-  menuMode: MenuMode[] = [MenuMode.ADVANCED, MenuMode.ALL];
-
-  bottomIconImg = fencePng;
   isIconDisabledOnLoad = true;
   isIconDisabled = true;
   isRequireSensorSelected = true;
 
+  bottomIconCallback = (): void => {
+    this.onBottomIconClick();
+  };
+
+  getBottomIconConfig(): IBottomIconConfig {
+    return {
+      elementName: 'sensor-surv-fence-bottom-icon',
+      label: 'Surv Fence',
+      image: fencePng,
+      menuMode: [MenuMode.SENSORS, MenuMode.ALL],
+      isDisabledOnLoad: true,
+      placement: IconPlacement.UTILITY_ONLY,
+      utilityGroup: UtilityGroup.LAYER_TOGGLE,
+    };
+  }
+
   addJs(): void {
     super.addJs();
 
-    keepTrackApi.on(KeepTrackApiEvents.setSensor, this.enableIfSensorSelected.bind(this));
-    keepTrackApi.on(KeepTrackApiEvents.sensorDotSelected, this.enableIfSensorSelected.bind(this));
+    EventBus.getInstance().on(EventBusEvent.sensorDotSelected, this.enableIfSensorSelected.bind(this));
   }
 
   enableIfSensorSelected(sensor?: DetailedSensor): void {
@@ -60,12 +68,20 @@ export class SensorSurvFence extends KeepTrackPlugin {
     }
   }
 
+  onBottomIconClick(): void {
+    if (!this.isMenuButtonActive) {
+      this.disableSurvView();
+    } else {
+      this.enableSurvView_();
+    }
+  }
+
   disableSurvView() {
     this.setBottomIconToUnselected(false);
   }
 
   private enableSurvView_() {
-    keepTrackApi.getPlugin(SensorFov)?.setBottomIconToUnselected();
+    PluginRegistry.getPlugin(SensorFov)?.setBottomIconToUnselected();
     this.setBottomIconToSelected();
   }
 }

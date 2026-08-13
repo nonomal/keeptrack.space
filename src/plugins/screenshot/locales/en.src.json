@@ -1,0 +1,15 @@
+{
+  "plugins": {
+    "Screenshot": {
+      "bottomIconLabel": "Take Photo",
+      "rmbMenu": {
+        "title": "Save Image"
+      },
+      "commands": {
+        "take4k": "Take Screenshot (4K)",
+        "takeHd": "Take Screenshot (HD)",
+        "take8k": "Take Screenshot (8K)"
+      }
+    }
+  }
+}

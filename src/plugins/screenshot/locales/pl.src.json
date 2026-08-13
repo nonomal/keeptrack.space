@@ -1,0 +1,15 @@
+{
+  "plugins": {
+    "Screenshot": {
+      "bottomIconLabel": "Zrób zdjęcie",
+      "rmbMenu": {
+        "title": "Zapisz obraz"
+      },
+      "commands": {
+        "take4k": "Zrzut ekranu (4K)",
+        "takeHd": "Zrzut ekranu (HD)",
+        "take8k": "Zrzut ekranu (8K)"
+      }
+    }
+  }
+}

@@ -1,9 +1,11 @@
+import { PluginRegistry } from '@app/engine/core/plugin-registry';
+import { ServiceLocator } from '@app/engine/core/service-locator';
+import { EarthTextureStyle } from '@app/engine/rendering/draw-manager/earth-quality-enums';
+import { KeepTrack } from '@app/keeptrack';
 import { SelectSatManager } from '@app/plugins/select-sat-manager/select-sat-manager';
-import { EarthTextureStyle } from '@app/singletons/draw-manager/earth';
-import { Degrees, Kilometers, Milliseconds } from 'ootk';
-import { keepTrackApi } from '../../keepTrackApi';
-import { getEl, hideEl, setInnerHtml } from '../../lib/get-el';
-import { lat2pitch, lon2yaw } from '../../lib/transforms';
+import { Degrees, Kilometers, Milliseconds } from '@ootk/src/main';
+import { getEl, hideEl, setInnerHtml } from '../../engine/utils/get-el';
+import { lat2pitch, lon2yaw } from '../../engine/utils/transforms';
 import { TimeMachine } from '../../plugins/time-machine/time-machine';
 import { SettingsManager } from '../settings';
 
@@ -25,7 +27,6 @@ export const starTalk = (settingsManager: SettingsManager) => {
   settingsManager.maxFieldOfViewMarkers = 1;
   settingsManager.noMeshManager = true;
   settingsManager.isLoadLastMap = false;
-  settingsManager.isShowAgencies = false;
   settingsManager.earthTextureStyle = EarthTextureStyle.BLUE_MARBLE;
   settingsManager.isAllowRightClick = false;
   settingsManager.isDisableSelectSat = false;
@@ -56,12 +57,10 @@ export const starTalk = (settingsManager: SettingsManager) => {
   settingsManager.orbitGroupAlpha = 0.25; // Transparency of satellite orbits (transparency has no impact on load times)
 
   /*
-   * NOTE: Ideally you want each draw cycle to complete within 16ms. 10,000 creates enough lines to make it seem like "everything" to
-   * the average person while still keeping performance acceptable.
+   * NOTE: Ideally you want each draw cycle to complete within 16ms. Larger values
+   * draw more orbits but may regress frame time.
    */
-  settingsManager.maxOribtsDisplayedDesktopAll = 10000; // This applies when showing "all" orbits and improves performance substantially
-  settingsManager.maxOribtsDisplayedDesktop = 200000; // settingsManager applies when searching (ie time machine)
-  settingsManager.maxOribtsDisplayed = 100000;
+  settingsManager.maxOrbitsDisplayed = 200000;
   settingsManager.searchLimit = 100000;
   settingsManager.minZoomDistance = <Kilometers>10000;
   settingsManager.maxZoomDistance = <Kilometers>100000;
@@ -71,7 +70,7 @@ export const starTalk = (settingsManager: SettingsManager) => {
    * yearStr is the last two digits of the year in string format
    */
   settingsManager.timeMachineString = (yearStr) => {
-    keepTrackApi.getUiManager().dismissAllToasts(); // Dismiss All Toast Messages (workaround to avoid animations)
+    ServiceLocator.getUiManager().dismissAllToasts(); // Dismiss All Toast Messages (workaround to avoid animations)
     const yearPrefix = parseInt(yearStr) < 57 ? '20' : '19';
     const english = `In ${yearPrefix}${yearStr}`;
     /*
@@ -81,13 +80,13 @@ export const starTalk = (settingsManager: SettingsManager) => {
     const satellitesSpan = '<span style="color: rgb(35, 255, 35);">Satellites </span>';
     const debrisSpan = '<span style="color: rgb(102, 102, 102);">Debris </span>';
 
-    getEl('textOverlay')!.innerHTML = `${satellitesSpan} and ${debrisSpan} ${english}`;
+    setInnerHtml('textOverlay', `${satellitesSpan} and ${debrisSpan} ${english}`);
 
     return `${english}`;
   };
 
   settingsManager.onLoadCb = () => {
-    keepTrackApi.getTimeManager().setSelectedDate(new Date(2025, 3, 9, 17, 0)); // Set Date to 2022
+    ServiceLocator.getTimeManager().setSelectedDate(new Date(2025, 3, 9, 17, 0)); // Set Date to 2022
 
     hideEl('nav-footer');
 
@@ -95,7 +94,7 @@ export const starTalk = (settingsManager: SettingsManager) => {
     const textOverlay = document.createElement('div');
 
     textOverlay.id = 'textOverlay';
-    keepTrackApi.containerRoot.appendChild(textOverlay);
+    KeepTrack.getInstance().containerRoot.appendChild(textOverlay);
 
     // Update CSS
     const toastCss = `
@@ -136,26 +135,26 @@ export const starTalk = (settingsManager: SettingsManager) => {
     settingsManager.loopTimeMachine = true; // Loop through the years
 
     const startTimeMachine = () => {
-      keepTrackApi.getPlugin(SelectSatManager)?.selectSat(-1); // Deselect Any Satellites
+      PluginRegistry.getPlugin(SelectSatManager)?.selectSat(-1); // Deselect Any Satellites
       setTimeout(() => {
-        (keepTrackApi.getPlugin(TimeMachine)!).historyOfSatellitesPlay(); // Start Time Machine
-        keepTrackApi.getMainCamera().zoomTarget = 1; // Reset Zoom to Default
-        keepTrackApi.getMainCamera().camSnap(lat2pitch(DEFAULT_LATITUDE), lon2yaw(DEFAULT_LONGITUDE, new Date())); // Reset Camera to Default
+        PluginRegistry.getPlugin(TimeMachine)!.historyOfSatellitesPlay(); // Start Time Machine
+        ServiceLocator.getMainCamera().state.zoomTarget = 1; // Reset Zoom to Default
+        ServiceLocator.getMainCamera().camSnap(lat2pitch(DEFAULT_LATITUDE), lon2yaw(DEFAULT_LONGITUDE, new Date())); // Reset Camera to Default
       }, 100);
       setTimeout(() => {
-        keepTrackApi.getMainCamera().isAutoPitchYawToTarget = false; // Disable Camera Snap Mode
-        keepTrackApi.getMainCamera().autoRotate(true); // Start Rotating Camera
+        ServiceLocator.getMainCamera().state.isAutoPitchYawToTarget = false; // Disable Camera Snap Mode
+        ServiceLocator.getMainCamera().autoRotate(true); // Start Rotating Camera
       }, DELAY_BEFORE_ROTATING);
     };
 
     // Initialize
     settingsManager.lastInteractionTime = Date.now() - RESTART_ROTATE_TIME * 1000 + 1000;
-    const allSatsGroup = keepTrackApi.getGroupsManager().createGroup(0, null); // All Satellites
+    const allSatsGroup = ServiceLocator.getGroupsManager().createGroup(0, null); // All Satellites
 
     setInnerHtml('textOverlay', 'Building Buffers');
 
     // Show All Orbits first to build buffers
-    keepTrackApi.getGroupsManager().selectGroup(allSatsGroup); // Show all orbits
+    ServiceLocator.getGroupsManager().selectGroup(allSatsGroup); // Show all orbits
     setTimeout(() => {
       // Start Time Machine after 5 seconds to allow for buffers to be built
       startTimeMachine();
@@ -163,24 +162,24 @@ export const starTalk = (settingsManager: SettingsManager) => {
       setInterval(() => {
         if (Date.now() - settingsManager.lastInteractionTime > RESTART_ROTATE_TIME * 1000) {
           // If Time Machine is Off
-          if (!(keepTrackApi.getPlugin(TimeMachine)!).isTimeMachineRunning) {
+          if (!PluginRegistry.getPlugin(TimeMachine)!.isTimeMachineRunning) {
             startTimeMachine();
-          } else if ((keepTrackApi.getPlugin(TimeMachine)!).historyOfSatellitesRunCount >= 67) {
+          } else if (PluginRegistry.getPlugin(TimeMachine)!.historyOfSatellitesRunCount >= 67) {
             setTimeout(() => {
               startTimeMachine();
             }, settingsManager.timeMachineDelay);
           }
           // If Time Machine is Running
-        } else if ((keepTrackApi.getPlugin(TimeMachine)!).isTimeMachineRunning) {
-          (keepTrackApi.getPlugin(TimeMachine)!).isTimeMachineRunning = false; // Stop Time Machine
+        } else if (PluginRegistry.getPlugin(TimeMachine)!.isTimeMachineRunning) {
+          PluginRegistry.getPlugin(TimeMachine)!.isTimeMachineRunning = false; // Stop Time Machine
 
-          settingsManager.colors.transparent = keepTrackApi.getOrbitManager().tempTransColor;
+          settingsManager.colors.transparent = ServiceLocator.getOrbitManager().tempTransColor;
 
-          keepTrackApi.getGroupsManager().selectGroup(allSatsGroup); // Show all orbits
+          ServiceLocator.getGroupsManager().selectGroup(allSatsGroup); // Show all orbits
 
           // groupsManager.selectGroup(null); // Deselect all orbits
-          keepTrackApi.getColorSchemeManager().calculateColorBuffers(true); // Reset All Colors
-          keepTrackApi.getUiManager().dismissAllToasts();
+          ServiceLocator.getColorSchemeManager().calculateColorBuffers(true); // Reset All Colors
+          ServiceLocator.getUiManager().dismissAllToasts();
 
           /*
            * Add these four lines if you want to hide the orbits when interacting with the mouse

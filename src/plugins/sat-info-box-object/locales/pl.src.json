@@ -1,0 +1,56 @@
+{
+  "SatInfoBoxObject": {
+    "title": "Dane obiektu",
+    "Type": {
+      "label": "Typ",
+      "tooltip": "Typ obiektu",
+      "unknown": "Do ogłoszenia",
+      "payload": "Ładunek",
+      "rocketBody": "Korpus rakiety",
+      "debris": "Śmieci kosmiczne",
+      "special": "Specjalny",
+      "missile": "Pocisk balistyczny"
+    },
+    "Status": {
+      "label": "Status",
+      "tooltip": "Status operacyjny obiektu",
+      "operational": "Operacyjny",
+      "nonOperational": "Nieoperacyjny",
+      "partiallyOperational": "Częściowo operacyjny",
+      "extendedMission": "Przedłużona misja",
+      "backupStandby": "Rezerwowy/Gotowy",
+      "spare": "Zapasowy",
+      "unknown": "Nieznany"
+    },
+    "Country": {
+      "label": "Kraj",
+      "tooltip": "Kraj pochodzenia"
+    },
+    "LaunchSite": {
+      "label": "Miejsce startu",
+      "tooltip": "Miejsce, z którego obiekt został wystrzelony"
+    },
+    "LaunchVehicle": {
+      "label": "Pojazd wynoszący",
+      "tooltip": "Rakieta lub pojazd użyty do wystrzelenia obiektu"
+    },
+    "Configuration": {
+      "label": "Konfiguracja",
+      "tooltip": "Konfiguracja rakiety lub pojazdu wynoszącego"
+    },
+    "RCS": {
+      "label": "RCS",
+      "tooltip": "Przekrój radarowy - Jak silnie obiekt odbija sygnał radarowy (w m²)"
+    },
+    "StdMag": {
+      "label": "Jasność std.",
+      "tooltip": "Jasność standardowa - Mniejsze liczby oznaczają jaśniejszy obiekt"
+    },
+    "AppMag": {
+      "label": "Jasność obs.",
+      "tooltip": "Obserwowana jasność wizualna z wybranego sensora w bieżącym czasie symulacji"
+    },
+    "estimatedSuffix": "(szac.)",
+    "unknown": "Nieznany"
+  }
+}

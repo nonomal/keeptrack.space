@@ -1,0 +1,14 @@
+{
+  "plugins": {
+    "SatChanges": {
+      "bottomIconLabel": "Zmiany satelitów",
+      "title": "Interesujące manewry",
+      "tableHeaders": {
+        "time": "Czas",
+        "satellite": "Sat",
+        "inclination": "Ink",
+        "period": "Okr"
+      }
+    }
+  }
+}

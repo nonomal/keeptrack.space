@@ -1,11 +1,13 @@
-import { KeepTrackApiEvents } from '@app/interfaces';
-import { keepTrackApi } from '@app/keepTrackApi';
-import { getEl, hideEl, showEl } from '@app/lib/get-el';
-
-import { CatalogManager } from '@app/singletons/catalog-manager';
-import { StringifiedNumber } from '@app/static/sat-math';
-import { BaseObject, FormatTle, Tle } from 'ootk';
-import { KeepTrackPlugin } from '../KeepTrackPlugin';
+import { StringifiedNumber } from '@app/app/analysis/sat-math';
+import { CatalogManager } from '@app/app/data/catalog-manager';
+import { PluginRegistry } from '@app/engine/core/plugin-registry';
+import { ServiceLocator } from '@app/engine/core/service-locator';
+import { EventBus } from '@app/engine/events/event-bus';
+import { EventBusEvent } from '@app/engine/events/event-bus-events';
+import { html } from '@app/engine/utils/development/formatter';
+import { getEl, hideEl, showEl } from '@app/engine/utils/get-el';
+import { BaseObject, FormatTle, Satellite, Tle } from '@ootk/src/main';
+import { KeepTrackPlugin } from '../../engine/plugins/base-plugin';
 import { SatInfoBox } from '../sat-info-box/sat-info-box';
 import { SelectSatManager } from '../select-sat-manager/select-sat-manager';
 
@@ -16,7 +18,7 @@ export class OrbitReferences extends KeepTrackPlugin {
 
   constructor() {
     super();
-    this.selectSatManager_ = keepTrackApi.getPlugin(SelectSatManager) as unknown as SelectSatManager; // this will be validated in KeepTrackPlugin constructor
+    this.selectSatManager_ = PluginRegistry.getPlugin(SelectSatManager) as unknown as SelectSatManager; // this will be validated in KeepTrackPlugin constructor
   }
 
   doOnce = false;
@@ -25,49 +27,48 @@ export class OrbitReferences extends KeepTrackPlugin {
   addHtml(): void {
     super.addHtml();
 
-    keepTrackApi.on(
-      KeepTrackApiEvents.selectSatData,
-      (obj?: BaseObject) => {
-        // Skip this if there is no satellite object because the menu isn't open
-        if (!obj?.isSatellite()) {
-          hideEl('orbit-references-link');
+    EventBus.getInstance().on(EventBusEvent.selectSatData, (obj?: BaseObject) => {
+      // instanceof Satellite excludes OemSatellite, which lacks the TLE-derived
+      // orbital elements (eccentricity, meanMotion, …) we read inside the click handler.
+      if (!(obj instanceof Satellite)) {
+        hideEl('orbit-references-link');
 
+        return;
+      }
+      showEl('orbit-references-link');
+
+      if (!this.doOnce) {
+        const actionsSectionElement = getEl('actions-section');
+
+        if (!actionsSectionElement) {
           return;
         }
-        showEl('orbit-references-link');
 
-        if (!this.doOnce) {
-          const actionsSectionElement = getEl('actions-section');
-
-          if (!actionsSectionElement) {
-            return;
-          }
-
-          actionsSectionElement.insertAdjacentHTML(
-            'beforeend',
-            keepTrackApi.html`
+        actionsSectionElement.insertAdjacentHTML(
+          'beforeend',
+          html`
                 <div id="orbit-references-link" class="link sat-infobox-links menu-selectable" data-position="top" data-delay="50"
                       data-tooltip="Create Analyst Satellites in Orbit">Generate Orbit Reference Satellites...</div>
-              `,
-          );
-          getEl('orbit-references-link')!.addEventListener('click', this.orbitReferencesLinkClick.bind(this));
-          this.doOnce = true;
-        }
-      },
-    );
+              `
+        );
+        getEl('orbit-references-link')!.addEventListener('click', this.orbitReferencesLinkClick.bind(this));
+        this.doOnce = true;
+      }
+    });
   }
 
   orbitReferencesLinkClick() {
-    const catalogManagerInstance = keepTrackApi.getCatalogManager();
+    const catalogManagerInstance = ServiceLocator.getCatalogManager();
 
     // Determine which satellite is selected
     const sat = catalogManagerInstance.getSat(this.selectSatManager_.selectedSat);
 
-    if (!sat) {
+    // Same Satellite-only guard as the link visibility above.
+    if (!(sat instanceof Satellite)) {
       return;
     }
 
-    let searchStr = sat.sccNum5.padStart(5, '0');
+    let searchStr = (sat.sccNum5 ?? sat.sccNum).padStart(5, '0');
 
     // Add the satellites
     const ecen = sat.eccentricity.toString();
@@ -80,7 +81,10 @@ export class OrbitReferences extends KeepTrackPlugin {
     // .intlDes is 2000-001A we need 00001A
     const yy = sat.intlDes.split('-')[0].slice(2);
     const intl = yy + sat.intlDes.split('-')[1];
-    const scc = sat.sccNum;
+    // FormatTle.createTle runs scc through Tle.convert6DigitToA5, which throws
+    // for extended (7+ digit) IDs. Mirror Satellite.toTle and pass the trailing
+    // 5 digits so the TLE stays well-formed; the canonical id stays on sat.sccNum.
+    const scc = Tle.classifySatNum(sat.sccNum) === 'extended' ? sat.sccNum.slice(-5) : sat.sccNum;
 
     const period = 1440.0 / parseFloat(meanmo);
 
@@ -111,7 +115,7 @@ export class OrbitReferences extends KeepTrackPlugin {
 
     // Remove the last comma
     searchStr = searchStr.slice(0, -1);
-    const uiManagerInstance = keepTrackApi.getUiManager();
+    const uiManagerInstance = ServiceLocator.getUiManager();
 
     uiManagerInstance.doSearch(searchStr);
 

@@ -1,0 +1,16 @@
+{
+  "plugins": {
+    "PoliticalMapToggle": {
+      "bottomIconLabel": "Political Map",
+      "modeOff": "Political map off",
+      "modeBorders": "Borders only",
+      "modeBordersLabels": "Borders + country labels",
+      "modeLabels": "Country labels only",
+      "commandPalette": {
+        "cycle": "Cycle Political Map Mode",
+        "toggle": "Toggle Political Boundaries",
+        "toggleLabels": "Toggle Country Labels"
+      }
+    }
+  }
+}

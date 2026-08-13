@@ -1,0 +1,50 @@
+{
+  "plugins": {
+    "DateTimeManager": {
+      "prev": "Prec",
+      "next": "Succ",
+      "days": {
+        "0": "Domenica",
+        "1": "Lunedì",
+        "2": "Martedì",
+        "3": "Mercoledì",
+        "4": "Giovedì",
+        "5": "Venerdì",
+        "6": "Sabato"
+      },
+      "days-short": {
+        "0": "Dom",
+        "1": "Lun",
+        "2": "Mar",
+        "3": "Mer",
+        "4": "Gio",
+        "5": "Ven",
+        "6": "Sab"
+      },
+      "months": {
+        "1": "Gennaio",
+        "2": "Febbraio",
+        "3": "Marzo",
+        "4": "Aprile",
+        "5": "Maggio",
+        "6": "Giugno",
+        "7": "Luglio",
+        "8": "Agosto",
+        "9": "Settembre",
+        "10": "Ottobre",
+        "11": "Novembre",
+        "12": "Dicembre"
+      },
+      "calendar": {
+        "time": "Ora",
+        "hour": "Ore",
+        "minute": "Minuti",
+        "second": "Secondi",
+        "now": "Adesso",
+        "done": "Fatto",
+        "pause": "Pausa",
+        "propagation": "Propagazione"
+      }
+    }
+  }
+}

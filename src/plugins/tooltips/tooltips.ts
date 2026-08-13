@@ -1,7 +1,9 @@
-import { KeepTrackApiEvents, MenuMode } from '@app/interfaces';
-import { keepTrackApi } from '@app/keepTrackApi';
-import { errorManagerInstance } from '@app/singletons/errorManager';
-import { KeepTrackPlugin } from '../KeepTrackPlugin';
+import { MenuMode } from '@app/engine/core/interfaces';
+import { EventBus } from '@app/engine/events/event-bus';
+import { EventBusEvent } from '@app/engine/events/event-bus-events';
+import { errorManagerInstance } from '@app/engine/utils/errorManager';
+import { getEl } from '@app/engine/utils/get-el';
+import { KeepTrackPlugin } from '../../engine/plugins/base-plugin';
 
 /**
  * /////////////////////////////////////////////////////////////////////////////
@@ -30,164 +32,159 @@ export class TooltipsPlugin extends KeepTrackPlugin {
 
   menuMode: MenuMode[] = [];
 
-  isVisible_ = false;
+  private isVisible_ = false;
+  private showTimer_: ReturnType<typeof setTimeout> | null = null;
+  tooltipTag = 'kt-tooltip';
+
+  private static readonly SHOW_DELAY_ = 150;
 
   addHtml(): void {
     super.addHtml();
 
-    keepTrackApi.on(
-      KeepTrackApiEvents.uiManagerInit,
-      () => {
-        const tooltipDiv = document.createElement('div');
+    EventBus.getInstance().on(EventBusEvent.uiManagerInit, () => {
+      const tooltipDiv = document.createElement('div');
 
-        tooltipDiv.id = 'tooltip';
-        tooltipDiv.style.display = 'none';
-        tooltipDiv.style.position = 'absolute';
-        tooltipDiv.style.zIndex = '9999';
-        tooltipDiv.style.width = '120px';
-        tooltipDiv.style.marginLeft = '-60px';
-        tooltipDiv.style.overflow = 'visible';
-        tooltipDiv.style.backgroundColor = 'var(--color-dark-background)';
-        tooltipDiv.style.textAlign = 'center';
-        tooltipDiv.style.padding = '5px';
-        tooltipDiv.style.borderWidth = '5px';
-        tooltipDiv.style.borderColor = 'var(--color-dark-border)';
-        tooltipDiv.style.borderStyle = 'solid';
-        tooltipDiv.style.color = '#ffffff';
-        tooltipDiv.textContent = tooltipDiv.getAttribute('data-tooltip') ?? '';
-        document.body.appendChild(tooltipDiv);
-      },
-    );
+      tooltipDiv.id = 'tooltip';
+      tooltipDiv.className = 'kt-tooltip-popup';
+      document.body.appendChild(tooltipDiv);
+    });
 
-    keepTrackApi.on(
-      KeepTrackApiEvents.uiManagerFinal,
-      () => {
-        this.initTooltips();
-      },
-    );
+    EventBus.getInstance().on(EventBusEvent.onKeepTrackReady, () => {
+      this.initTooltips();
+    });
   }
 
   initTooltips(): void {
-    // Search the entire dom tree for data-tooltip attributes
-    const elements = document.querySelectorAll('[data-tooltip]');
+    // Search the entire dom tree for kt-tooltip attributes
+    const elements = document.querySelectorAll(`[${this.tooltipTag}]`);
 
     elements.forEach((el) => {
-      const text = el.getAttribute('data-tooltip');
+      const text = el.getAttribute(this.tooltipTag);
 
       if (!text) {
-        errorManagerInstance.warn('Failed to create tooltip: Element has no data-tooltip attribute.');
+        errorManagerInstance.warn('Failed to create tooltip: Element has no kt-tooltip attribute.');
 
         return;
       }
 
-      this.createTooltip(el as HTMLElement, text);
+      this.createTooltip(el as HTMLElement);
     });
   }
 
-  createTooltip(el: HTMLElement, text: string): void {
+  createTooltip(el: HTMLElement | string): void {
+    if (typeof el === 'string') {
+      el = getEl(el) as HTMLElement;
+    }
+
     if (!el) {
       errorManagerInstance.warn('Failed to create tooltip: Element is null or undefined.');
 
       return;
     }
 
-    el.addEventListener('mouseenter', (event) => {
-      // Don't show if it is already visible
+    let isHovered = false;
+
+    const dismiss = () => {
+      if (this.showTimer_) {
+        clearTimeout(this.showTimer_);
+        this.showTimer_ = null;
+      }
+      this.hideTooltip();
+      this.isVisible_ = false;
+    };
+
+    el.addEventListener('mouseenter', () => {
+      isHovered = true;
+
+      // A pending show for another element would otherwise leak through the shared timer
+      if (this.showTimer_) {
+        clearTimeout(this.showTimer_);
+        this.showTimer_ = null;
+      }
+
       if (this.isVisible_) {
         return;
       }
-      this.showTooltip(event, text);
-      this.isVisible_ = true;
+
+      const text = (el as HTMLElement).getAttribute(this.tooltipTag) ?? '';
+
+      // Delay showing tooltip to avoid flicker on fast mouse movement
+      this.showTimer_ = setTimeout(() => {
+        this.showTimer_ = null;
+
+        // The target may be gone or no longer hovered by the time the delay elapses
+        if (!isHovered || !(el as HTMLElement).isConnected) {
+          return;
+        }
+
+        this.showTooltip(el as HTMLElement, text);
+        this.isVisible_ = true;
+      }, TooltipsPlugin.SHOW_DELAY_);
     });
 
     el.addEventListener('mouseleave', () => {
-      this.hideTooltip();
-      this.isVisible_ = false;
+      isHovered = false;
+      dismiss();
     });
+
+    /*
+     * Clicking a tooltipped control usually toggles UI that hides or replaces the
+     * target (e.g. a drawer item closing the drawer); no mouseleave fires for an
+     * element hidden under the cursor, which left the tooltip stuck on screen.
+     */
+    el.addEventListener('click', dismiss);
+
+    el.style.cursor = 'pointer';
   }
 
   hideTooltip() {
-    const tooltipDiv = document.getElementById('tooltip') as HTMLDivElement;
+    const tooltipDiv = document.getElementById('tooltip');
 
     if (tooltipDiv) {
-      tooltipDiv.style.display = 'none';
+      tooltipDiv.classList.remove('kt-tooltip-visible');
     }
   }
 
-  showTooltip(event: MouseEvent, text: string): void {
-    const tooltipDiv = document.getElementById('tooltip') as HTMLDivElement;
+  showTooltip(targetEl: HTMLElement, text: string): void {
+    const tooltipDiv = document.getElementById('tooltip');
 
     if (!tooltipDiv) {
       return;
     }
 
-    // Get viewport dimensions
+    // Set tooltip content
+    tooltipDiv.innerHTML = text;
+
+    // Make the tooltip measurable, then read both rects back-to-back. The target's
+    // bounds are independent of the measuring class, so reading them before removing
+    // the class keeps the second read on the same clean layout instead of forcing a
+    // second reflow (batched read → single forced layout).
+    tooltipDiv.classList.add('kt-tooltip-measuring');
+    const tooltipRect = tooltipDiv.getBoundingClientRect();
+    const targetRect = targetEl.getBoundingClientRect();
+
+    tooltipDiv.classList.remove('kt-tooltip-measuring');
+
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
 
-    // Get tooltip dimensions (force display to measure)
-    tooltipDiv.style.display = 'block';
-    tooltipDiv.style.visibility = 'hidden';
-    const tooltipRect = tooltipDiv.getBoundingClientRect();
+    // Default: position above the element, centered horizontally
+    let top = targetRect.top + window.scrollY - tooltipRect.height - 8;
+    let left = targetRect.left + window.scrollX + targetRect.width / 2 - tooltipRect.width / 2;
 
-    tooltipDiv.style.visibility = 'visible';
-
-    // Set tooltip text
-    tooltipDiv.textContent = text;
-
-    // Calculate available space in each direction
-    const spaceAbove = event.clientY / viewportHeight;
-    const spaceBelow = (viewportHeight - event.clientY) / viewportHeight;
-    const spaceLeft = event.clientX / viewportWidth;
-    const spaceRight = (viewportWidth - event.clientX) / viewportWidth;
-
-    // Choose direction with most space
-    let top: number;
-    let left: number;
-
-    type TooltipDirection = 'top' | 'bottom' | 'left' | 'right';
-
-    const spaces = [
-      { dir: 'top', value: spaceAbove },
-      { dir: 'bottom', value: spaceBelow },
-      { dir: 'left', value: spaceLeft },
-      { dir: 'right', value: spaceRight },
-    ];
-
-    spaces.sort((a, b) => b.value - a.value);
-    const direction = spaces[0].dir as TooltipDirection;
-
-    // Position tooltip based on direction
-    switch (direction) {
-      case 'top':
-        top = event.pageY - tooltipRect.height - 10;
-        left = event.pageX;
-        break;
-      case 'bottom':
-        top = event.pageY + 20;
-        left = event.pageX;
-        break;
-      case 'left':
-        top = event.pageY;
-        left = event.pageX - tooltipRect.width - 10;
-        break;
-      case 'right':
-        top = event.pageY;
-        left = event.pageX + 10;
-        break;
-      default:
-        errorManagerInstance.warn(`Unknown tooltip direction: ${direction}`);
-
-        return;
+    // If not enough space above, position below
+    if (targetRect.top < tooltipRect.height + 16) {
+      top = targetRect.bottom + window.scrollY + 8;
     }
 
-    // Clamp position to viewport
-    top = Math.max(0, Math.min(top, viewportHeight - tooltipRect.height));
-    left = Math.max(0, Math.min(left, viewportWidth - tooltipRect.width));
+    // Clamp horizontally to viewport
+    left = Math.max(8, Math.min(left, viewportWidth - tooltipRect.width - 8));
+
+    // Clamp vertically to viewport
+    top = Math.max(8, Math.min(top, viewportHeight + window.scrollY - tooltipRect.height - 8));
 
     tooltipDiv.style.left = `${left}px`;
     tooltipDiv.style.top = `${top}px`;
-    tooltipDiv.style.display = 'block';
+    tooltipDiv.classList.add('kt-tooltip-visible');
   }
 }
-

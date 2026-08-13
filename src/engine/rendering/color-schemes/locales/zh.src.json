@@ -1,0 +1,20 @@
+{
+  "colorSchemes": {
+    "CelestrakColorScheme": { "label": "Celestrak" },
+    "ConfidenceColorScheme": { "label": "置信度" },
+    "CountryColorScheme": { "label": "国家" },
+    "GpAgeColorScheme": { "label": "GP 时效" },
+    "MissionColorScheme": { "label": "任务" },
+    "ObjectTypeColorScheme": { "label": "目标类型" },
+    "OrbitalPlaneDensityColorScheme": { "label": "轨道面密度" },
+    "RcsColorScheme": { "label": "雷达截面积" },
+    "ReentryRiskColorScheme": { "label": "再入风险" },
+    "SmallSatColorScheme": { "label": "小型卫星" },
+    "SourceColorScheme": { "label": "数据来源" },
+    "SpatialDensityColorScheme": { "label": "空间密度" },
+    "StarlinkColorScheme": { "label": "Starlink" },
+    "SunlightColorScheme": { "label": "日照状态" },
+    "VelocityColorScheme": { "label": "速度" },
+    "VisualMagnitudeColorScheme": { "label": "标准星等" }
+  }
+}

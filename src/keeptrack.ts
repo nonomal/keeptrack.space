@@ -1,3 +1,6 @@
+import { registerMeshPacks } from './app/rendering/mesh/mesh-packs';
+import { ServiceLocator } from './engine/core/service-locator';
+import { registerSolarSystemContent } from './engine/rendering/draw-manager/celestial-bodies/solar-system-content';
 /**
  * /////////////////////////////////////////////////////////////////////////////
  *
@@ -23,86 +26,105 @@
  * /////////////////////////////////////////////////////////////////////////////
  */
 
-/* eslint-disable no-unreachable */
-
 import 'material-icons/iconfont/material-icons.css';
+import './engine/ui/menu-v13.css'; // v13+ menu UI standard (opt-in via .kt-ui-v13)
+import './engine/ui/theme-form-controls.css'; // global brand theming for native form controls
+import 'requestidlecallback-polyfill';
 
-import eruda, { ErudaConsole } from 'eruda';
-import { Milliseconds } from 'ootk';
-import { keepTrackContainer } from './container';
-import { KeepTrackApiEvents, Singletons } from './interfaces';
+import logoPrimaryPng from '@public/img/logo-primary.png';
+import logoSecondaryPng from '@public/img/logo-secondary.png';
+
+import { CatalogLoader } from './app/data/catalog-loader';
+import { CatalogManager } from './app/data/catalog-manager';
+import { GroupsManager } from './app/data/groups-manager';
+import { OrbitManager } from './app/rendering/orbit-manager';
+import { SensorMath } from './app/sensors/sensor-math';
+import { SensorManager } from './app/sensors/sensorManager';
+import { BottomMenu } from './app/ui/bottom-menu';
+import { CameraControlWidget } from './app/ui/camera-control-widget';
+import { HoverManager } from './app/ui/hover-manager';
+import { SplashScreen } from './app/ui/splash-screen';
+import { UiManager } from './app/ui/ui-manager';
+import { Container } from './engine/core/container';
+import { Singletons } from './engine/core/interfaces';
+import { Engine } from './engine/engine';
+import { EventBus } from './engine/events/event-bus';
+import { EventBusEvent } from './engine/events/event-bus-events';
+import { PersistenceManager } from './engine/persistence/persistence-manager';
+import { ColorSchemeManager } from './engine/rendering/color-scheme-manager';
+import { DotsManager } from './engine/rendering/dots-manager';
+import { lineManagerInstance } from './engine/rendering/line-manager';
+import { SatLabelManager } from './engine/rendering/sat-label-manager';
+import { WebWorkerThreadManager, WORKER_CACHE_BUST_KEY } from './engine/threads/web-worker-thread';
+import { initMaterialSelects } from './engine/ui/material-select';
+import { DemoManager } from './engine/utils/demo-mode';
+import { html } from './engine/utils/development/formatter';
+import { errorManagerInstance } from './engine/utils/errorManager';
+import { getEl } from './engine/utils/get-el';
+import { isThisNode } from './engine/utils/isThisNode';
 import { keepTrackApi } from './keepTrackApi';
-import { getEl } from './lib/get-el';
-import { SelectSatManager } from './plugins/select-sat-manager/select-sat-manager';
-import { SensorManager } from './plugins/sensor/sensorManager';
-import { settingsManager, SettingsManagerOverride } from './settings/settings';
-import { VERSION } from './settings/version.js';
-import { Camera } from './singletons/camera';
-import { CameraControlWidget } from './singletons/camera-control-widget';
-import { CatalogManager } from './singletons/catalog-manager';
-import { ColorSchemeManager } from './singletons/color-scheme-manager';
-import { DemoManager } from './singletons/demo-mode';
-import { DotsManager } from './singletons/dots-manager';
-import { LineManager, lineManagerInstance } from './singletons/draw-manager/line-manager';
-import { ErrorManager, errorManagerInstance } from './singletons/errorManager';
-import { GroupsManager } from './singletons/groups-manager';
-import { HoverManager } from './singletons/hover-manager';
-import { InputManager } from './singletons/input-manager';
-import { OrbitManager } from './singletons/orbitManager';
-import { Scene } from './singletons/scene';
-import { TimeManager } from './singletons/time-manager';
-import { UiManager } from './singletons/uiManager';
-import { WebGLRenderer } from './singletons/webgl-renderer';
-import { BottomMenu } from './static/bottom-menu';
-import { CatalogLoader } from './static/catalog-loader';
-import { isThisNode } from './static/isThisNode';
-import { SensorMath } from './static/sensor-math';
-import { SplashScreen } from './static/splash-screen';
+import { Localization } from './locales/locales'; // Ensure localization is imported first
+import { SettingsManagerOverride, settingsManager } from './settings/settings';
 
 export class KeepTrack {
-  isReady = false;
-  private isUpdateTimeThrottle_: boolean;
-  private lastGameLoopTimestamp_ = <Milliseconds>0;
-  private readonly settingsOverride_: SettingsManagerOverride;
+  private static instance: KeepTrack;
+  private settingsOverride_: SettingsManagerOverride;
 
-  colorManager: ColorSchemeManager;
-  demoManager: DemoManager;
-  dotsManager: DotsManager;
-  errorManager: ErrorManager;
-  lineManager: LineManager;
-  colorSchemeManager: ColorSchemeManager;
-  orbitManager: OrbitManager;
-  catalogManager: CatalogManager;
-  timeManager: TimeManager;
-  renderer: WebGLRenderer;
-  sensorManager: SensorManager;
-  uiManager: UiManager;
-  inputManager: InputManager;
-  mainCameraInstance: Camera;
-  cameraControlWidget: CameraControlWidget;
+  isInitialized = false;
+  engine: Engine;
+  api = keepTrackApi;
+  containerRoot: HTMLDivElement;
+  isReady: boolean = false;
+  threads: WebWorkerThreadManager[] = [];
 
-  constructor(
+  private constructor() {
+    // Singleton
+  }
+
+  static getInstance(): KeepTrack {
+    if (!KeepTrack.instance) {
+      KeepTrack.instance = new KeepTrack();
+    }
+
+    return KeepTrack.instance;
+  }
+
+  static reset(): void {
+    KeepTrack.instance = new KeepTrack();
+  }
+
+  init(
     settingsOverride: SettingsManagerOverride = {
       isPreventDefaultHtml: false,
       isShowSplashScreen: true,
-    },
+    }
   ) {
-    if (this.isReady) {
+    if (this.isInitialized) {
       throw new Error('KeepTrack is already started');
     }
 
-    // Update the version number
-    settingsManager.versionNumber = VERSION;
     this.settingsOverride_ = settingsOverride;
-  }
+    Localization.getInstance(); // Initialize localization early
+    this.engine = new Engine(this);
 
-  init() {
     settingsManager.init(this.settingsOverride_);
+
+    /*
+     * Route SGP4 propagation through the configured Astro Standards wasm
+     * backend (no-op for the default 'sgp4'). Fire-and-forget: satKeys attach
+     * lazily, so propagation upgrades seamlessly once the runtime is ready.
+     */
+    import('./engine/utils/sgp4-wasm-loader')
+      .then(({ activateConfiguredPropagatorBackend }) => activateConfiguredPropagatorBackend())
+      .catch(() => {
+        // Failures are logged inside activateConfiguredPropagatorBackend
+      });
 
     KeepTrack.setContainerElement();
 
     if (!this.settingsOverride_.isPreventDefaultHtml) {
       import(/* webpackMode: "eager" */ '@css/loading-screen.css');
+      import(/* webpackMode: "eager" */ '@css/loading-overlay.css');
       KeepTrack.getDefaultBodyHtml();
       BottomMenu.init();
 
@@ -112,105 +134,49 @@ export class KeepTrack {
     }
 
     const orbitManagerInstance = new OrbitManager();
-
-    keepTrackContainer.registerSingleton(Singletons.OrbitManager, orbitManagerInstance);
     const catalogManagerInstance = new CatalogManager();
-
-    keepTrackContainer.registerSingleton(Singletons.CatalogManager, catalogManagerInstance);
     const groupManagerInstance = new GroupsManager();
-
-    keepTrackContainer.registerSingleton(Singletons.GroupsManager, groupManagerInstance);
-    const timeManagerInstance = new TimeManager();
-
-    keepTrackContainer.registerSingleton(Singletons.TimeManager, timeManagerInstance);
-    const rendererInstance = new WebGLRenderer();
-
-    keepTrackContainer.registerSingleton(Singletons.WebGLRenderer, rendererInstance);
-    keepTrackContainer.registerSingleton(Singletons.MeshManager, rendererInstance.meshManager);
-    const sceneInstance = new Scene({
-      gl: keepTrackApi.getRenderer().gl,
-    });
-
-    keepTrackContainer.registerSingleton(Singletons.Scene, sceneInstance);
     const sensorManagerInstance = new SensorManager();
-
-    keepTrackContainer.registerSingleton(Singletons.SensorManager, sensorManagerInstance);
     const dotsManagerInstance = new DotsManager();
-
-    keepTrackContainer.registerSingleton(Singletons.DotsManager, dotsManagerInstance);
+    const satLabelManagerInstance = new SatLabelManager();
     const uiManagerInstance = new UiManager();
-
-    keepTrackContainer.registerSingleton(Singletons.UiManager, uiManagerInstance);
     const colorSchemeManagerInstance = new ColorSchemeManager();
-
-    keepTrackContainer.registerSingleton(Singletons.ColorSchemeManager, colorSchemeManagerInstance);
-    const inputManagerInstance = new InputManager();
-
-    keepTrackContainer.registerSingleton(Singletons.InputManager, inputManagerInstance);
     const sensorMathInstance = new SensorMath();
-
-    keepTrackContainer.registerSingleton(Singletons.SensorMath, sensorMathInstance);
-    const mainCameraInstance = new Camera();
-
-    const cameraControlWidget = new CameraControlWidget();
-
-    this.cameraControlWidget = cameraControlWidget;
-
-    keepTrackContainer.registerSingleton(Singletons.MainCamera, mainCameraInstance);
     const hoverManagerInstance = new HoverManager();
 
-    keepTrackContainer.registerSingleton(Singletons.HoverManager, hoverManagerInstance);
+    Container.getInstance().registerSingleton(Singletons.OrbitManager, orbitManagerInstance);
+    Container.getInstance().registerSingleton(Singletons.CatalogManager, catalogManagerInstance);
+    Container.getInstance().registerSingleton(Singletons.GroupsManager, groupManagerInstance);
+    Container.getInstance().registerSingleton(Singletons.SensorManager, sensorManagerInstance);
+    Container.getInstance().registerSingleton(Singletons.DotsManager, dotsManagerInstance);
+    Container.getInstance().registerSingleton(Singletons.SatLabelManager, satLabelManagerInstance);
+    Container.getInstance().registerSingleton(Singletons.UiManager, uiManagerInstance);
+    Container.getInstance().registerSingleton(Singletons.ColorSchemeManager, colorSchemeManagerInstance);
+    Container.getInstance().registerSingleton(Singletons.SensorMath, sensorMathInstance);
+    Container.getInstance().registerSingleton(Singletons.HoverManager, hoverManagerInstance);
 
-    this.mainCameraInstance = mainCameraInstance;
-    this.errorManager = errorManagerInstance;
-    this.dotsManager = dotsManagerInstance;
-    this.lineManager = lineManagerInstance;
-    this.colorSchemeManager = colorSchemeManagerInstance;
-    this.orbitManager = orbitManagerInstance;
-    this.catalogManager = catalogManagerInstance;
-    this.timeManager = timeManagerInstance;
-    this.renderer = rendererInstance;
-    this.sensorManager = sensorManagerInstance;
-    this.uiManager = uiManagerInstance;
-    this.inputManager = inputManagerInstance;
-    this.demoManager = new DemoManager();
-  }
+    CameraControlWidget.getInstance().init();
+    DemoManager.getInstance().init();
 
-  /** Check if the FPS is above a certain threshold */
-  static isFpsAboveLimit(dt: Milliseconds, minimumFps: number): boolean {
-    return KeepTrack.getFps_(dt) > minimumFps;
-  }
-
-  gameLoop(timestamp = <Milliseconds>0): void {
-    requestAnimationFrame(this.gameLoop.bind(this));
-    const dt = <Milliseconds>(timestamp - this.lastGameLoopTimestamp_);
-
-    this.lastGameLoopTimestamp_ = timestamp;
-
-    if (settingsManager.cruncherReady) {
-      this.update_(dt); // Do any per frame calculations
-      this.draw_(dt);
-
-      if ((keepTrackApi.getPlugin(SelectSatManager)?.selectedSat ?? -1) > -1) {
-        const selectedSatellite = keepTrackApi.getPlugin(SelectSatManager)?.primarySatObj;
-
-        if (selectedSatellite) {
-          keepTrackApi.getUiManager().
-            updateSelectBox(this.timeManager.realTime, this.timeManager.lastBoxUpdateTime, selectedSatellite);
-        }
-      }
-    }
+    // Initialize enhanced persistence features (cross-tab sync, provider subscriptions).
+    // The PersistenceManager already works synchronously from its constructor;
+    // this adds the async enhancements without blocking boot.
+    PersistenceManager.getInstance()
+      .initialize()
+      .catch((e) => {
+        errorManagerInstance.warn(`Failed to initialize enhanced persistence: ${e.message}`);
+      });
   }
 
   static getDefaultBodyHtml(): void {
-    if (!keepTrackApi.containerRoot) {
+    if (!KeepTrack.getInstance().containerRoot) {
       throw new Error('Container root is not set');
     }
 
-    SplashScreen.initLoadingScreen(keepTrackApi.containerRoot);
+    SplashScreen.initLoadingScreen(KeepTrack.getInstance().containerRoot);
 
-    keepTrackApi.containerRoot.id = 'keeptrack-root';
-    keepTrackApi.containerRoot.innerHTML += keepTrackApi.html`
+    KeepTrack.getInstance().containerRoot.id = 'keeptrack-root';
+    KeepTrack.getInstance().containerRoot.innerHTML += html`
       <header>
         <div id="keeptrack-header" class="start-hidden"></div>
       </header>
@@ -219,12 +185,12 @@ export class KeepTrack {
         <div id="canvas-holder">
         <div id="logo-primary" class="start-hidden">
             <a href="https://keeptrack.space" target="_blank">
-              <img src="${settingsManager.installDirectory}img/logo-primary.png" alt="KeepTrack">
+              <img src="${logoPrimaryPng}" alt="KeepTrack">
             </a>
           </div>
           <div id="logo-secondary" class="start-hidden">
             <a href="https://celestrak.org" target="_blank">
-              <img src="${settingsManager.installDirectory}img/logo-secondary.png" alt="Celestrak">
+              <img src="${logoSecondaryPng}" alt="Celestrak">
             </a>
           </div>
           <canvas id="keeptrack-canvas"></canvas>
@@ -234,9 +200,7 @@ export class KeepTrack {
               <span id="sat-hoverbox2"></span>
               <span id="sat-hoverbox3"></span>
             </div>
-            <div id="sat-minibox"></div>
-
-            <div id="legend-hover-menu" class="start-hidden"></div>
+            <div id="layers-hover-menu" class="start-hidden"></div>
             <aside id="left-menus"></aside>
           </div>
         </div>
@@ -262,20 +226,16 @@ export class KeepTrack {
 
   private static setContainerElement() {
     // User provides the container using the settingsManager
-    const containerDom = settingsManager.containerRoot ?? document.getElementById('keeptrack-root') as HTMLDivElement;
+    const containerDom = settingsManager.containerRoot ?? (document.getElementById('keeptrack-root') as HTMLDivElement);
 
     if (!containerDom) {
       throw new Error('Failed to find container');
     }
 
     // If no current shadow DOM, create one - this is mainly for testing
-    if (!keepTrackApi.containerRoot) {
-      keepTrackApi.containerRoot = containerDom;
+    if (!KeepTrack.getInstance().containerRoot) {
+      KeepTrack.getInstance().containerRoot = containerDom;
     }
-  }
-
-  private static getFps_(dt: Milliseconds): number {
-    return 1000 / dt;
   }
 
   /* istanbul ignore next */
@@ -288,7 +248,7 @@ export class KeepTrack {
       // Load the CSS
       if (!settingsManager.isDisableCss) {
         import('@css/fonts.css');
-        import(/* webpackMode: "eager" */ '@css/materialize.css').catch(() => {
+        import(/* webpackMode: "eager" */ '@materializecss/materialize/dist/css/materialize.css').catch(() => {
           // This is intentional
         });
         import(/* webpackMode: "eager" */ '@css/astroux/css/astro.css').catch(() => {
@@ -301,7 +261,7 @@ export class KeepTrack {
           .then(
             await import(/* webpackMode: "eager" */ '@css/responsive-sm.css').catch(() => {
               // This is intentional
-            }),
+            })
           )
           .catch(() => {
             // This is intentional
@@ -309,7 +269,7 @@ export class KeepTrack {
           .then(
             await import(/* webpackMode: "eager" */ '@css/responsive-md.css').catch(() => {
               // This is intentional
-            }),
+            })
           )
           .catch(() => {
             // This is intentional
@@ -317,7 +277,7 @@ export class KeepTrack {
           .then(
             await import(/* webpackMode: "eager" */ '@css/responsive-lg.css').catch(() => {
               // This is intentional
-            }),
+            })
           )
           .catch(() => {
             // This is intentional
@@ -325,7 +285,7 @@ export class KeepTrack {
           .then(
             await import(/* webpackMode: "eager" */ '@css/responsive-xl.css').catch(() => {
               // This is intentional
-            }),
+            })
           )
           .catch(() => {
             // This is intentional
@@ -333,7 +293,7 @@ export class KeepTrack {
           .then(
             await import(/* webpackMode: "eager" */ '@css/responsive-2xl.css').catch(() => {
               // This is intentional
-            }),
+            })
           )
           .catch(() => {
             // This is intentional
@@ -343,7 +303,7 @@ export class KeepTrack {
           // This is intentional
         });
       }
-    } catch (e) {
+    } catch {
       // intentionally left blank
     }
   }
@@ -378,81 +338,54 @@ theodore.kruczek at gmail dot com.
 
     if (LoaderText) {
       LoaderText.innerHTML = errorHtml;
-      // eslint-disable-next-line no-console
-      console.error(error);
+      errorManagerInstance.warn(error.message);
     } else {
-      // eslint-disable-next-line no-console
-      console.error(error);
+      errorManagerInstance.warn(error.message);
     }
     // istanbul ignore next
     if (!isThisNode()) {
-      // eslint-disable-next-line no-console
-      console.warn(error);
+      errorManagerInstance.warn(error.message);
     }
-  }
-
-  private draw_(dt = <Milliseconds>0) {
-    const renderer = keepTrackApi.getRenderer();
-    const camera = keepTrackApi.getMainCamera();
-
-    camera.draw(keepTrackApi.getPlugin(SelectSatManager)?.primarySatObj, renderer.sensorPos);
-    renderer.render(keepTrackApi.getScene(), keepTrackApi.getMainCamera());
-
-    if (KeepTrack.isFpsAboveLimit(dt, 5) && !settingsManager.lowPerf && !settingsManager.isDragging && !settingsManager.isDemoModeOn) {
-      keepTrackApi.getOrbitManager().updateAllVisibleOrbits();
-      this.inputManager.update(dt);
-
-      // Only update hover if we are not on mobile
-      if (!settingsManager.isMobileModeEnabled) {
-        keepTrackApi.getHoverManager().setHoverId(this.inputManager.mouse.mouseSat, keepTrackApi.getMainCamera().mouseX, keepTrackApi.getMainCamera().mouseY);
-      }
-    }
-
-    // If Demo Mode do stuff
-    if (settingsManager.isDemoModeOn && keepTrackApi.getSensorManager()?.currentSensors[0]?.lat !== null) {
-      this.demoManager.update();
-    }
-
-    keepTrackApi.emit(KeepTrackApiEvents.endOfDraw, dt);
   }
 
   async run(): Promise<void> {
     try {
-      const catalogManagerInstance = keepTrackApi.getCatalogManager();
-      const orbitManagerInstance = keepTrackApi.getOrbitManager();
-      const timeManagerInstance = keepTrackApi.getTimeManager();
-      const renderer = keepTrackApi.getRenderer();
-      const sceneInstance = keepTrackApi.getScene();
-      const dotsManagerInstance = keepTrackApi.getDotsManager();
-      const uiManagerInstance = keepTrackApi.getUiManager();
-      const colorSchemeManagerInstance = keepTrackApi.getColorSchemeManager();
-      const inputManagerInstance = keepTrackApi.getInputManager();
+      const catalogManagerInstance = ServiceLocator.getCatalogManager();
+      const orbitManagerInstance = ServiceLocator.getOrbitManager();
+      const renderer = ServiceLocator.getRenderer();
+      const sceneInstance = ServiceLocator.getScene();
+      const dotsManagerInstance = ServiceLocator.getDotsManager();
+      const uiManagerInstance = ServiceLocator.getUiManager();
+      const colorSchemeManagerInstance = ServiceLocator.getColorSchemeManager();
+      const inputManagerInstance = ServiceLocator.getInputManager();
 
-      // Error Trapping
-      window.addEventListener('error', (e: ErrorEvent) => {
-        if (!settingsManager.isGlobalErrorTrapOn) {
-          return;
-        }
-        if (isThisNode()) {
-          throw e.error;
-        }
-        errorManagerInstance.error(e.error, 'Global Error Trapper', e.message);
-      });
+      this.engine.init();
 
-      keepTrackApi.getMainCamera().init(settingsManager);
+      // ServiceLocator.getMainCamera().init(settingsManager);
 
       SplashScreen.loadStr(SplashScreen.msg.science);
 
+      /*
+       * Solar-system bodies register before the plugins load, not with them: the Planets menu
+       * builds its whole side menu inside its own init(), so content contributed by a plugin
+       * would race it. See registerSolarSystemContent().
+       */
+      await registerSolarSystemContent();
+
+      /*
+       * Same reasoning for satellite mesh packs: the ephemeris-import menus build their model
+       * pickers inside their own init(), so the roster has to be complete first.
+       */
+      await registerMeshPacks();
+
       // Load all the plugins now that we have the API initialized
-      await import('./plugins/plugins')
-        .then((mod) => mod.loadPlugins(keepTrackApi, settingsManager.plugins))
-        .catch(() => {
-          // intentionally left blank
-        });
+      await this.engine.pluginManager.loadPlugins(settingsManager.plugins);
 
       SplashScreen.loadStr(SplashScreen.msg.science2);
-      // Start initializing the rest of the website
-      timeManagerInstance.init();
+      /*
+       * Start initializing the rest of the website
+       * timeManagerInstance.init();
+       */
       uiManagerInstance.onReady();
 
       SplashScreen.loadStr(SplashScreen.msg.dots);
@@ -462,7 +395,7 @@ theodore.kruczek at gmail dot com.
        */
       await renderer.glInit();
 
-      sceneInstance.init(renderer.gl);
+      sceneInstance.init({ gl: renderer.gl });
       sceneInstance.loadScene();
 
       dotsManagerInstance.init(settingsManager);
@@ -470,9 +403,14 @@ theodore.kruczek at gmail dot com.
       catalogManagerInstance.initObjects();
 
       catalogManagerInstance.init();
-      colorSchemeManagerInstance.init();
+      colorSchemeManagerInstance.init(renderer, this.threads);
 
-      await CatalogLoader.load(); // Needs Object Manager and gl first
+      if (settingsManager.noCatalogOnLoad) {
+        // Empty catalog — still adds stars, sensors, planets, etc.
+        await CatalogLoader.parse({});
+      } else {
+        await CatalogLoader.load(); // Needs Object Manager and gl first
+      }
 
       lineManagerInstance.init();
 
@@ -482,38 +420,47 @@ theodore.kruczek at gmail dot com.
 
       dotsManagerInstance.initBuffers(colorSchemeManagerInstance.colorBuffer!);
 
+      ServiceLocator.getSatLabelManager()?.init(renderer.gl, settingsManager.maxLabels || settingsManager.desktopMaxLabels);
+
       inputManagerInstance.init();
 
       await renderer.init(settingsManager);
       renderer.meshManager.init(renderer.gl);
 
-      // Now that everything is loaded, start rendering to thg canvas
-      this.gameLoop();
+      // Now that everything is loaded, start rendering to the canvas
+      this.engine.run();
 
       this.postStart_();
-      this.isReady = true;
     } catch (error) {
       KeepTrack.showErrorCode(<Error & { lineNumber: number }>error);
     }
   }
 
+  private static readonly POST_START_TIMEOUT_MS_ = 30_000;
+  /**
+   * Grace period, measured from the moment the ESSENTIAL workers become ready,
+   * that OPTIONAL workers (e.g. the orbit-line cruncher) get to signal ready
+   * before the boot watchdog drops them and boots degraded. Kept generous so a
+   * merely-slow-but-healthy machine still gets its orbit lines, but far below the
+   * 30s hard deadline so a genuinely wedged optional worker can't hang boot.
+   */
+  private static readonly OPTIONAL_WORKER_GRACE_MS_ = 12_000;
+  private postStartElapsed_ = 0;
+  /** postStartElapsed_ value at which the essential workers first became ready (-1 = not yet). */
+  private essentialsReadyAtMs_ = -1;
+
   private postStart_() {
     // UI Changes after everything starts -- DO NOT RUN THIS EARLY IT HIDES THE CANVAS
     UiManager.postStart();
 
-    if (settingsManager.cruncherReady) {
-      /*
-       * Create Container Div
-       * NOTE: This needs to be done before uiManagerFinal
-       */
-      if (settingsManager.plugins.DebugMenuPlugin) {
-        const uiWrapperDom = getEl('ui-wrapper');
+    const essentialThreads = this.threads.filter((t) => t.isEssential);
+    const optionalThreads = this.threads.filter((t) => !t.isEssential);
+    const essentialsReady = essentialThreads.every((t) => t.isReady);
+    // A disabled optional worker counts as "resolved": the watchdog gave up on it,
+    // so it no longer holds up boot.
+    const optionalsResolved = optionalThreads.every((t) => t.isReady || t.isDisabled);
 
-        if (uiWrapperDom) {
-          uiWrapperDom.innerHTML += '<div id="eruda"></div>';
-        }
-      }
-
+    if (essentialsReady && optionalsResolved) {
       if (settingsManager.isDisableCanvas) {
         const canvasHolderDom = getEl('keeptrack-canvas');
 
@@ -523,96 +470,199 @@ theodore.kruczek at gmail dot com.
       }
 
       // Update any CSS now that we know what is loaded
-      keepTrackApi.emit(KeepTrackApiEvents.uiManagerFinal);
+      EventBus.getInstance().emit(EventBusEvent.uiManagerFinal);
 
-      if (settingsManager.plugins.DebugMenuPlugin) {
-        const erudaDom = getEl('eruda');
+      ServiceLocator.getUiManager().initMenuController();
 
-        if (erudaDom) {
-          eruda.init({
-            autoScale: false,
-            container: erudaDom,
-            useShadowDom: false,
-            tool: ['console', 'elements', 'network', 'resources', 'storage', 'sources', 'info', 'snippets'],
-          });
-          const console = eruda.get('console') as ErudaConsole;
-
-          console.config.set('catchGlobalErr', false);
-
-          const erudaContainerDom = getEl('eruda-console')?.parentElement?.parentElement;
-
-          if (erudaContainerDom) {
-            erudaContainerDom.style.top = 'calc(var(--top-menu-height) + 30px)';
-            erudaContainerDom.style.height = '80%';
-            erudaContainerDom.style.width = '60%';
-            erudaContainerDom.style.left = '20%';
-          }
-        }
-      }
-
-      keepTrackApi.getUiManager().initMenuController();
-
-      // Update MaterialUI with new menu options
+      // Style every plugin menu's <select> (Tabs/Dropdown are initialized per-plugin)
       try {
-        // Jest workaround
-        // eslint-disable-next-line new-cap
-        window.M.AutoInit();
+        initMaterialSelects();
       } catch {
         // intentionally left blank
       }
 
       window.addEventListener('resize', () => {
-        keepTrackApi.emit(KeepTrackApiEvents.resize);
+        EventBus.getInstance().emit(EventBusEvent.resize);
       });
-      keepTrackApi.emit(KeepTrackApiEvents.resize);
+      EventBus.getInstance().emit(EventBusEvent.resize);
 
-      keepTrackApi.isInitialized = true;
-      keepTrackApi.emit(KeepTrackApiEvents.onKeepTrackReady);
+      this.isInitialized = true;
+
+      EventBus.getInstance().emit(EventBusEvent.onKeepTrackReady);
+
+      // Register runtime internet connectivity detection
+      window.addEventListener('online', () => {
+        EventBus.getInstance().emit(EventBusEvent.connectivityChange, true);
+      });
+      window.addEventListener('offline', () => {
+        EventBus.getInstance().emit(EventBusEvent.connectivityChange, false);
+      });
+
       if (settingsManager.onLoadCb) {
         settingsManager.onLoadCb();
       }
+
+      this.isReady = true;
+      // Boot succeeded: clear the self-heal marker so a genuine future failure in
+      // this session still gets its one reload attempt. (The cache-bust token is
+      // left in place so reloads keep using the fresh worker URL.)
+      KeepTrack.clearWorkerSelfHealFlag_();
+      SplashScreen.hideSplashScreen();
     } else {
+      this.postStartElapsed_ += 100;
+
+      // Note when the essential workers first became ready, so optional workers get
+      // their grace window measured from that moment (not from boot start).
+      if (essentialsReady && this.essentialsReadyAtMs_ < 0) {
+        this.essentialsReadyAtMs_ = this.postStartElapsed_;
+      }
+
+      // Optional-worker safety net: essentials are up but one or more OPTIONAL
+      // workers never signalled ready within the grace window. Drop them and boot
+      // DEGRADED rather than hanging forever - the app is fully usable without
+      // orbit lines. This is the self-heal for an environment where an optional
+      // worker won't start (a wedged worker fetch, a browser extension hooking
+      // Worker, a stale cache the reload couldn't clear); no browser-clearing
+      // required. Disabling them makes optionalsResolved true, so the next tick
+      // takes the normal-boot branch above.
+      if (essentialsReady && this.postStartElapsed_ - this.essentialsReadyAtMs_ >= KeepTrack.OPTIONAL_WORKER_GRACE_MS_) {
+        const stalled = optionalThreads.filter((t) => !t.isReady && !t.isDisabled);
+
+        if (stalled.length > 0) {
+          for (const t of stalled) {
+            t.disableDueToStall();
+          }
+          errorManagerInstance.warn(
+            `[KeepTrack] Optional worker(s) failed to start within ${KeepTrack.OPTIONAL_WORKER_GRACE_MS_ / 1000}s; booting without them: ${stalled
+              .map((t) => t.WEB_WORKER_CODE)
+              .join(', ')}. The affected features (e.g. orbit lines) are disabled for this session.`
+          );
+          KeepTrack.reportWorkerBootFailure_('degraded', stalled, this.postStartElapsed_);
+        }
+
+        setTimeout(() => {
+          this.postStart_();
+        }, 100);
+
+        return;
+      }
+
+      // Essential workers themselves are stalled past the hard deadline. There is
+      // no degraded mode for these (no dots without the position cruncher), so the
+      // usual stale/broken cached-worker cause gets one cache-bust reload, then a
+      // one-click boot-failure screen.
+      if (!essentialsReady && this.postStartElapsed_ >= KeepTrack.POST_START_TIMEOUT_MS_) {
+        const stalled = essentialThreads.filter((t) => !t.isReady);
+        const notReady = stalled.map((t) => t.WEB_WORKER_CODE);
+
+        errorManagerInstance.warn(
+          `[KeepTrack] Essential web workers failed to initialize after ${KeepTrack.POST_START_TIMEOUT_MS_ / 1000}s. Stalled workers: ${notReady.join(', ')}.`
+        );
+
+        // Peek (without mutating the guard flag) whether a self-heal reload is still
+        // available, so the reported telemetry outcome matches what happens next.
+        KeepTrack.reportWorkerBootFailure_(KeepTrack.isWorkerSelfHealAvailable_() ? 'self-heal-reload' : 'boot-failure', stalled, this.postStartElapsed_);
+
+        // First failure this session: the usual cause is a stale/broken cached
+        // worker script (they load by a stable URL). Self-heal by reloading ONCE
+        // with a cache-bust token so the worker URLs refetch fresh. sessionStorage-
+        // guarded, so it can never loop.
+        if (KeepTrack.tryWorkerSelfHeal_()) {
+          return;
+        }
+
+        // Self-heal already ran and it still failed: give the user a one-click fix
+        // instead of a dead-end "hard refresh" hint (which does not refetch workers).
+        SplashScreen.showBootFailure(notReady.join(', '));
+
+        return;
+      }
+
       setTimeout(() => {
         this.postStart_();
       }, 100);
     }
   }
 
-  private update_(dt = <Milliseconds>0) {
-    const timeManagerInstance = keepTrackApi.getTimeManager();
-    const renderer = keepTrackApi.getRenderer();
-    const colorSchemeManagerInstance = keepTrackApi.getColorSchemeManager();
+  /** sessionStorage flag marking that this session already tried a self-heal reload. */
+  private static readonly WORKER_SELF_HEAL_FLAG_ = 'kt-worker-self-heal-tried';
 
-    renderer.dt = dt;
-    renderer.dtAdjusted = <Milliseconds>(Math.min(renderer.dt / 1000.0, 1.0 / Math.max(timeManagerInstance.propRate, 0.001)) * timeManagerInstance.propRate);
+  /**
+   * Report a boot-time worker failure to telemetry. The pro Telemetry plugin's
+   * EventBusEvent.error handler enriches this with system/WebGL/plugin context and
+   * POSTs it (keepalive, so it survives the self-heal reload) to the telemetry
+   * endpoint; OSS builds simply have no listener. Routed through reportEvent with
+   * the user-facing effects suppressed (no toast, no auto-filed GitHub issue) - the
+   * failure is already surfaced by the degraded boot or the recovery splash, and we
+   * only want the diagnostic signal. `outcome` distinguishes a degraded boot
+   * (optional worker dropped, app still usable) from an essential-worker self-heal
+   * reload or a hard boot failure.
+   */
+  private static reportWorkerBootFailure_(outcome: 'degraded' | 'self-heal-reload' | 'boot-failure', stalled: WebWorkerThreadManager[], elapsedMs: number): void {
+    const detail = {
+      outcome,
+      elapsedMs,
+      workers: stalled.map((t) => ({ code: t.WEB_WORKER_CODE, essential: t.isEssential })),
+    };
+    const err = new Error(`Worker boot failure [${outcome}]: ${JSON.stringify(detail)}`);
 
-    this.timeManager.update();
+    err.name = 'WorkerBootFailure';
 
-    keepTrackApi.emit(KeepTrackApiEvents.update, dt);
-
-    // Update official time for everyone else
-    timeManagerInstance.setNow(<Milliseconds>Date.now());
-    if (!this.isUpdateTimeThrottle_) {
-      this.isUpdateTimeThrottle_ = true;
-      timeManagerInstance.setSelectedDate(timeManagerInstance.simulationTimeObj);
-      setTimeout(() => {
-        this.isUpdateTimeThrottle_ = false;
-      }, 500);
-    }
-
-    // Update Draw Positions
-    keepTrackApi.getDotsManager().updatePositionBuffer();
-
-    renderer.update();
-
-    /*
-     * Update Colors
-     * NOTE: We used to skip this when isDragging was true, but its so efficient that doesn't seem necessary anymore
-     */
-    colorSchemeManagerInstance.calculateColorBuffers(false); // avoid recalculating ALL colors
+    errorManagerInstance.reportEvent({
+      error: err,
+      funcName: 'KeepTrack.postStart_',
+      opts: { skipToast: true, skipAutoFile: true },
+    });
   }
 
-  // Make the api available
-  api = keepTrackApi;
-}
+  /**
+   * Whether a one-shot self-heal reload is still available this session (the guard
+   * flag is unset). Read-only peek used to label telemetry before tryWorkerSelfHeal_
+   * mutates the flag; mirrors that method's guard.
+   */
+  private static isWorkerSelfHealAvailable_(): boolean {
+    try {
+      const storage = globalThis.sessionStorage;
 
+      if (!storage) {
+        return false;
+      }
+
+      return !storage.getItem(KeepTrack.WORKER_SELF_HEAL_FLAG_);
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * One-shot boot self-heal: reload the page with a busted worker cache so a
+   * stale/broken cached worker script is refetched fresh. Returns true if a
+   * reload was triggered (caller must stop). Guarded by sessionStorage so it runs
+   * at most once per tab session and can never loop.
+   */
+  private static tryWorkerSelfHeal_(): boolean {
+    try {
+      const storage = globalThis.sessionStorage;
+
+      if (!storage || storage.getItem(KeepTrack.WORKER_SELF_HEAL_FLAG_)) {
+        return false;
+      }
+      storage.setItem(KeepTrack.WORKER_SELF_HEAL_FLAG_, '1');
+      storage.setItem(WORKER_CACHE_BUST_KEY, String(Date.now()));
+      errorManagerInstance.info('[KeepTrack] Workers stalled; reloading once with a fresh worker cache to self-heal.');
+      globalThis.location.reload();
+
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private static clearWorkerSelfHealFlag_(): void {
+    try {
+      globalThis.sessionStorage?.removeItem(KeepTrack.WORKER_SELF_HEAL_FLAG_);
+    } catch {
+      // sessionStorage unavailable; nothing to clear.
+    }
+  }
+}

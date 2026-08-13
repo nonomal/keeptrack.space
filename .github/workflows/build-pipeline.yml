@@ -1,17 +1,12 @@
 ---
 name: Build Pipeline
 
-on:
+"on":
   workflow_dispatch:
   pull_request:
     branches:
       - main
       - develop
-
-permissions:
-  contents: read
-  issues: write
-  actions: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -21,9 +16,11 @@ jobs:
   lint-yml:
     name: Yaml Lint
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: YAML Lint
         uses: ibiqlik/action-yamllint@v3.1.1
         with:
@@ -33,9 +30,13 @@ jobs:
     needs: lint-yml
     name: NPM Audit Report
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: NPM Audit Action
         uses: oke-py/npm-audit-action@main
         with:
@@ -46,26 +47,26 @@ jobs:
         continue-on-error: true
   lint-and-test:
     needs: compliance
+    if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'workflow_dispatch'
     name: Lint and Unit Tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
-        task: [eslint, unit-test]
+        task: [lint, unit-test, typecheck]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v6
         with:
-          node-version: '18'
-
-      - name: Cache node modules
-        uses: actions/cache@v4.2.3
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-build-node-modules-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: ${{ runner.os }}-build-node-modules-${{ runner.os }}-
+          node-version: '24'
+          cache: 'pnpm'
 
       - name: Set up SSH
         uses: webfactory/ssh-agent@v0.9.0
@@ -75,7 +76,7 @@ jobs:
         run: git submodule update --init --recursive
 
       - name: Install Dependencies
-        run: npm ci --ignore-scripts
+        run: pnpm install --frozen-lockfile
 
       - name: Set Timezone (only for tests)
         if: matrix.task == 'unit-test'
@@ -83,81 +84,264 @@ jobs:
         with:
           timezoneLinux: 'America/New_York'
 
-      - name: Run ESLint
-        if: matrix.task == 'eslint'
+      - name: Run Biome
+        if: matrix.task == 'lint'
         run: |
-          echo "Running ESLint..."
-          npx eslint . --ignore-path .gitignore --ext js,ts,tsx
-          echo '### ESLint Passed' >> $GITHUB_STEP_SUMMARY
+          echo "Running Biome check..."
+          pnpm run lint
+          echo "Running Biome check on plugins-pro..."
+          pnpm run lint:pro
+          echo '### Biome Passed' >> $GITHUB_STEP_SUMMARY
 
       - name: Run Unit Tests
         if: matrix.task == 'unit-test'
         run: |
-          echo "Running Unit Tests..."
-          npm test
+          echo "Creating tranlation files..."
+          pnpm run generate-t7e
+          echo "Running Unit Tests (with coverage gate)..."
+          pnpm run test:coverage
           echo '### Unit Tests Passed' >> $GITHUB_STEP_SUMMARY
-  build:
-    needs: [lint-and-test]
-    name: Build
-    runs-on: ubuntu-latest
 
+      - name: Upload coverage report
+        if: matrix.task == 'unit-test' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 7
+
+      - name: Run Type Check
+        if: matrix.task == 'typecheck'
+        run: |
+          echo "Creating translation files..."
+          pnpm run generate-t7e
+          echo "Running Type Check..."
+          pnpm run typecheck
+          echo '### Type Check Passed' >> $GITHUB_STEP_SUMMARY
+  lint-and-test-oss:
+    needs: compliance
+    name: Lint and Unit Tests (OSS, no plugins-pro)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        task: [lint, unit-test, typecheck]
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
-
+        uses: actions/setup-node@v6
         with:
-          node-version: '18'
-      - name: Cache node modules
-        uses: actions/cache@v4.2.3
+          node-version: '24'
+          cache: 'pnpm'
 
+      # No "Set up SSH" — OSS contributors do not have SSH access.
+      # Initialize ONLY the public ootk submodule (HTTPS, required for builds).
+      - name: Update public submodules only
+        run: git submodule update --init --recursive -- src/engine/ootk
+
+      - name: Verify plugins-pro is absent
+        run: |
+          if [ -n "$(ls -A src/plugins-pro 2>/dev/null)" ]; then
+            echo "ERROR: src/plugins-pro is populated; this job must simulate"
+            echo "an OSS contributor without access."
+            exit 1
+          fi
+          echo "Confirmed src/plugins-pro is empty"
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Set Timezone (only for tests)
+        if: matrix.task == 'unit-test'
+        uses: szenius/set-timezone@v1.2
         with:
-          path: ~/.npm
-          key: ${{ runner.os }}-build-node-modules-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: ${{ runner.os }}-build-node-modules-${{ runner.os }}-
+          timezoneLinux: 'America/New_York'
 
+      - name: Run Biome
+        if: matrix.task == 'lint'
+        run: |
+          echo "Running Biome check (OSS)..."
+          pnpm run lint
+          echo '### Biome (OSS) Passed' >> $GITHUB_STEP_SUMMARY
+
+      - name: Run Unit Tests
+        if: matrix.task == 'unit-test'
+        run: |
+          echo "Creating translation files..."
+          pnpm run generate-t7e
+          echo "Running Unit Tests (OSS)..."
+          pnpm test
+          echo '### Unit Tests (OSS) Passed' >> $GITHUB_STEP_SUMMARY
+
+      - name: Run Type Check
+        if: matrix.task == 'typecheck'
+        run: |
+          echo "Creating translation files..."
+          pnpm run generate-t7e
+          echo "Running Type Check (OSS)..."
+          pnpm run typecheck
+          echo '### Type Check (OSS) Passed' >> $GITHUB_STEP_SUMMARY
+  build:
+    needs: [lint-and-test, lint-and-test-oss]
+    if: always() && needs.lint-and-test-oss.result == 'success' && (needs.lint-and-test.result == 'success' || needs.lint-and-test.result == 'skipped')
+    name: Build (${{ matrix.profile }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [oss, pro, celestrak, embed, epfl, offline]
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+
+      # OSS profile: no SSH, only the public ootk submodule.
+      - name: Update public submodules only (OSS)
+        if: matrix.profile == 'oss'
+        run: git submodule update --init --recursive -- src/engine/ootk
+
+      - name: Verify plugins-pro absence (OSS only)
+        if: matrix.profile == 'oss'
+        run: |
+          if [ -n "$(ls -A src/plugins-pro 2>/dev/null)" ]; then
+            echo "ERROR: OSS build sees plugins-pro contents"; exit 1
+          fi
+
+      # Non-OSS profiles: SSH + full submodules (pro included).
       - name: Set up SSH
+        if: matrix.profile != 'oss' && github.event.pull_request.head.repo.full_name == github.repository
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.ACTIONS_DEPLOY_KEY }}
       - name: Update submodules
+        if: matrix.profile != 'oss' && github.event.pull_request.head.repo.full_name == github.repository
         run: git submodule update --init --recursive
 
       - name: Install Dependencies
-        run: npm ci --ignore-scripts
+        run: pnpm install --frozen-lockfile
 
       - name: Build
-        run: npm run build
+        run: |
+          pnpm exec tsx ./build/generate-translation.ts
+          PROFILE=${{ matrix.profile }}
+          pnpm exec tsx ./build/build-manager.ts production \
+            --profile="$PROFILE" --skip-locales
+
+      - name: Verify output
+        run: |
+          test -f dist/index.html
+          test -f dist/settings/settingsOverride.js
+          MSG="### Build (${{ matrix.profile }}) Passed"
+          echo "$MSG" >> $GITHUB_STEP_SUMMARY
+
+  boot-smoke:
+    needs: [lint-and-test, lint-and-test-oss]
+    if: always() && needs.lint-and-test-oss.result == 'success' && (needs.lint-and-test.result == 'success' || needs.lint-and-test.result == 'skipped')
+    name: Boot Smoke Test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+
+      # boot-smoke only ever builds the oss profile, so skip SSH entirely.
+      - name: Update public submodules only
+        run: git submodule update --init --recursive -- src/engine/ootk
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: >-
+            ${{ runner.os }}-playwright-${{
+            hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: >-
+            ${{ runner.os }}-playwright-
+
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Build (oss)
+        run: |
+          pnpm exec tsx ./build/generate-translation.ts
+          pnpm exec tsx ./build/build-manager.ts production --profile=oss --skip-locales
+
+      - name: Run Boot Smoke Test
+        run: |
+          echo "Running app boot smoke tests..."
+          pnpm run test:e2e:smoke
+          echo '### Boot Smoke Test Passed' >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-boot-smoke
+          path: playwright-report/
+          retention-days: 7
+
   trufflehog:
     needs: build
     name: TruffleHog Secrets Scan
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Run TruffleHog
         uses: trufflesecurity/trufflehog@v3.82.6
 
-  codeql:
-    needs: build
-    name: CodeQL Security Scan
+  pipeline-complete:
+    if: always()
+    needs:
+      - lint-and-test
+      - lint-and-test-oss
+      - boot-smoke
+      - build
+      - trufflehog
+    name: Build Pipeline Complete
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
-        with:
-          languages: javascript
-
-      - name: Autobuild
-        uses: github/codeql-action/autobuild@v3
-
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+      - name: Check job results
+        run: |
+          if [[ ("${{ needs.lint-and-test.result }}" == "failure") || \
+                "${{ needs.lint-and-test-oss.result }}" == "failure" || \
+                "${{ needs.boot-smoke.result }}" == "failure" || \
+                "${{ needs.build.result }}" == "failure" ]]; then
+            echo "One or more required jobs failed"
+            exit 1
+          fi
+          echo "All required jobs passed"

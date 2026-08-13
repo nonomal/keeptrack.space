@@ -1,0 +1,18 @@
+{
+  "plugins": {
+    "ViewInfoRmbPlugin": {
+      "rmbMenu": {
+        "title": "Перегляд",
+        "earthInfo": "Інформація про Землю",
+        "sensorInfo": "Інформація про датчик",
+        "launchSiteInfo": "Інформація про стартовий майданчик",
+        "relatedSatellites": "Пов'язані супутники"
+      },
+      "errorMsgs": {
+        "launchSiteNotFound": "Стартовий майданчик не знайдено!",
+        "noRelatedSats": "Пов'язані супутники не знайдені!",
+        "sensorNotFound": "Датчик не знайдено! Спочатку виберіть датчик."
+      }
+    }
+  }
+}

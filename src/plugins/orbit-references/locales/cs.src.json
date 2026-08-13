@@ -1,0 +1,8 @@
+{
+  "plugins": {
+    "OrbitReferences": {
+      "tooltip": "Vytvořit analytické satelity na oběžné dráze",
+      "linkText": "Generovat referenční orbitální satelity..."
+    }
+  }
+}

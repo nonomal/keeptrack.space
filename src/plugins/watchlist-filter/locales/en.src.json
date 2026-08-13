@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "WatchlistFilter": {
+      "bottomIconLabel": "Show Satellite List Only",
+      "errorMsgs": {
+        "noSatellitesInList": "No satellites in list"
+      }
+    }
+  }
+}

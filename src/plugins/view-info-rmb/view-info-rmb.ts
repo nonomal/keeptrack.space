@@ -1,64 +1,86 @@
-import { keepTrackApi } from '@app/keepTrackApi';
-
-import { GetSatType, KeepTrackApiEvents, ToastMsgType } from '@app/interfaces';
-import { openColorbox } from '@app/lib/colorbox';
-import { hideEl, showEl } from '@app/lib/get-el';
-import { LaunchSite } from '@app/singletons/catalog-manager/LaunchFacility';
-import { errorManagerInstance } from '@app/singletons/errorManager';
-import { DetailedSatellite, DetailedSensor, eci2lla } from 'ootk';
-import { KeepTrackPlugin } from '../KeepTrackPlugin';
+import { LaunchSite } from '@app/app/data/catalog-manager/LaunchFacility';
+import { DetailedSensor } from '@app/app/sensors/DetailedSensor';
+import { GetSatType, ToastMsgType } from '@app/engine/core/interfaces';
+import { PluginRegistry } from '@app/engine/core/plugin-registry';
+import { ServiceLocator } from '@app/engine/core/service-locator';
+import { IContextMenuCapable, IContextMenuConfig, RmbMenuContext } from '@app/engine/plugins/core/plugin-capabilities';
+import { openColorbox } from '@app/engine/utils/colorbox';
+import { html } from '@app/engine/utils/development/formatter';
+import { errorManagerInstance } from '@app/engine/utils/errorManager';
+import { hideEl, showEl } from '@app/engine/utils/get-el';
+import { t7e } from '@app/locales/keys';
+import { eci2lla, Satellite } from '@ootk/src/main';
+import { KeepTrackPlugin } from '../../engine/plugins/base-plugin';
 import { SelectSatManager } from '../select-sat-manager/select-sat-manager';
 import { SensorInfoPlugin } from '../sensor/sensor-info-plugin';
 
-export class ViewInfoRmbPlugin extends KeepTrackPlugin {
+export class ViewInfoRmbPlugin extends KeepTrackPlugin implements IContextMenuCapable {
   readonly id = 'ViewInfoRmbPlugin';
   dependencies_ = [];
 
-  rmbL1ElementName = 'view-rmb';
-  rmbL1Html = keepTrackApi.html`<li class="rmb-menu-item" id="view-rmb"><a href="#">View &#x27A4;</a></li>`;
-  rmbL2ElementName = 'view-rmb-menu';
-  rmbL2Html = keepTrackApi.html`
-  <ul class='dropdown-contents'>
-    <li id="view-info-rmb"><a href="#">Earth Info</a></li>
-    <li id="view-sensor-info-rmb"><a href="#">Sensor Info</a></li>
-    <li id="view-launchsite-info-rmb"><a href="#">Launch Site Info</a></li>
-    <li id="view-sat-info-rmb"><a href="#">Satellite Info</a></li>
-    <li id="view-related-sats-rmb"><a href="#">Related Satellites</a></li>
-  </ul>
-  `;
-  rmbMenuOrder = 1;
-  isRmbOnEarth = true;
-  isRmbOffEarth = true;
-  isRmbOnSat = true;
+  private t_(key: string): string {
+    return t7e(`plugins.ViewInfoRmbPlugin.${key}` as Parameters<typeof t7e>[0]);
+  }
 
-  rmbCallback = (targetId: string, clickedSat?: number): void => {
+  getContextMenuConfig(): IContextMenuConfig {
+    const m = (key: string) => this.t_(`rmbMenu.${key}`);
+
+    return {
+      level1ElementName: 'view-rmb',
+      level1Html: html`<li class="rmb-menu-item" id="view-rmb"><a href="#">${this.t_('rmbMenu.title')} &#x27A4;</a></li>`,
+      level2ElementName: 'view-rmb-menu',
+      level2Html: html`
+        <ul class='dropdown-contents'>
+          <li id="view-info-rmb"><a href="#">${m('earthInfo')}</a></li>
+          <li id="view-sensor-info-rmb"><a href="#">${m('sensorInfo')}</a></li>
+          <li id="view-launchsite-info-rmb"><a href="#">${m('launchSiteInfo')}</a></li>
+          <li id="view-related-sats-rmb"><a href="#">${m('relatedSatellites')}</a></li>
+        </ul>
+      `,
+      order: 1,
+      isVisible: (ctx: RmbMenuContext) => ViewInfoRmbPlugin.hasAnyInfo_(ctx),
+    };
+  }
+
+  /** At least one submenu row applies to this click. */
+  private static hasAnyInfo_(ctx: RmbMenuContext): boolean {
+    return ctx.surface === 'earth' || ctx.target instanceof Satellite || ctx.target instanceof DetailedSensor || ctx.target instanceof LaunchSite;
+  }
+
+  onContextMenuOpen(ctx: RmbMenuContext): void {
+    const toggle = (elementId: string, isShown: boolean) => (isShown ? showEl(elementId) : hideEl(elementId));
+
+    toggle('view-info-rmb', ctx.surface === 'earth');
+    toggle('view-related-sats-rmb', ctx.target instanceof Satellite);
+    toggle('view-sensor-info-rmb', ctx.target instanceof DetailedSensor);
+    toggle('view-launchsite-info-rmb', ctx.target instanceof LaunchSite);
+  }
+
+  onContextMenuAction(targetId: string, clickedSat?: number): void {
     switch (targetId) {
       case 'view-info-rmb':
         {
-          let latLon = keepTrackApi.getInputManager().mouse.latLon;
-          const dragPosition = keepTrackApi.getInputManager().mouse.dragPosition;
+          let latLon = ServiceLocator.getInputManager().mouse.latLon;
+          const dragPosition = ServiceLocator.getInputManager().mouse.dragPosition;
 
-          if (typeof latLon === 'undefined' || isNaN(latLon.lat) || isNaN(latLon.lon)) {
+          if (latLon === undefined || Number.isNaN(latLon.lat) || Number.isNaN(latLon.lon)) {
             errorManagerInstance.debug('latLon undefined!');
-            const gmst = keepTrackApi.getTimeManager().gmst;
+            const gmst = ServiceLocator.getTimeManager().gmst;
 
             latLon = eci2lla({ x: dragPosition[0], y: dragPosition[1], z: dragPosition[2] }, gmst);
           }
-          keepTrackApi.toast(`Lat: ${latLon.lat.toFixed(3)}<br>Lon: ${latLon.lon.toFixed(3)}`, ToastMsgType.normal, true);
+          ServiceLocator.getUiManager().toast(`Lat: ${latLon.lat.toFixed(3)}<br>Lon: ${latLon.lon.toFixed(3)}`, ToastMsgType.normal, true);
         }
-        break;
-      case 'view-sat-info-rmb':
-        keepTrackApi.getPlugin(SelectSatManager)?.selectSat(clickedSat ?? -1);
         break;
       case 'view-sensor-info-rmb':
         this.viewSensorInfoRmb(clickedSat);
         break;
       case 'view-launchsite-info-rmb':
         {
-          const launchSite = keepTrackApi.getCatalogManager().getObject(clickedSat) as LaunchSite;
+          const launchSite = ServiceLocator.getCatalogManager().getObject(clickedSat) as LaunchSite;
 
-          if (typeof launchSite === 'undefined' || launchSite === null) {
-            errorManagerInstance.warn('Launch site not found!');
+          if (launchSite === undefined || launchSite === null) {
+            errorManagerInstance.warn(this.t_('errorMsgs.launchSiteNotFound'));
 
             return;
           }
@@ -70,65 +92,34 @@ export class ViewInfoRmbPlugin extends KeepTrackPlugin {
         break;
       case 'view-related-sats-rmb':
         {
-          const intldes = keepTrackApi.getCatalogManager().getSat(clickedSat ?? -1, GetSatType.EXTRA_ONLY)?.intlDes;
+          const intldes = ServiceLocator.getCatalogManager().getSat(clickedSat ?? -1, GetSatType.EXTRA_ONLY)?.intlDes;
 
           if (!intldes) {
-            keepTrackApi.toast('Time 1 is Invalid!', ToastMsgType.serious);
+            ServiceLocator.getUiManager().toast(this.t_('errorMsgs.noRelatedSats'), ToastMsgType.serious);
           }
           const searchStr = intldes?.slice(0, 8) ?? '';
 
-          keepTrackApi.getUiManager().doSearch(searchStr);
+          ServiceLocator.getUiManager().doSearch(searchStr);
         }
         break;
       default:
         break;
     }
-  };
-
-  addJs() {
-    super.addJs();
-
-    keepTrackApi.on(KeepTrackApiEvents.rightBtnMenuOpen, (_isEarth, clickedSatId) => {
-      if (typeof clickedSatId === 'undefined') {
-        return;
-      }
-      const sat = keepTrackApi.getCatalogManager().getObject(clickedSatId);
-
-      if (sat instanceof DetailedSatellite === false) {
-        hideEl('view-sat-info-rmb');
-        hideEl('view-related-sats-rmb');
-      } else {
-        showEl('view-sat-info-rmb');
-        showEl('view-related-sats-rmb');
-      }
-
-      if (sat instanceof DetailedSensor === false) {
-        hideEl('view-sensor-info-rmb');
-      } else {
-        showEl('view-sensor-info-rmb');
-      }
-
-      if (sat instanceof LaunchSite === false) {
-        hideEl('view-launchsite-info-rmb');
-      } else {
-        showEl('view-launchsite-info-rmb');
-      }
-    });
   }
 
   viewSensorInfoRmb(clickedSat = -1): void {
-    keepTrackApi.getPlugin(SelectSatManager)?.selectSat(clickedSat);
+    PluginRegistry.getPlugin(SelectSatManager)?.selectSat(clickedSat);
 
-    const sensorInfoPluginInstance = keepTrackApi.getPlugin(SensorInfoPlugin);
+    const sensorInfoPluginInstance = PluginRegistry.getPlugin(SensorInfoPlugin);
 
     if (!sensorInfoPluginInstance || clickedSat < 0) {
       return;
     }
 
-    const firstSensor = keepTrackApi.getSensorManager().currentSensors[0];
+    const firstSensor = ServiceLocator.getSensorManager().currentSensors[0];
 
     if (!firstSensor) {
-      errorManagerInstance.warn('Sensor not found! Select a sensor first.');
+      errorManagerInstance.warn(this.t_('errorMsgs.sensorNotFound'));
 
       return;
     }

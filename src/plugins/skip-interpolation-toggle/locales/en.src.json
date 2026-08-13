@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "SkipInterpolationToggle": {
+      "bottomIconLabel": "Skip Interp",
+      "commandPalette": {
+        "toggle": "Toggle Skip TLE Interpolation"
+      }
+    }
+  }
+}

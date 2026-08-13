@@ -1,0 +1,20 @@
+{
+  "colorSchemes": {
+    "CelestrakColorScheme": { "label": "Celestrak" },
+    "ConfidenceColorScheme": { "label": "Confidence" },
+    "CountryColorScheme": { "label": "Country" },
+    "GpAgeColorScheme": { "label": "GP Age" },
+    "MissionColorScheme": { "label": "Mission" },
+    "ObjectTypeColorScheme": { "label": "Object Type" },
+    "OrbitalPlaneDensityColorScheme": { "label": "Orbital Plane Density" },
+    "RcsColorScheme": { "label": "Radar Cross Section" },
+    "ReentryRiskColorScheme": { "label": "Reentry Risk" },
+    "SmallSatColorScheme": { "label": "Small Satellites" },
+    "SourceColorScheme": { "label": "Data Source" },
+    "SpatialDensityColorScheme": { "label": "Spatial Density" },
+    "StarlinkColorScheme": { "label": "Starlink" },
+    "SunlightColorScheme": { "label": "Sunlight Status" },
+    "VelocityColorScheme": { "label": "Velocity" },
+    "VisualMagnitudeColorScheme": { "label": "Standard Magnitude" }
+  }
+}

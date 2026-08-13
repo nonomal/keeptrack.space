@@ -1,0 +1,80 @@
+{
+  "SatInfoBoxOrbital": {
+    "title": "Dane orbitalne",
+    "Apogee": {
+      "label": "Apogeum",
+      "tooltip": "Najwyższy punkt orbity"
+    },
+    "Perigee": {
+      "label": "Perygeum",
+      "tooltip": "Najniższy punkt orbity"
+    },
+    "Inclination": {
+      "label": "Inklinacja",
+      "tooltip": "Kąt mierzony od równika w węźle wstępującym"
+    },
+    "Eccentricity": {
+      "label": "Mimośród",
+      "tooltip": "Jak bardzo orbita jest kolista (0 to okrąg)"
+    },
+    "RightAsc": {
+      "label": "Rektascensja",
+      "tooltip": "Gdzie obiekt wznosi się ponad równik"
+    },
+    "ArgOfPerigee": {
+      "label": "Arg. perycentrum",
+      "tooltip": "Gdzie znajduje się najniższy punkt orbity"
+    },
+    "Latitude": {
+      "label": "Szer. geogr.",
+      "tooltip": "Bieżąca szerokość geograficzna nad Ziemią",
+      "north": "N",
+      "south": "S"
+    },
+    "Longitude": {
+      "label": "Dł. geogr.",
+      "tooltip": "Bieżąca długość geograficzna nad Ziemią",
+      "east": "E",
+      "west": "W"
+    },
+    "Altitude": {
+      "label": "Wysokość",
+      "tooltip": "Bieżąca wysokość nad poziomem morza"
+    },
+    "Period": {
+      "label": "Okres",
+      "tooltip": "Czas jednego pełnego obiegu wokół Ziemi",
+      "meanMotion": "Ruch średni",
+      "revPerDay": "obr./dobę",
+      "min": "min"
+    },
+    "Velocity": {
+      "label": "Prędkość",
+      "tooltip": "Bieżąca prędkość satelity (większa im bliżej Ziemi)"
+    },
+    "AgeOfGP": {
+      "label": "Wiek param. orb.",
+      "tooltip": "Czas od oficjalnego obliczenia orbity (starsze dane są zwykle mniej dokładne)",
+      "days": "Dni",
+      "hours": "Godziny",
+      "epochYear": "Rok epoki",
+      "epochDay": "Dzień epoki"
+    },
+    "RadialSigma": {
+      "label": "Sigma radialna",
+      "tooltip": "Niepewność radialna (metry)"
+    },
+    "InTrackSigma": {
+      "label": "Sigma wzdłuż toru",
+      "tooltip": "Niepewność wzdłuż toru (metry)"
+    },
+    "CrossTrackSigma": {
+      "label": "Sigma poprzeczna",
+      "tooltip": "Niepewność poprzeczna (metry)"
+    },
+    "meter": "m",
+    "kilometer": "km",
+    "second": "s",
+    "unknown": "Nieznany"
+  }
+}

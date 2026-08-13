@@ -1,0 +1,63 @@
+{
+  "plugins": {
+    "EditSat": {
+      "bottomIconLabel": "Modifier le satellite",
+      "title": "Menu Modifier le satellite",
+      "help": {
+        "overview": "Le menu Modifier le satellite permet de changer les éléments orbitaux du satellite sélectionné (réécrivant en pratique son TLE) et d'enregistrer ou de charger des TLE sous forme de fichiers. C'est l'outil de référence pour les expériences hypothétiques sur l'orbite d'un objet réel.",
+        "imgAlt": "Le menu Modifier le satellite avec les champs des éléments orbitaux",
+        "imgCaption": "Chaque champ correspond à une valeur du TLE. La Période et le Mouvement moyen restent synchronisés automatiquement.",
+        "fieldsHeading": "Éléments orbitaux",
+        "fields": "<ul><li><strong>Année / Jour de l'époque</strong> : quand les éléments ont été mesurés, soit l'année à deux chiffres et le jour fractionnaire de l'année (p. ex. 173.25 = midi du jour 173).</li><li><strong>Inclinaison</strong> : inclinaison de l'orbite par rapport à l'équateur, en degrés.</li><li><strong>Ascension droite</strong> : où l'orbite croise l'équateur vers le nord, en degrés.</li><li><strong>Excentricité</strong> : saisissez uniquement les chiffres après \"0.\" (p. ex. 0001234 signifie 0.0001234).</li><li><strong>Argument du périgée</strong> : orientation du point le plus bas de l'orbite, en degrés.</li><li><strong>Anomalie moyenne</strong> : position du satellite le long de l'orbite à l'époque, en degrés.</li><li><strong>Mouvement moyen / Période</strong> : révolutions par jour et minutes par orbite ; modifier l'un recalcule l'autre.</li></ul>",
+        "howToUse": "<ol><li>Sélectionnez un satellite, puis ouvrez le menu depuis la barre inférieure, appuyez sur E, ou faites un clic droit sur le satellite et choisissez Modifier Sat.</li><li>Modifiez les champs et cliquez sur <strong>Mettre à jour le satellite</strong> pour appliquer. Le satellite passe immédiatement sur la nouvelle orbite.</li><li><strong>Mettre l'époque à maintenant</strong> recale l'orbite existante sur l'instant présent, en gardant le satellite au-dessus de sa position actuelle.</li><li><strong>Enregistrer TLE</strong> exporte les éléments actuels dans un fichier JSON ; <strong>Charger TLE</strong> applique un fichier précédemment enregistré.</li></ol>",
+        "tip1": "Les mises à jour sont rejetées si la nouvelle orbite descendait sous l'atmosphère ; une notification vous demande d'essayer d'autres paramètres.",
+        "tip2": "L'Excentricité est la faute de frappe la plus courante : il s'agit uniquement des chiffres fractionnaires, sans le \"0.\" initial.",
+        "tip3": "Les modifications ne durent que la session et ne touchent jamais le vrai catalogue. Rechargez la page pour restaurer l'orbite d'origine.",
+        "shortcutToggle": "Basculer le menu Modifier le satellite"
+      },
+      "sections": {
+        "identity": "Identité",
+        "epoch": "Époque",
+        "elements": "Éléments orbitaux",
+        "calculated": "Paramètres calculés",
+        "actions": "Actions"
+      },
+      "labels": {
+        "apogeeKm": "Apogée (km)",
+        "perigeeKm": "Périgée (km)",
+        "periodMin": "Période (min)",
+        "scc": "SCC# du satellite",
+        "country": "Pays",
+        "epochYear": "Année de l'époque",
+        "epochDay": "Jour de l'époque",
+        "inclination": "Inclinaison",
+        "rightAscension": "Ascension droite",
+        "eccentricity": "Excentricité",
+        "argOfPerigee": "Argument du périgée",
+        "meanAnomaly": "Anomalie moyenne",
+        "meanMotion": "Mouvement moyen",
+        "period": "Période",
+        "error": "Erreur"
+      },
+      "buttons": {
+        "resetOriginal": "Réinitialiser à l'original",
+        "updateSatellite": "Mettre à jour le satellite",
+        "updateEpoch": "Mettre l'époque à maintenant",
+        "saveTle": "Enregistrer TLE",
+        "loadTle": "Charger TLE"
+      },
+      "contextMenu": {
+        "editSat": "Modifier Sat",
+        "setSecondarySat": "Définir comme Sat secondaire",
+        "editSatellite": "Modifier le satellite"
+      },
+      "errorMsgs": {
+        "errorReadingFile": "Erreur lors de la lecture du fichier !",
+        "satelliteNotFound": "Satellite {sccNum} introuvable !",
+        "failedToPropagate": "Échec de la propagation du satellite. Essayez des paramètres différents ou, si vous êtes sûr qu'ils sont corrects, signalez ce problème.",
+        "cannotCalculateDirection": "Impossible de calculer la direction du satellite. Réessayez plus tard.",
+        "notRealSatellite": "Pas un vrai satellite"
+      }
+    }
+  }
+}

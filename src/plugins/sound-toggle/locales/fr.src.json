@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "SoundToggle": {
+      "tooltip": "Activer/Désactiver le son",
+      "errorMsgs": {
+        "notEnabled": "SoundManager n'est pas activé. Vérifiez vos paramètres !"
+      }
+    }
+  }
+}

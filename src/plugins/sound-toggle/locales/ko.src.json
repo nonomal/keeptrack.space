@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "SoundToggle": {
+      "tooltip": "소리 켜기/끄기",
+      "errorMsgs": {
+        "notEnabled": "SoundManager가 활성화되지 않았습니다. 설정을 확인하세요!"
+      }
+    }
+  }
+}

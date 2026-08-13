@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "CloudsToggle": {
+      "bottomIconLabel": "Clouds",
+      "commandPalette": {
+        "toggle": "Toggle Clouds Layer"
+      }
+    }
+  }
+}

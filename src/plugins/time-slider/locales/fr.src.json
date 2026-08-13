@@ -1,0 +1,7 @@
+{
+  "plugins": {
+    "TimeSlider": {
+      "tooltip": "Curseur de Temps: Faites glisser pour ajuster l'heure"
+    }
+  }
+}

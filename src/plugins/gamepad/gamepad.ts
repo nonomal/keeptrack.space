@@ -1,10 +1,13 @@
 /* eslint-disable no-console */
 /* eslint-disable class-methods-use-this */
-import { KeepTrackApiEvents, ToastMsgType } from '@app/interfaces';
-import { keepTrackApi } from '@app/keepTrackApi';
-import { CameraType } from '@app/singletons/camera';
-import { errorManagerInstance } from '@app/singletons/errorManager';
-import { Radians } from 'ootk';
+import { CameraType } from '@app/engine/camera/camera-type';
+import { ToastMsgType } from '@app/engine/core/interfaces';
+import { PluginRegistry } from '@app/engine/core/plugin-registry';
+import { ServiceLocator } from '@app/engine/core/service-locator';
+import { EventBus } from '@app/engine/events/event-bus';
+import { EventBusEvent } from '@app/engine/events/event-bus-events';
+import { errorManagerInstance } from '@app/engine/utils/errorManager';
+import { Radians } from '@ootk/src/main';
 import { SelectSatManager } from '../select-sat-manager/select-sat-manager';
 
 export class GamepadPlugin {
@@ -21,21 +24,21 @@ export class GamepadPlugin {
       if (settingsManager.cruncherReady) {
         this.initializeGamepad(e.gamepad);
       } else {
-        keepTrackApi.once(KeepTrackApiEvents.uiManagerInit, () => this.initializeGamepad(e.gamepad));
+        EventBus.getInstance().once(EventBusEvent.uiManagerInit, () => this.initializeGamepad(e.gamepad));
       }
     });
     window.addEventListener('gamepaddisconnected', () => {
-      keepTrackApi.getUiManager().toast('Gamepad disconnected', ToastMsgType.critical);
+      ServiceLocator.getUiManager().toast('Gamepad disconnected', ToastMsgType.critical);
       this.currentController = null;
     });
   }
 
   initializeGamepad(gamepad: Gamepad): void {
-    keepTrackApi.getUiManager().toast('Gamepad connected', ToastMsgType.normal);
+    ServiceLocator.getUiManager().toast('Gamepad connected', ToastMsgType.normal);
 
     // Only initialize once
     if (!this.currentController) {
-      keepTrackApi.on(KeepTrackApiEvents.updateLoop, this.updateGamepad.bind(this));
+      EventBus.getInstance().on(EventBusEvent.updateLoop, this.updateGamepad.bind(this));
     }
 
     this.currentController = gamepad;
@@ -81,7 +84,6 @@ export class GamepadPlugin {
 
     return true;
   }
-
 
   private updateButtons_(): void {
     if (!this.currentController) {
@@ -168,7 +170,7 @@ export class GamepadPlugin {
       return;
     }
     console.log('A');
-    keepTrackApi.getPlugin(SelectSatManager)?.selectSat(keepTrackApi.getHoverManager().hoveringSat);
+    PluginRegistry.getPlugin(SelectSatManager)?.selectSat(ServiceLocator.getHoverManager().hoveringSat);
   }
 
   private btnB_() {
@@ -176,8 +178,8 @@ export class GamepadPlugin {
       return;
     }
     console.log('B');
-    keepTrackApi.getPlugin(SelectSatManager)?.selectSat(-1);
-    keepTrackApi.getMainCamera().zoomTarget = 0.8;
+    PluginRegistry.getPlugin(SelectSatManager)?.selectSat(-1);
+    ServiceLocator.getMainCamera().state.zoomTarget = 0.8;
   }
 
   private btnX_() {
@@ -185,7 +187,7 @@ export class GamepadPlugin {
       return;
     }
     console.log('X');
-    keepTrackApi.getMainCamera().autoRotate();
+    ServiceLocator.getMainCamera().autoRotate();
   }
 
   private btnY_() {
@@ -208,7 +210,7 @@ export class GamepadPlugin {
     }
     console.log('Left Bumper');
 
-    keepTrackApi.getPlugin(SelectSatManager)?.selectPrevSat();
+    PluginRegistry.getPlugin(SelectSatManager)?.selectPrevSat();
   }
 
   private btnRightBumper_() {
@@ -217,7 +219,7 @@ export class GamepadPlugin {
     }
     console.log('Right Bumper');
 
-    keepTrackApi.getPlugin(SelectSatManager)?.selectNextSat();
+    PluginRegistry.getPlugin(SelectSatManager)?.selectNextSat();
   }
 
   private btnHome_() {
@@ -225,9 +227,9 @@ export class GamepadPlugin {
       return;
     }
     console.log('Home');
-    keepTrackApi.getMainCamera().isPanReset = true;
-    keepTrackApi.getMainCamera().isLocalRotateReset = true;
-    keepTrackApi.getMainCamera().ftsRotateReset = true;
+    ServiceLocator.getMainCamera().state.isPanReset = true;
+    ServiceLocator.getMainCamera().state.isLocalRotateReset = true;
+    ServiceLocator.getMainCamera().state.ftsRotateReset = true;
   }
 
   private btnXbox() {
@@ -250,28 +252,28 @@ export class GamepadPlugin {
     console.log('D-Pad Up');
     settingsManager.isAutoRotateD = false;
     settingsManager.isAutoRotateU = !settingsManager.isAutoRotateU;
-    keepTrackApi.getMainCamera().autoRotate(true);
+    ServiceLocator.getMainCamera().autoRotate(true);
   }
 
   private btnDpadDown_() {
     console.log('D-Pad Down');
     settingsManager.isAutoRotateU = false;
     settingsManager.isAutoRotateD = !settingsManager.isAutoRotateD;
-    keepTrackApi.getMainCamera().autoRotate(true);
+    ServiceLocator.getMainCamera().autoRotate(true);
   }
 
   private btnDpadLeft_() {
     console.log('D-Pad Left');
     settingsManager.isAutoRotateR = false;
     settingsManager.isAutoRotateL = !settingsManager.isAutoRotateL;
-    keepTrackApi.getMainCamera().autoRotate(true);
+    ServiceLocator.getMainCamera().autoRotate(true);
   }
 
   private btnDpadRight_() {
     console.log('Right');
     settingsManager.isAutoRotateL = false;
     settingsManager.isAutoRotateR = !settingsManager.isAutoRotateR;
-    keepTrackApi.getMainCamera().autoRotate(true);
+    ServiceLocator.getMainCamera().autoRotate(true);
   }
 
   private updateZoom_(): void {
@@ -285,34 +287,35 @@ export class GamepadPlugin {
     if (zoomOut === 0 && zoomIn === 0) {
       return;
     } // Not Zooming
-    const renderer = keepTrackApi.getRenderer();
+    const renderer = ServiceLocator.getRenderer();
 
-    let zoomTarget = keepTrackApi.getMainCamera().zoomLevel();
+    let zoomTarget = ServiceLocator.getMainCamera().zoomLevel();
 
-    switch (keepTrackApi.getMainCamera().cameraType) {
-      case CameraType.DEFAULT:
-      case CameraType.FIXED_TO_SAT:
+    switch (ServiceLocator.getMainCamera().cameraType) {
+      case CameraType.FIXED_TO_EARTH:
+      case CameraType.FIXED_TO_SAT_LVLH:
+      case CameraType.FIXED_TO_SAT_ECI:
         zoomTarget += (zoomOut / 500) * renderer.dt;
         zoomTarget -= (zoomIn / 500) * renderer.dt;
-        keepTrackApi.getMainCamera().zoomTarget = zoomTarget;
-        keepTrackApi.getMainCamera().camZoomSnappedOnSat = false;
-        keepTrackApi.getMainCamera().isAutoPitchYawToTarget = false;
+        ServiceLocator.getMainCamera().state.zoomTarget = zoomTarget;
+        ServiceLocator.getMainCamera().state.camZoomSnappedOnSat = false;
+        ServiceLocator.getMainCamera().state.isAutoPitchYawToTarget = false;
 
-        if (zoomTarget < keepTrackApi.getMainCamera().zoomLevel()) {
-          keepTrackApi.getMainCamera().isZoomIn = true;
+        if (zoomTarget < ServiceLocator.getMainCamera().zoomLevel()) {
+          ServiceLocator.getMainCamera().state.isZoomIn = true;
         } else {
-          keepTrackApi.getMainCamera().isZoomIn = false;
+          ServiceLocator.getMainCamera().state.isZoomIn = false;
         }
         break;
       case CameraType.FPS:
-      case CameraType.SATELLITE:
+      case CameraType.SATELLITE_FIRST_PERSON:
       case CameraType.PLANETARIUM:
       case CameraType.ASTRONOMY:
         if (zoomOut !== 0) {
-          keepTrackApi.getMainCamera().fpsVertSpeed += (zoomOut * 2) ** 3 * renderer.dt * settingsManager.cameraMovementSpeed;
+          ServiceLocator.getMainCamera().state.fpsVertSpeed += (zoomOut * 2) ** 3 * renderer.dt * settingsManager.cameraMovementSpeed;
         }
         if (zoomIn !== 0) {
-          keepTrackApi.getMainCamera().fpsVertSpeed -= (zoomIn * 2) ** 3 * renderer.dt * settingsManager.cameraMovementSpeed;
+          ServiceLocator.getMainCamera().state.fpsVertSpeed -= (zoomIn * 2) ** 3 * renderer.dt * settingsManager.cameraMovementSpeed;
         }
         break;
       default:
@@ -330,28 +333,29 @@ export class GamepadPlugin {
     const y = this.currentController.axes[1];
 
     if (x > this.deadzone || x < -this.deadzone || y > this.deadzone || y < -this.deadzone) {
-      keepTrackApi.getMainCamera().autoRotate(false);
-      const drawManagerInstance = keepTrackApi.getRenderer();
+      ServiceLocator.getMainCamera().autoRotate(false);
+      const drawManagerInstance = ServiceLocator.getRenderer();
 
       settingsManager.lastGamepadMovement = Date.now();
 
-      switch (keepTrackApi.getMainCamera().cameraType) {
-        case CameraType.DEFAULT:
-        case CameraType.FIXED_TO_SAT:
-          keepTrackApi.getMainCamera().camAngleSnappedOnSat = false;
-          keepTrackApi.getMainCamera().isAutoPitchYawToTarget = false;
-          keepTrackApi.getMainCamera().camPitchSpeed -= (y ** 3 / 200) * drawManagerInstance.dt * settingsManager.cameraMovementSpeed;
-          keepTrackApi.getMainCamera().camYawSpeed += (x ** 3 / 200) * drawManagerInstance.dt * settingsManager.cameraMovementSpeed;
+      switch (ServiceLocator.getMainCamera().cameraType) {
+        case CameraType.FIXED_TO_EARTH:
+        case CameraType.FIXED_TO_SAT_LVLH:
+        case CameraType.FIXED_TO_SAT_ECI:
+          ServiceLocator.getMainCamera().state.camAngleSnappedOnSat = false;
+          ServiceLocator.getMainCamera().state.isAutoPitchYawToTarget = false;
+          ServiceLocator.getMainCamera().state.camPitchSpeed -= (y ** 3 / 200) * drawManagerInstance.dt * settingsManager.cameraMovementSpeed;
+          ServiceLocator.getMainCamera().state.camYawSpeed += (x ** 3 / 200) * drawManagerInstance.dt * settingsManager.cameraMovementSpeed;
           break;
         case CameraType.FPS:
-        case CameraType.SATELLITE:
+        case CameraType.SATELLITE_FIRST_PERSON:
         case CameraType.PLANETARIUM:
         case CameraType.ASTRONOMY:
           if (y > this.deadzone || y < -this.deadzone) {
-            keepTrackApi.getMainCamera().fpsForwardSpeed = -(y ** 3) * drawManagerInstance.dt;
+            ServiceLocator.getMainCamera().state.fpsForwardSpeed = -(y ** 3) * drawManagerInstance.dt;
           }
           if (x > this.deadzone || x < -this.deadzone) {
-            keepTrackApi.getMainCamera().fpsSideSpeed = x ** 3 * drawManagerInstance.dt;
+            ServiceLocator.getMainCamera().state.fpsSideSpeed = x ** 3 * drawManagerInstance.dt;
           }
           break;
         default:
@@ -368,24 +372,25 @@ export class GamepadPlugin {
 
     const x = this.currentController.axes[2];
     const y = this.currentController.axes[3];
-    const drawManagerInstance = keepTrackApi.getRenderer();
+    const drawManagerInstance = ServiceLocator.getRenderer();
 
-    keepTrackApi.getMainCamera().isLocalRotateOverride = false;
+    ServiceLocator.getMainCamera().state.isLocalRotateOverride = false;
     if (y > this.deadzone || y < -this.deadzone || x > this.deadzone || x < -this.deadzone) {
-      keepTrackApi.getMainCamera().autoRotate(false);
-      switch (keepTrackApi.getMainCamera().cameraType) {
-        case CameraType.DEFAULT:
-        case CameraType.FIXED_TO_SAT:
-          keepTrackApi.getMainCamera().isLocalRotateOverride = true;
-          keepTrackApi.getMainCamera().localRotateDif.pitch = <Radians>(-y * 200);
-          keepTrackApi.getMainCamera().localRotateDif.yaw = <Radians>(-x * 200);
+      ServiceLocator.getMainCamera().autoRotate(false);
+      switch (ServiceLocator.getMainCamera().cameraType) {
+        case CameraType.FIXED_TO_EARTH:
+        case CameraType.FIXED_TO_SAT_LVLH:
+        case CameraType.FIXED_TO_SAT_ECI:
+          ServiceLocator.getMainCamera().state.isLocalRotateOverride = true;
+          ServiceLocator.getMainCamera().state.localRotateDif.pitch = <Radians>(-y * 200);
+          ServiceLocator.getMainCamera().state.localRotateDif.yaw = <Radians>(-x * 200);
           break;
         case CameraType.FPS:
-        case CameraType.SATELLITE:
+        case CameraType.SATELLITE_FIRST_PERSON:
         case CameraType.PLANETARIUM:
         case CameraType.ASTRONOMY:
-          keepTrackApi.getMainCamera().camPitchSpeed += (y / 100) * drawManagerInstance.dt * settingsManager.cameraMovementSpeed;
-          keepTrackApi.getMainCamera().camYawSpeed -= (x / 100) * drawManagerInstance.dt * settingsManager.cameraMovementSpeed;
+          ServiceLocator.getMainCamera().state.camPitchSpeed += (y / 100) * drawManagerInstance.dt * settingsManager.cameraMovementSpeed;
+          ServiceLocator.getMainCamera().state.camYawSpeed -= (x / 100) * drawManagerInstance.dt * settingsManager.cameraMovementSpeed;
           break;
         default:
           // Do nothing
@@ -419,4 +424,3 @@ export class GamepadPlugin {
     return null;
   }
 }
-

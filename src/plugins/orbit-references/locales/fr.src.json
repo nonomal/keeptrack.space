@@ -1,0 +1,8 @@
+{
+  "plugins": {
+    "OrbitReferences": {
+      "tooltip": "Créer des satellites d'analyse en orbite",
+      "linkText": "Générer des satellites de référence orbitale..."
+    }
+  }
+}

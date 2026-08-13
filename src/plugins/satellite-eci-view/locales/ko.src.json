@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "SatelliteEciView": {
+      "bottomIconLabel": "위성 ECI 보기",
+      "commandPalette": {
+        "activate": "위성 ECI 보기로 전환"
+      }
+    }
+  }
+}

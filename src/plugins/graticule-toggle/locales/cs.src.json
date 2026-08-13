@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "GraticuleToggle": {
+      "bottomIconLabel": "Souřadnicová síť",
+      "commandPalette": {
+        "toggle": "Přepnout souřadnicovou síť (mřížka)"
+      }
+    }
+  }
+}

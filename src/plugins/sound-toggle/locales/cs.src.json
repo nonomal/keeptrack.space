@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "SoundToggle": {
+      "tooltip": "Přepnout zvuk zap/vyp",
+      "errorMsgs": {
+        "notEnabled": "SoundManager není povolen. Zkontrolujte nastavení!"
+      }
+    }
+  }
+}

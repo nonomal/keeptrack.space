@@ -1,0 +1,17 @@
+{
+  "SelectSatManager": {
+    "objectInsideEarth": "对象位于地球内部，无法选择",
+    "secondaryObjectSet": "已设置次要对象：{name}"
+  },
+  "plugins": {
+    "SelectSatManager": {
+      "sectionLabel": "Satellite Selection",
+      "settings": {
+        "focusOnSatWhenSelected": {
+          "label": "Focus on Satellite When Selected",
+          "helpText": "Zoom in on the satellite when selected."
+        }
+      }
+    }
+  }
+}

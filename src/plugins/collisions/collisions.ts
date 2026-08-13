@@ -1,14 +1,19 @@
-import { errorManagerInstance } from '@app/singletons/errorManager';
-import CollisionsPng from '@public/img/icons/collisions.png';
-import './collisions.css';
-
-import { KeepTrackApiEvents, MenuMode } from '@app/interfaces';
-import { getEl } from '@app/lib/get-el';
-import { showLoading } from '@app/lib/showLoading';
+import { apiFetch } from '@app/app/data/api-fetch';
+import { MenuMode } from '@app/engine/core/interfaces';
+import { PluginRegistry } from '@app/engine/core/plugin-registry';
+import { ServiceLocator } from '@app/engine/core/service-locator';
+import { EventBus } from '@app/engine/events/event-bus';
+import { EventBusEvent } from '@app/engine/events/event-bus-events';
+import { KeepTrackPlugin } from '@app/engine/plugins/base-plugin';
+import { IBottomIconConfig, IDragOptions, IHelpConfig, ISideMenuConfig } from '@app/engine/plugins/core/plugin-capabilities';
+import { html } from '@app/engine/utils/development/formatter';
+import { errorManagerInstance } from '@app/engine/utils/errorManager';
+import { getEl, hideEl, showEl } from '@app/engine/utils/get-el';
+import { showLoading } from '@app/engine/utils/showLoading';
 import { t7e } from '@app/locales/keys';
-import { keepTrackApi } from '../../keepTrackApi';
-import { ClickDragOptions, KeepTrackPlugin } from '../KeepTrackPlugin';
+import CollisionsPng from '@public/img/icons/collisions.png';
 import { SelectSatManager } from '../select-sat-manager/select-sat-manager';
+import './collisions.css';
 
 //  Updated to match KeepTrack API v2
 export interface CollisionEvent {
@@ -31,113 +36,284 @@ export interface CollisionEvent {
 export class Collisions extends KeepTrackPlugin {
   readonly id = 'Collisions';
   dependencies_ = [];
-  private readonly collisionDataSrc = 'https://api.keeptrack.space/v2/socrates/latest';
+  requiresInternet = true;
+  private readonly collisionDataSrc_ = 'https://api.keeptrack.space/v4/socrates/latest';
   private selectSatIdOnCruncher_: number | null = null;
-  private collisionList_ = <CollisionEvent[]>[];
+  protected collisionList_: CollisionEvent[] = [];
+  private isLoggedIn_ = false;
+  private isFetching_ = false;
 
-  bottomIconElementName: string = 'menu-satellite-collision';
-  bottomIconImg = CollisionsPng;
-  sideMenuElementName: string = `${this.id}-menu`;
-  sideMenuElementHtml = keepTrackApi.html`
-  <div id="${this.id}-menu" class="side-menu-parent start-hidden text-select">
-    <div id="${this.id}-content" class="side-menu">
-      <div class="row">
-        <h5 class="center-align">Possible Collisions</h5>
-        <table id="${this.id}-table" class="center-align"></table>
-        <sub class="center-align">*Collision data provided by CelesTrak via <a href="https://celestrak.org/SOCRATES/" target="_blank" rel="noreferrer">SOCRATES</a>.</sub>
-      </div>
-    </div>
-  </div>`;
+  // =========================================================================
+  // Composition-based configuration methods
+  // =========================================================================
 
-  dragOptions: ClickDragOptions = {
-    isDraggable: true,
-    minWidth: 540,
-    maxWidth: 650,
-  };
+  getBottomIconConfig(): IBottomIconConfig {
+    return {
+      elementName: 'conjunction-feed-icon',
+      label: t7e('plugins.Collisions.bottomIconLabel'),
+      image: CollisionsPng,
+      menuMode: [MenuMode.CONJUNCTIONS, MenuMode.ALL],
+    };
+  }
 
-  menuMode: MenuMode[] = [MenuMode.BASIC, MenuMode.ADVANCED, MenuMode.ALL];
-
-  bottomIconCallback: () => void = () => {
-    if (this.isMenuButtonActive) {
-      this.parseCollisionData_();
+  /**
+   * Called when the bottom icon is clicked.
+   */
+  onBottomIconClick(): void {
+    if (!this.isMenuButtonActive) {
+      return;
     }
+
+    this.updateToolbarForLoginState_();
+
+    if (this.isLoggedIn_ && this.collisionList_.length === 0) {
+      this.fetchCollisionData_();
+    }
+  }
+
+  // Bridge for legacy event system (per CLAUDE.md)
+  bottomIconCallback = (): void => {
+    this.onBottomIconClick();
   };
+
+  getSideMenuConfig(): ISideMenuConfig {
+    return {
+      elementName: 'Collisions-menu',
+      title: t7e('plugins.Collisions.title'),
+      html: this.buildSideMenuHtml_(),
+      dragOptions: this.getDragOptions_(),
+    };
+  }
+
+  protected getDragOptions_(): IDragOptions {
+    return {
+      isDraggable: true,
+      minWidth: 650,
+      maxWidth: 900,
+    };
+  }
+
+  protected buildSideMenuHtml_(): string {
+    const tb = (key: string) => t7e(`plugins.Collisions.toolbar.${key}` as Parameters<typeof t7e>[0]);
+    const lbl = (key: string) => t7e(`plugins.Collisions.labels.${key}` as Parameters<typeof t7e>[0]);
+    const attribution = t7e('plugins.Collisions.dataSource' as Parameters<typeof t7e>[0]).replace(
+      '{link}',
+      '<a href="https://celestrak.org/SOCRATES/" target="_blank" rel="noreferrer">SOCRATES</a>'
+    );
+
+    return html`
+      <div id="Collisions-menu" class="side-menu-parent start-hidden kt-ui-v13">
+        <div id="Collisions-content" class="side-menu">
+          ${this.buildToolbarSection_(tb, lbl)}
+          <section class="kt-section">
+            <div class="kt-section-label">${lbl('results')}</div>
+            <table id="Collisions-table" class="collision-table"></table>
+            <sub class="collision-attribution">*${attribution}</sub>
+          </section>
+        </div>
+      </div>
+    `;
+  }
+
+  /**
+   * The Fetch / Refresh toolbar as v13 action rows. Only one is visible at a
+   * time (fetch before data is loaded, refresh afterwards); the visibility
+   * toggling lives in {@link updateToolbarForLoginState_}. Pro reuses these same
+   * button IDs, so the wiring in {@link uiManagerFinal_} is shared.
+   */
+  protected buildToolbarSection_(tb: (key: string) => string, lbl: (key: string) => string): string {
+    return html`
+      <section class="kt-section">
+        <div class="kt-section-label">${lbl('dataActions')}</div>
+        <button id="Collisions-fetch-btn" class="kt-action waves-effect" type="button">
+          <span class="kt-action-label">${tb('fetchData')}</span>
+        </button>
+        <button id="Collisions-refresh-btn" class="kt-action waves-effect" type="button" style="display:none;">
+          <span class="kt-action-label">${tb('refresh')}</span>
+        </button>
+      </section>
+    `;
+  }
+
+  getHelpConfig(): IHelpConfig {
+    return {
+      title: t7e('plugins.Collisions.title'),
+      sections: [
+        {
+          heading: t7e('help.overview'),
+          content: t7e('plugins.Collisions.help.overview'),
+          image: {
+            src: 'img/help/collisions/collisions-menu.png',
+            alt: t7e('plugins.Collisions.help.imgAlt'),
+            caption: t7e('plugins.Collisions.help.imgCaption'),
+          },
+        },
+        {
+          heading: t7e('plugins.Collisions.help.columnsHeading'),
+          content: t7e('plugins.Collisions.help.columns'),
+        },
+        {
+          heading: t7e('help.howToUse'),
+          content: t7e('plugins.Collisions.help.howToUse'),
+        },
+      ],
+      tips: [t7e('plugins.Collisions.help.tip1'), t7e('plugins.Collisions.help.tip2'), t7e('plugins.Collisions.help.tip3')],
+    };
+  }
+
+  // =========================================================================
+  // Lifecycle methods
+  // =========================================================================
 
   addJs(): void {
     super.addJs();
 
-    keepTrackApi.on(KeepTrackApiEvents.uiManagerFinal, this.uiManagerFinal_.bind(this));
+    EventBus.getInstance().on(EventBusEvent.uiManagerFinal, this.uiManagerFinal_.bind(this));
+    EventBus.getInstance().on(EventBusEvent.userLogin, this.onUserLogin_.bind(this));
+    EventBus.getInstance().on(EventBusEvent.userLogout, this.onUserLogout_.bind(this));
 
-    keepTrackApi.on(KeepTrackApiEvents.onCruncherMessage, () => {
+    EventBus.getInstance().on(EventBusEvent.onCruncherMessage, () => {
       if (this.selectSatIdOnCruncher_ !== null) {
         // If selectedSatManager is loaded, set the selected sat to the one that was just added
-        keepTrackApi.getPlugin(SelectSatManager)?.selectSat(this.selectSatIdOnCruncher_);
+        PluginRegistry.getPlugin(SelectSatManager)?.selectSat(this.selectSatIdOnCruncher_);
 
         this.selectSatIdOnCruncher_ = null;
       }
     });
   }
 
-  private uiManagerFinal_() {
-    getEl(this.sideMenuElementName)!.addEventListener('click', (evt: MouseEvent) => {
-      showLoading(() => {
-        const el = (<HTMLElement>evt.target).parentElement;
+  protected uiManagerFinal_() {
+    getEl('Collisions-fetch-btn', true)?.addEventListener('click', () => {
+      hideEl('Collisions-fetch-btn');
+      showEl('Collisions-refresh-btn', 'flex');
+      this.fetchCollisionData_();
+    });
 
-        if (!el!.classList.contains(`${this.id}-object`)) {
-          return;
-        }
-        // Might be better code for this.
-        const hiddenRow = el!.dataset?.row;
+    getEl('Collisions-refresh-btn', true)?.addEventListener('click', () => {
+      this.collisionList_ = [];
+      this.fetchCollisionData_();
+    });
 
-        if (hiddenRow !== null) {
-          this.eventClicked_(parseInt(hiddenRow!));
-        }
-      });
+    getEl('Collisions-menu', true)?.addEventListener('click', (evt: MouseEvent) => {
+      // Walk up from the click target so nested markup (table cells or card
+      // internals) still resolves to its `.Collisions-object` row/card.
+      const el = (<HTMLElement>evt.target).closest('.Collisions-object') as HTMLElement | null;
+
+      if (!el) {
+        return;
+      }
+
+      const hiddenRow = el.dataset?.row;
+
+      if (hiddenRow !== undefined) {
+        showLoading(() => {
+          this.eventClicked_(parseInt(hiddenRow));
+        });
+      }
     });
   }
 
-  private parseCollisionData_() {
-    if (this.collisionList_.length === 0) {
-      // Only generate the table if receiving the -1 argument for the first time
-      fetch(this.collisionDataSrc).then((response) => {
-        response.json().then((collisionList: CollisionEvent[]) => {
-          this.collisionList_ = collisionList;
-          this.createTable_();
+  private fetchCollisionData_(): void {
+    if (this.isFetching_) {
+      return;
+    }
+    this.isFetching_ = true;
 
-          if (this.collisionList_.length === 0) {
-            errorManagerInstance.warn(t7e('errorMsgs.Collisions.noCollisionsData'));
-          }
-        });
+    apiFetch(this.collisionDataSrc_)
+      .then((response) => response.json())
+      .then((collisionList: CollisionEvent[]) => {
+        this.collisionList_ = collisionList;
+        this.createTable_();
+
+        if (this.collisionList_.length === 0) {
+          errorManagerInstance.warn(t7e('plugins.Collisions.errorMsgs.noCollisionsData'));
+        }
+
+        hideEl('Collisions-fetch-btn');
+        showEl('Collisions-refresh-btn', 'flex');
+      })
+      .catch(() => {
+        errorManagerInstance.warn(t7e('plugins.Collisions.errorMsgs.noCollisionsData'));
+      })
+      .finally(() => {
+        this.isFetching_ = false;
       });
+  }
+
+  private onUserLogin_(): void {
+    this.isLoggedIn_ = true;
+
+    if (this.isMenuButtonActive) {
+      this.updateToolbarForLoginState_();
+      if (this.collisionList_.length === 0) {
+        this.fetchCollisionData_();
+      }
+    }
+  }
+
+  private onUserLogout_(): void {
+    this.isLoggedIn_ = false;
+
+    if (this.isMenuButtonActive) {
+      this.updateToolbarForLoginState_();
+    }
+  }
+
+  private updateToolbarForLoginState_(): void {
+    const fetchBtn = getEl('Collisions-fetch-btn', true);
+    const refreshBtn = getEl('Collisions-refresh-btn', true);
+
+    if (this.isLoggedIn_) {
+      if (fetchBtn) {
+        hideEl(fetchBtn);
+      }
+      if (refreshBtn) {
+        showEl(refreshBtn, 'flex');
+      }
+    } else {
+      if (fetchBtn) {
+        if (this.collisionList_.length === 0) {
+          showEl(fetchBtn, 'flex');
+        } else {
+          hideEl(fetchBtn);
+        }
+      }
+      if (refreshBtn) {
+        if (this.collisionList_.length > 0) {
+          showEl(refreshBtn, 'flex');
+        } else {
+          hideEl(refreshBtn);
+        }
+      }
     }
   }
 
   private eventClicked_(row: number) {
     const now = new Date();
 
-    keepTrackApi.getTimeManager().changeStaticOffset(new Date(this.collisionList_[row].TOCA).getTime() - now.getTime() - 1000 * 30);
-    keepTrackApi.getMainCamera().isAutoPitchYawToTarget = false;
+    ServiceLocator.getTimeManager().changeStaticOffset(new Date(this.collisionList_[row].TOCA).getTime() - now.getTime() - 1000 * 30);
+    ServiceLocator.getMainCamera().state.isAutoPitchYawToTarget = false;
 
     const sat1 = this.collisionList_[row].SAT1.toString().padStart(5, '0');
     const sat2 = this.collisionList_[row].SAT2.toString().padStart(5, '0');
 
-    keepTrackApi.getUiManager().doSearch(`${sat1},${sat2}`);
-    const catalogManagerInstance = keepTrackApi.getCatalogManager();
+    ServiceLocator.getUiManager().doSearch(`${sat1},${sat2}`);
+    const catalogManagerInstance = ServiceLocator.getCatalogManager();
 
     this.selectSatIdOnCruncher_ = catalogManagerInstance.sccNum2Id(parseInt(sat1));
   }
 
-  private createTable_(): void {
+  protected createTable_(): void {
     try {
-      const tbl = <HTMLTableElement>getEl(`${this.id}-table`); // Identify the table to update
+      const tbl = <HTMLTableElement>getEl('Collisions-table');
 
       tbl.innerHTML = ''; // Clear the table from old object data
 
       Collisions.createHeaders_(tbl);
 
       this.createBody_(tbl);
-    } catch (e) {
-      errorManagerInstance.warn(t7e('errorMsgs.Collisions.errorProcessingCollisions'));
+    } catch {
+      errorManagerInstance.warn(t7e('plugins.Collisions.errorMsgs.errorProcessingCollisions'));
     }
   }
 
@@ -147,24 +323,24 @@ export class Collisions extends KeepTrackPlugin {
     }
   }
 
-  private static createHeaders_(tbl: HTMLTableElement) {
+  protected static createHeaders_(tbl: HTMLTableElement) {
+    const th = (key: string) => t7e(`plugins.Collisions.table.${key}` as Parameters<typeof t7e>[0]);
     const tr = tbl.insertRow();
-    const names = ['TOCA', '#1', '#2', 'Max Prob', 'Min Range (km)', 'Rel Speed (km/s)'];
+    const names = [th('toca'), th('sat1'), th('sat2'), th('maxProb'), th('minRange'), th('relSpeed')];
 
     for (const name of names) {
       const column = tr.insertCell();
 
       column.appendChild(document.createTextNode(name));
-      column.setAttribute('style', 'text-decoration: underline');
     }
   }
 
-  private createRow_(tbl: HTMLTableElement, i: number): HTMLTableRowElement {
+  protected createRow_(tbl: HTMLTableElement, i: number): HTMLTableRowElement {
     // Create a new row
     const tr = tbl.insertRow();
 
     tr.setAttribute('class', `${this.id}-object link`);
-    tr.setAttribute('data-row', i.toString());
+    tr.dataset.row = i.toString();
 
     // Populate the table with the data
     Collisions.createCell_(tr, this.collisionList_[i].TOCA.slice(0, 19).replace('T', ' '));
@@ -177,7 +353,7 @@ export class Collisions extends KeepTrackPlugin {
     return tr;
   }
 
-  private static createCell_(tr: HTMLTableRowElement, text: string): void {
+  protected static createCell_(tr: HTMLTableRowElement, text: string): void {
     const cell = tr.insertCell();
 
     cell.appendChild(document.createTextNode(text));

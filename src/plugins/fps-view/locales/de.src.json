@@ -1,0 +1,7 @@
+{
+  "plugins": {
+    "FpsView": {
+      "bottomIconLabel": "FPS-Ansicht"
+    }
+  }
+}

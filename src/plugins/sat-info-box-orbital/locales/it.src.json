@@ -1,0 +1,80 @@
+{
+  "SatInfoBoxOrbital": {
+    "title": "Dati orbitali",
+    "Apogee": {
+      "label": "Apogeo",
+      "tooltip": "Punto più alto dell'orbita"
+    },
+    "Perigee": {
+      "label": "Perigeo",
+      "tooltip": "Punto più basso dell'orbita"
+    },
+    "Inclination": {
+      "label": "Inclinazione",
+      "tooltip": "Angolo misurato dall'equatore al nodo ascendente"
+    },
+    "Eccentricity": {
+      "label": "Eccentricità",
+      "tooltip": "Quanto è circolare l'orbita (0 è un cerchio)"
+    },
+    "RightAsc": {
+      "label": "Asc. retta",
+      "tooltip": "Dove sale sopra l'equatore"
+    },
+    "ArgOfPerigee": {
+      "label": "Arg del perigeo",
+      "tooltip": "Dove si trova la parte più bassa dell'orbita"
+    },
+    "Latitude": {
+      "label": "Latitudine",
+      "tooltip": "Latitudine attuale sopra la Terra",
+      "north": "N",
+      "south": "S"
+    },
+    "Longitude": {
+      "label": "Longitudine",
+      "tooltip": "Longitudine attuale sopra la Terra",
+      "east": "E",
+      "west": "O"
+    },
+    "Altitude": {
+      "label": "Altitudine",
+      "tooltip": "Altitudine attuale sul livello del mare"
+    },
+    "Period": {
+      "label": "Periodo",
+      "tooltip": "Tempo per una rivoluzione completa attorno alla Terra",
+      "meanMotion": "Moto medio",
+      "revPerDay": "riv/giorno",
+      "min": "min"
+    },
+    "Velocity": {
+      "label": "Velocità",
+      "tooltip": "Velocità attuale del satellite (più alta quanto più è vicino alla Terra)"
+    },
+    "AgeOfGP": {
+      "label": "Età del GP",
+      "tooltip": "Tempo trascorso dal calcolo ufficiale dell'orbita (dati GP più vecchi sono generalmente meno precisi)",
+      "days": "Giorni",
+      "hours": "Ore",
+      "epochYear": "Anno dell'epoca",
+      "epochDay": "Giorno dell'epoca"
+    },
+    "RadialSigma": {
+      "label": "Sigma radiale",
+      "tooltip": "Incertezza radiale (metri)"
+    },
+    "InTrackSigma": {
+      "label": "Sigma lungo traccia",
+      "tooltip": "Incertezza lungo traccia (metri)"
+    },
+    "CrossTrackSigma": {
+      "label": "Sigma trasversale",
+      "tooltip": "Incertezza trasversale (metri)"
+    },
+    "meter": "m",
+    "kilometer": "km",
+    "second": "s",
+    "unknown": "Sconosciuto"
+  }
+}

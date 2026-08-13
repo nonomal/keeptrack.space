@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "SatelliteEciView": {
+      "bottomIconLabel": "Вид спутника ECI",
+      "commandPalette": {
+        "activate": "Переключиться на вид спутника ECI"
+      }
+    }
+  }
+}

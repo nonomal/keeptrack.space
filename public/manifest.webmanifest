@@ -1,18 +1,36 @@
 {
+  "id": "/",
   "short_name": "KeepTrack",
   "name": "KeepTrack",
   "description": "3D Satellite Toolkit",
+  "lang": "en",
+  "dir": "ltr",
+  "orientation": "landscape",
+  "categories": ["education", "utilities"],
   "icons": [
     {
-      "src": "./img/favicons/android-chrome-512x512.png",
+      "src": "./img/favicons/web-app-manifest-144x144.png",
+      "type": "image/png",
+      "sizes": "144x144",
+      "purpose": "any"
+    },
+    {
+      "src": "./img/favicons/web-app-manifest-192x192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any"
+    },
+    {
+      "src": "./img/favicons/web-app-manifest-512x512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
+    },
+    {
+      "src": "./img/favicons/web-app-manifest-512x512.png",
       "type": "image/png",
       "sizes": "512x512",
       "purpose": "maskable"
-    },
-    {
-      "src": "./img/favicons/android-chrome-192x192.png",
-      "type": "image/png",
-      "sizes": "192x192"
     }
   ],
   "screenshots": [

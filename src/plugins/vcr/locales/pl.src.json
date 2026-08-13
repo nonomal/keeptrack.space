@@ -1,0 +1,9 @@
+{
+  "VcrPlugin": {
+    "scenarioEnded": "Scenariusz zakończony",
+    "clickToPlay": "Kliknij, aby odtwarzać",
+    "clickToPause": "Kliknij, aby wstrzymać",
+    "clickToResume": "Kliknij, aby wznowić",
+    "endOfScenario": "Nie można odtwarzać: Czas symulacji osiągnął koniec scenariusza."
+  }
+}

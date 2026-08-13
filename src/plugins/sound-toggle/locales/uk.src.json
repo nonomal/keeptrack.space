@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "SoundToggle": {
+      "tooltip": "Увімкнути/Вимкнути звук",
+      "errorMsgs": {
+        "notEnabled": "SoundManager не увімкнено. Перевірте налаштування!"
+      }
+    }
+  }
+}

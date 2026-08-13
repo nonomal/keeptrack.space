@@ -1,0 +1,7 @@
+{
+  "plugins": {
+    "SensorFov": {
+      "bottomIconLabel": "Поле зору сенсора"
+    }
+  }
+}

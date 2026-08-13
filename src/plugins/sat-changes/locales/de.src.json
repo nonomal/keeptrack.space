@@ -1,0 +1,14 @@
+{
+  "plugins": {
+    "SatChanges": {
+      "bottomIconLabel": "Satellitenänderungen",
+      "title": "Interessante Bewegungen",
+      "tableHeaders": {
+        "time": "Zeit",
+        "satellite": "Sat",
+        "inclination": "Neig.",
+        "period": "Per."
+      }
+    }
+  }
+}

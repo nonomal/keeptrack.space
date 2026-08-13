@@ -1,0 +1,18 @@
+{
+  "plugins": {
+    "ViewInfoRmbPlugin": {
+      "rmbMenu": {
+        "title": "表示",
+        "earthInfo": "地球情報",
+        "sensorInfo": "センサー情報",
+        "launchSiteInfo": "打上げサイト情報",
+        "relatedSatellites": "関連衛星"
+      },
+      "errorMsgs": {
+        "launchSiteNotFound": "打上げサイトが見つかりません！",
+        "noRelatedSats": "関連衛星が見つかりません！",
+        "sensorNotFound": "センサーが見つかりません！先にセンサーを選択してください。"
+      }
+    }
+  }
+}

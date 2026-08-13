@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "GraticuleToggle": {
+      "bottomIconLabel": "경위선",
+      "commandPalette": {
+        "toggle": "경위선 전환 (격자선)"
+      }
+    }
+  }
+}

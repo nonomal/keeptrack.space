@@ -1,0 +1,14 @@
+{
+  "plugins": {
+    "EarthPresetsPlugin": {
+      "rmbMenu": {
+        "title": "Erdstil",
+        "satelliteImages": "Satellitenbilder",
+        "alternateSatelliteImages": "Alternative Satellitenbilder",
+        "engineeringTool": "Ingenieurtool",
+        "operationsCenter": "Betriebszentrale",
+        "nineties": "90er-Grafik"
+      }
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "CloudsToggle": {
+      "bottomIconLabel": "云层",
+      "commandPalette": {
+        "toggle": "切换云层显示"
+      }
+    }
+  }
+}

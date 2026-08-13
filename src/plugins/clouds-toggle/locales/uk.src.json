@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "CloudsToggle": {
+      "bottomIconLabel": "Хмари",
+      "commandPalette": {
+        "toggle": "Перемкнути шар хмар"
+      }
+    }
+  }
+}

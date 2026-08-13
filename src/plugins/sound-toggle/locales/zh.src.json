@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "SoundToggle": {
+      "tooltip": "开启/关闭声音",
+      "errorMsgs": {
+        "notEnabled": "声音管理器未启用。请检查您的设置！"
+      }
+    }
+  }
+}

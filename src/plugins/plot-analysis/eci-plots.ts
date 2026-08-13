@@ -1,12 +1,16 @@
-import { EChartsData, MenuMode } from '@app/interfaces';
-import { keepTrackApi } from '@app/keepTrackApi';
-import { getEl } from '@app/lib/get-el';
-import { SatMathApi } from '@app/singletons/sat-math-api';
+import { EChartsData, MenuMode } from '@app/engine/core/interfaces';
+import { PluginRegistry } from '@app/engine/core/plugin-registry';
+import { ServiceLocator } from '@app/engine/core/service-locator';
+import { SatMathApi } from '@app/engine/math/sat-math-api';
+import { html } from '@app/engine/utils/development/formatter';
+import { getEl } from '@app/engine/utils/get-el';
+import { Satellite } from '@ootk/src/main';
 import scatterPlot2Png from '@public/img/icons/scatter-plot2.png';
 import * as echarts from 'echarts';
 import 'echarts-gl';
-import { DetailedSatellite } from 'ootk';
-import { ClickDragOptions, KeepTrackPlugin } from '../KeepTrackPlugin';
+import { IHelpConfig } from '@app/engine/plugins/core/plugin-capabilities';
+import { t7e } from '@app/locales/keys';
+import { ClickDragOptions, KeepTrackPlugin } from '../../engine/plugins/base-plugin';
 import { SelectSatManager } from '../select-sat-manager/select-sat-manager';
 
 type EChartsOption = echarts.EChartsOption;
@@ -18,7 +22,7 @@ export class EciPlot extends KeepTrackPlugin {
 
   constructor() {
     super();
-    this.selectSatManager_ = keepTrackApi.getPlugin(SelectSatManager) as unknown as SelectSatManager; // this will be validated in KeepTrackPlugin constructor
+    this.selectSatManager_ = PluginRegistry.getPlugin(SelectSatManager) as unknown as SelectSatManager; // this will be validated in KeepTrackPlugin constructor
   }
 
   isRequireSatelliteSelected = true;
@@ -30,16 +34,33 @@ export class EciPlot extends KeepTrackPlugin {
   bottomIconImg = scatterPlot2Png;
   bottomIconCallback = () => {
     if (this.isMenuButtonActive) {
-      this.createPlot(this.getPlotData(), getEl(this.plotCanvasId));
+      this.createPlot(this.getPlotData(), getEl(this.plotCanvasId)!);
     }
   };
 
   plotCanvasId = 'plot-analysis-chart-eci';
   chart: echarts.ECharts;
 
+  getHelpConfig(): IHelpConfig {
+    return {
+      title: t7e('plugins.EciPlot.title'),
+      sections: [
+        {
+          heading: t7e('help.overview'),
+          content: t7e('plugins.EciPlot.help.overview'),
+        },
+        {
+          heading: t7e('help.howToUse'),
+          content: t7e('plugins.EciPlot.help.howToUse'),
+        },
+      ],
+      tips: [t7e('plugins.EciPlot.help.tip1')],
+    };
+  }
+
   sideMenuElementName = 'eci-plots-menu';
-  sideMenuElementHtml: string = keepTrackApi.html`
-  <div id="eci-plots-menu" class="side-menu-parent start-hidden text-select plot-analysis-menu-normal">
+  sideMenuElementHtml: string = html`
+  <div id="eci-plots-menu" class="side-menu-parent start-hidden plot-analysis-menu-normal kt-ui-v13">
     <div id="plot-analysis-content" class="side-menu">
       <div id="${this.plotCanvasId}" class="plot-analysis-chart plot-analysis-menu-maximized"></div>
     </div>
@@ -50,7 +71,7 @@ export class EciPlot extends KeepTrackPlugin {
     minWidth: 800,
     maxWidth: 4096,
     callback: () => {
-      this.createPlot(this.getPlotData(), getEl(this.plotCanvasId));
+      this.createPlot(this.getPlotData(), getEl(this.plotCanvasId)!);
     },
   };
 
@@ -74,6 +95,9 @@ export class EciPlot extends KeepTrackPlugin {
     // Get the Data
     const positionData = data.slice(0, 3);
     const dataRange = positionData.reduce((range, sat) => {
+      if (!sat.value) {
+        return range;
+      }
       const minDataX = sat.value.reduce((min: number, item) => Math.min(min, item[0]), Infinity);
       const maxDataX = sat.value.reduce((max: number, item) => Math.max(max, item[0]), -Infinity);
       const minDataY = sat.value.reduce((min: number, item) => Math.min(min, item[1]), Infinity);
@@ -83,7 +107,6 @@ export class EciPlot extends KeepTrackPlugin {
       const minData = Math.round(Math.min(minDataX, minDataY, minDataZ) / 1000) * 1000;
       const maxData = Math.round(Math.max(maxDataX, maxDataY, maxDataZ) / 1000) * 1000;
       const _dataRange = Math.max(maxData, Math.abs(minData));
-
 
       return Math.max(range, _dataRange);
     }, 0);
@@ -158,28 +181,30 @@ export class EciPlot extends KeepTrackPlugin {
           zoomSensitivity: 2,
         },
       },
-      series: data.map((sat) => ({
-        type: 'scatter3D',
-        name: sat.name,
-        dimensions: [app.config.xAxis3D, app.config.yAxis3D, app.config.zAxis3D],
-        data: sat.value.map((item, idx: number) => ({
+      series: data
+        .filter((sat) => sat.value)
+        .map((sat) => ({
+          type: 'scatter3D',
+          name: sat.name,
+          dimensions: [app.config.xAxis3D, app.config.yAxis3D, app.config.zAxis3D],
+          data: sat.value!.map((item, idx: number) => ({
+            itemStyle: {
+              opacity: 1 - idx / sat.value!.length, // opacity by time
+            },
+            value: [item[app.fieldIndices[app.config.xAxis3D]], item[app.fieldIndices[app.config.yAxis3D]], item[app.fieldIndices[app.config.zAxis3D]], item[3]],
+          })),
+          symbolSize: 12,
+          // symbol: 'triangle',
           itemStyle: {
-            opacity: 1 - idx / sat.value.length, // opacity by time
+            borderWidth: 1,
+            borderColor: 'rgba(255,255,255,0.8)',
           },
-          value: [item[app.fieldIndices[app.config.xAxis3D]], item[app.fieldIndices[app.config.yAxis3D]], item[app.fieldIndices[app.config.zAxis3D]], item[3]],
+          emphasis: {
+            itemStyle: {
+              color: '#fff',
+            },
+          },
         })),
-        symbolSize: 12,
-        // symbol: 'triangle',
-        itemStyle: {
-          borderWidth: 1,
-          borderColor: 'rgba(255,255,255,0.8)',
-        },
-        emphasis: {
-          itemStyle: {
-            color: '#fff',
-          },
-        },
-      })),
     });
   }
 
@@ -222,22 +247,27 @@ export class EciPlot extends KeepTrackPlugin {
   getPlotData(): EChartsData {
     const NUMBER_OF_POINTS = 100;
     const data = [] as EChartsData;
-    const catalogManagerInstance = keepTrackApi.getCatalogManager();
+    const catalogManagerInstance = ServiceLocator.getCatalogManager();
 
     // Time management
-    const now = keepTrackApi.getTimeManager().simulationTimeObj.getTime();
-    const curSatObj = catalogManagerInstance.getObject(this.selectSatManager_.selectedSat) as DetailedSatellite;
+    const now = ServiceLocator.getTimeManager().simulationTimeObj.getTime();
+    const curSatObj = catalogManagerInstance.getObject(this.selectSatManager_.selectedSat) as Satellite;
 
     const timeData: Date[] = [];
 
     for (let i = 0; i < NUMBER_OF_POINTS; i++) {
-      const date = new Date(now + curSatObj.period * 60 * i / (NUMBER_OF_POINTS) * 1000);
+      const date = new Date(now + ((curSatObj.period * 60 * i) / NUMBER_OF_POINTS) * 1000);
 
       timeData.push(date);
     }
     data.push({
-      name: curSatObj.name, value: SatMathApi.getEciOfCurrentOrbit(curSatObj, NUMBER_OF_POINTS)
-        .map((point: { x: number, y: number, z: number }, idx: number) => [point.x, point.y, point.z, timeData[idx].toISOString()]),
+      name: curSatObj.name,
+      value: SatMathApi.getEciOfCurrentOrbit(curSatObj, NUMBER_OF_POINTS).map((point: { x: number; y: number; z: number }, idx: number) => [
+        point.x,
+        point.y,
+        point.z,
+        timeData[idx].toISOString(),
+      ]),
     });
 
     const secSatObj = this.selectSatManager_.secondarySatObj;
@@ -246,29 +276,39 @@ export class EciPlot extends KeepTrackPlugin {
       const timeData: Date[] = [];
 
       for (let i = 0; i < NUMBER_OF_POINTS; i++) {
-        const date = new Date(now + secSatObj.period * 60 * i / (NUMBER_OF_POINTS) * 1000);
+        const date = new Date(now + ((secSatObj.period * 60 * i) / NUMBER_OF_POINTS) * 1000);
 
         timeData.push(date);
       }
       data.push({
-        name: secSatObj.name, value: SatMathApi.getEciOfCurrentOrbit(secSatObj, NUMBER_OF_POINTS)
-          .map((point: { x: number, y: number, z: number }, idx: number) => [point.x, point.y, point.z, timeData[idx].toISOString()]),
+        name: secSatObj.name,
+        value: SatMathApi.getEciOfCurrentOrbit(secSatObj, NUMBER_OF_POINTS).map((point: { x: number; y: number; z: number }, idx: number) => [
+          point.x,
+          point.y,
+          point.z,
+          timeData[idx].toISOString(),
+        ]),
       });
     }
 
     const lastSatId = this.selectSatManager_.lastSelectedSat();
 
-    if (lastSatId !== -1) {
-      const lastSatObj = catalogManagerInstance.getObject(lastSatId) as DetailedSatellite;
+    if (lastSatId !== null) {
+      const lastSatObj = catalogManagerInstance.getObject(lastSatId) as Satellite;
 
       for (let i = 0; i < NUMBER_OF_POINTS; i++) {
-        const date = new Date(now + lastSatObj.period * 60 * i / (NUMBER_OF_POINTS) * 1000);
+        const date = new Date(now + ((lastSatObj.period * 60 * i) / NUMBER_OF_POINTS) * 1000);
 
         timeData.push(date);
       }
       data.push({
-        name: lastSatObj.name, value: SatMathApi.getEciOfCurrentOrbit(lastSatObj, NUMBER_OF_POINTS)
-          .map((point: { x: number, y: number, z: number }, idx: number) => [point.x, point.y, point.z, timeData[idx].toISOString()]),
+        name: lastSatObj.name,
+        value: SatMathApi.getEciOfCurrentOrbit(lastSatObj, NUMBER_OF_POINTS).map((point: { x: number; y: number; z: number }, idx: number) => [
+          point.x,
+          point.y,
+          point.z,
+          timeData[idx].toISOString(),
+        ]),
       });
     }
 

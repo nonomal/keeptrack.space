@@ -1,0 +1,20 @@
+#inc2lon-plots-menu.side-menu-parent {
+  z-index: 10001 !important;
+  width: 100% !important;
+  min-width: 100% !important;
+  max-width: 100% !important;
+}
+
+#inc2lon-plots-menu .side-menu {
+  height: 100%;
+  position: relative !important;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.inc2lon-chart-container {
+  width: 100%;
+  flex: 1;
+  min-height: 200px;
+}

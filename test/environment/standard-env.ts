@@ -1,31 +1,36 @@
 /* eslint-disable no-console */
+import { CatalogManager } from '@app/app/data/catalog-manager';
+import { SatLinkManager } from '@app/app/data/catalog-manager/satLinkManager';
+import { GroupsManager } from '@app/app/data/groups-manager';
+import { SensorMath } from '@app/app/sensors/sensor-math';
+import { SensorManager } from '@app/app/sensors/sensorManager';
+import { BottomMenu } from '@app/app/ui/bottom-menu';
+import { SearchManager } from '@app/app/ui/search-manager';
+import { UiManager } from '@app/app/ui/ui-manager';
+import { SoundManager } from '@app/engine/audio/sound-manager';
+import { Camera } from '@app/engine/camera/camera';
+import { PluginRegistry } from '@app/engine/core/plugin-registry';
+import { Scene } from '@app/engine/core/scene';
+import { ServiceLocator } from '@app/engine/core/service-locator';
+import { TimeManager } from '@app/engine/core/time-manager';
+import { EventBus } from '@app/engine/events/event-bus';
+import { InputManager } from '@app/engine/input/input-manager';
+import { KeepTrackPlugin } from '@app/engine/plugins/base-plugin';
+import { ColorSchemeManager } from '@app/engine/rendering/color-scheme-manager';
+import { DotsManager } from '@app/engine/rendering/dots-manager';
+import { ConeMeshFactory } from '@app/engine/rendering/draw-manager/cone-mesh-factory';
+import { SensorFovMeshFactory } from '@app/engine/rendering/draw-manager/sensor-fov-mesh-factory';
+import { LineManager } from '@app/engine/rendering/line-manager';
 import { KeepTrack } from '@app/keeptrack';
 import { keepTrackApi } from '@app/keepTrackApi';
-import { KeepTrackPlugin } from '@app/plugins/KeepTrackPlugin';
 import { SelectSatManager } from '@app/plugins/select-sat-manager/select-sat-manager';
-import { SensorManager } from '@app/plugins/sensor/sensorManager';
-import { SoundManager } from '@app/plugins/sounds/sound-manager';
 import { SettingsManager } from '@app/settings/settings';
-import { Camera } from '@app/singletons/camera';
-import { SatLinkManager } from '@app/singletons/catalog-manager/satLinkManager';
-import { ColorSchemeManager } from '@app/singletons/color-scheme-manager';
-import { DotsManager } from '@app/singletons/dots-manager';
-import { ConeMeshFactory } from '@app/singletons/draw-manager/cone-mesh-factory';
-import { SensorFovMeshFactory } from '@app/singletons/draw-manager/sensor-fov-mesh-factory';
-import { GroupsManager } from '@app/singletons/groups-manager';
-import { InputManager } from '@app/singletons/input-manager';
-import { Scene } from '@app/singletons/scene';
-import { SearchManager } from '@app/singletons/search-manager';
-import { TimeManager } from '@app/singletons/time-manager';
-import { UiManager } from '@app/singletons/uiManager';
-import { BottomMenu } from '@app/static/bottom-menu';
-import { SensorMath } from '@app/static/sensor-math';
 import { mat4 } from 'gl-matrix';
-import { keepTrackContainer } from '../../src/container';
-import { Constructor, Singletons } from '../../src/interfaces';
-import { CatalogManager } from '../../src/singletons/catalog-manager';
-import { OrbitManager } from '../../src/singletons/orbitManager';
-import { WebGLRenderer } from '../../src/singletons/webgl-renderer';
+import { vi } from 'vitest';
+import { OrbitManager } from '../../src/app/rendering/orbit-manager';
+import { Container } from '../../src/engine/core/container';
+import { Constructor, Singletons } from '../../src/engine/core/interfaces';
+import { WebGLRenderer } from '../../src/engine/rendering/webgl-renderer';
 import { defaultSat, defaultSensor } from './apiMocks';
 
 export const setupStandardEnvironment = (dependencies?: Constructor<KeepTrackPlugin>[]) => {
@@ -38,32 +43,15 @@ export const setupStandardEnvironment = (dependencies?: Constructor<KeepTrackPlu
   (global as unknown as Global).settingsManager = settingsManager;
   // Mock the Image class with a mock decode method and the ability to create new Image objects.
   // eslint-disable-next-line no-native-reassign, no-global-assign
-  Image = jest.fn().mockImplementation(() => ({
-    decode: () => Promise.resolve(new Uint8ClampedArray([0, 0, 0, 0])),
-  }));
-  keepTrackApi.containerRoot = null as unknown as HTMLDivElement;
+  Image = class MockImage {
+    decode = vi.fn(() => Promise.resolve(new Uint8ClampedArray([0, 0, 0, 0])));
+  } as unknown as typeof Image;
+  KeepTrack.getInstance().containerRoot = null as unknown as HTMLDivElement;
   keepTrackApi.analytics = {
-    track: jest.fn(),
-    identify: jest.fn(),
-    page: jest.fn(),
-    user: jest.fn(),
-    reset: jest.fn(),
-    ready: jest.fn(),
-    on: jest.fn(),
-    once: jest.fn(),
-    getState: jest.fn(),
-    storage: {
-      getItem: jest.fn(),
-      setItem: jest.fn(),
-      removeItem: jest.fn(),
-    },
-    plugins: {
-      enable: jest.fn(),
-      disable: jest.fn(),
-    },
+    track: vi.fn(),
   };
-  keepTrackApi.unregisterAllEvents();
-  keepTrackApi.unregisterAllPlugins();
+  EventBus.getInstance().unregisterAllEvents();
+  PluginRegistry.unregisterAllPlugins();
   // eslint-disable-next-line dot-notation
   KeepTrack['setContainerElement']();
   setupDefaultHtml();
@@ -71,77 +59,96 @@ export const setupStandardEnvironment = (dependencies?: Constructor<KeepTrackPlu
   clearAllCallbacks();
 
   const renderer = new WebGLRenderer();
-  const scene = new Scene({
-    gl: global.mocks.glMock,
-  });
+  const scene = Scene.getInstance();
+
+  scene.init({ gl: global.mocks.glMock });
 
   scene.sensorFovFactory = {
-    drawAll: jest.fn(),
-    updateAll: jest.fn(),
-    generateSensorFovMesh: jest.fn(),
+    drawAll: vi.fn(),
+    updateAll: vi.fn(),
+    generateSensorFovMesh: vi.fn(),
     meshes: [],
   } as unknown as SensorFovMeshFactory;
 
   scene.coneFactory = {
-    drawAll: jest.fn(),
-    updateAll: jest.fn(),
-    generateMesh: jest.fn(),
-    editSettings: jest.fn(),
-    remove: jest.fn(),
-    removeByObjectId: jest.fn(),
+    drawAll: vi.fn(),
+    updateAll: vi.fn(),
+    generateMesh: vi.fn(),
+    editSettings: vi.fn(),
+    remove: vi.fn(),
+    removeByObjectId: vi.fn(),
     meshes: [],
   } as unknown as ConeMeshFactory;
 
   const catalogManagerInstance = new CatalogManager();
 
-  catalogManagerInstance.satCruncher = {
-    postMessage: jest.fn(),
-    addEventListener: jest.fn(),
-  } as unknown as Worker;
+  catalogManagerInstance.satCruncherThread = {
+    postMessage: vi.fn(),
+    sendSatEdit: vi.fn(),
+    sendSensorUpdate: vi.fn(),
+    sendSunlightViewToggle: vi.fn(),
+    sendSatelliteSelected: vi.fn(),
+    sendMarkerUpdate: vi.fn(),
+    sendCatalogData: vi.fn(),
+    sendTimeSync: vi.fn(),
+    sendNewMissile: vi.fn(),
+    worker: {
+      addEventListener: vi.fn(),
+      postMessage: vi.fn(),
+      terminate: vi.fn(),
+    },
+  } as any;
   catalogManagerInstance.objectCache = [defaultSat];
+  // Set up sccIndex so sccNum2Id can find satellites by their catalog number
+  catalogManagerInstance.sccIndex = { '00005': 0 };
   catalogManagerInstance.satLinkManager = new SatLinkManager();
-  keepTrackContainer.registerSingleton(Singletons.CatalogManager, catalogManagerInstance);
+  Container.getInstance().registerSingleton(Singletons.CatalogManager, catalogManagerInstance);
 
   const orbitManagerInstance = new OrbitManager();
 
-  orbitManagerInstance.orbitWorker = {
-    postMessage: jest.fn(),
-    addEventListener: jest.fn(),
-  } as unknown as Worker;
-
-  orbitManagerInstance.init(null, global.mocks.glMock);
-  keepTrackContainer.registerSingleton(Singletons.OrbitManager, orbitManagerInstance);
+  orbitManagerInstance.init(null as unknown as LineManager, global.mocks.glMock);
+  Container.getInstance().registerSingleton(Singletons.OrbitManager, orbitManagerInstance);
 
   const colorSchemeManagerInstance = new ColorSchemeManager();
 
-  keepTrackContainer.registerSingleton(Singletons.ColorSchemeManager, colorSchemeManagerInstance);
+  Container.getInstance().registerSingleton(Singletons.ColorSchemeManager, colorSchemeManagerInstance);
 
   const dotsManagerInstance = new DotsManager();
 
   dotsManagerInstance.inViewData = Array(100).fill(0) as unknown as Int8Array;
 
-  keepTrackContainer.registerSingleton(Singletons.DotsManager, dotsManagerInstance);
+  Container.getInstance().registerSingleton(Singletons.DotsManager, dotsManagerInstance);
 
   const timeManagerInstance = new TimeManager();
 
+  timeManagerInstance.init();
+
   timeManagerInstance.simulationTimeObj = new Date(2023, 1, 1, 0, 0, 0, 0);
-  keepTrackContainer.registerSingleton(Singletons.TimeManager, timeManagerInstance);
+  Container.getInstance().registerSingleton(Singletons.TimeManager, timeManagerInstance);
 
   const sensorManagerInstance = new SensorManager();
 
-  keepTrackContainer.registerSingleton(Singletons.SensorManager, sensorManagerInstance);
+  Container.getInstance().registerSingleton(Singletons.SensorManager, sensorManagerInstance);
 
-  mockUiManager.searchManager = new SearchManager(mockUiManager);
+  mockUiManager.searchManager = new SearchManager();
   const soundManagerInstance = new SoundManager();
 
-  // Jest all Image class objects with a mock decode method.
-  Image.prototype.decode = jest.fn();
-
-  catalogManagerInstance.satCruncher = {
-    addEventListener: jest.fn(),
-    postMessage: jest.fn(),
-    terminate: jest.fn(),
-  } as unknown as Worker;
+  catalogManagerInstance.satCruncherThread = {
+    postMessage: vi.fn(),
+    sendSatEdit: vi.fn(),
+    sendSensorUpdate: vi.fn(),
+    sendSunlightViewToggle: vi.fn(),
+    sendSatelliteSelected: vi.fn(),
+    sendMarkerUpdate: vi.fn(),
+    sendCatalogData: vi.fn(),
+    sendTimeSync: vi.fn(),
+    sendNewMissile: vi.fn(),
+    worker: {
+      addEventListener: vi.fn(),
+      postMessage: vi.fn(),
+      terminate: vi.fn(),
+    },
+  } as any;
 
   // Pretend webGl works
   renderer.gl = global.mocks.glMock;
@@ -151,30 +158,28 @@ export const setupStandardEnvironment = (dependencies?: Constructor<KeepTrackPlu
   const inputManagerInstance = new InputManager();
   const groupManagerInstance = new GroupsManager();
 
-  keepTrackContainer.registerSingleton(Singletons.WebGLRenderer, renderer);
-  keepTrackContainer.registerSingleton(Singletons.Scene, scene);
-  keepTrackContainer.registerSingleton(Singletons.UiManager, mockUiManager);
-  keepTrackContainer.registerSingleton(Singletons.InputManager, inputManagerInstance);
-  keepTrackContainer.registerSingleton(Singletons.GroupsManager, groupManagerInstance);
+  Container.getInstance().registerSingleton(Singletons.WebGLRenderer, renderer);
+  Container.getInstance().registerSingleton(Singletons.Scene, scene);
+  Container.getInstance().registerSingleton(Singletons.UiManager, mockUiManager);
+  Container.getInstance().registerSingleton(Singletons.TimeManager, timeManagerInstance);
+  Container.getInstance().registerSingleton(Singletons.InputManager, inputManagerInstance);
+  Container.getInstance().registerSingleton(Singletons.GroupsManager, groupManagerInstance);
   const sensorMathInstance = new SensorMath();
 
-  keepTrackContainer.registerSingleton(Singletons.SensorMath, sensorMathInstance);
-  keepTrackContainer.registerSingleton(Singletons.SoundManager, soundManagerInstance);
+  Container.getInstance().registerSingleton(Singletons.SensorMath, sensorMathInstance);
+  Container.getInstance().registerSingleton(Singletons.SoundManager, soundManagerInstance);
 
-  keepTrackApi.getColorSchemeManager().colorData = new Float32Array(Array(100).fill(0));
-  keepTrackApi.getDotsManager().sizeData = new Int8Array(Array(100).fill(0));
-  keepTrackApi.getDotsManager().positionData = new Float32Array(Array(100).fill(0));
+  ServiceLocator.getColorSchemeManager().colorData = new Float32Array(Array(100).fill(0));
+  ServiceLocator.getDotsManager().sizeData = new Int8Array(Array(100).fill(0));
+  ServiceLocator.getDotsManager().positionData = new Float32Array(Array(100).fill(0));
   // Setup a mock catalog
   const sat2 = defaultSat.clone();
 
   sat2.id = 1;
   sat2.sccNum = '11';
-  keepTrackApi.getCatalogManager().objectCache = [defaultSat, sat2];
-  const selectSatManager = new SelectSatManager();
+  ServiceLocator.getCatalogManager().objectCache = [defaultSat, sat2];
 
-  selectSatManager.init();
-
-  keepTrackApi.containerRoot.innerHTML += `
+  KeepTrack.getInstance().containerRoot.innerHTML += `
     <div id="save-rmb"></div>
     <div id="save-rmb-menu"></div>
     <div id="view-rmb"></div>
@@ -198,29 +203,12 @@ export const setupStandardEnvironment = (dependencies?: Constructor<KeepTrackPlu
   inputManagerInstance.init();
   catalogManagerInstance.staticSet = [defaultSensor];
 
-  window.M = {
-    AutoInit: jest.fn(),
-    toast: () => ({
-      $el: [
-        {
-          addEventListener: jest.fn(),
-          style: {
-            background: 'red',
-          },
-        },
-      ],
-    }),
-    Dropdown: {
-      init: jest.fn(),
-    },
-  } as unknown as typeof window.M;
-
   dependencies?.forEach((Dependency) => {
     const instance = new Dependency();
 
     instance.init();
     if (instance.singletonValue) {
-      keepTrackContainer.registerSingleton(instance.singletonValue, instance);
+      Container.getInstance().registerSingleton(instance.singletonValue, instance);
     }
   });
 };
@@ -233,12 +221,12 @@ const backupConsoleError = {
 };
 
 export const disableConsoleErrors = () => {
-  // console.error = jest.fn();
+  // console.error = vi.fn();
 
-  // console.warn = jest.fn();
+  // console.warn = vi.fn();
 
-  // console.info = jest.fn();
-  console.log = jest.fn();
+  // console.info = vi.fn();
+  console.log = vi.fn();
 };
 
 export const enableConsoleErrors = () => {
@@ -249,15 +237,15 @@ export const enableConsoleErrors = () => {
 };
 
 export const standardSelectSat = () => {
-  keepTrackApi.getCatalogManager().objectCache = [defaultSat];
-  keepTrackApi.getColorSchemeManager().colorData = Array(100).fill(0) as unknown as Float32Array;
-  keepTrackApi.getDotsManager().sizeData = Array(100).fill(0) as unknown as Int8Array;
-  keepTrackApi.getDotsManager().positionData = Array(100).fill(0) as unknown as Float32Array;
-  keepTrackApi.getCatalogManager().getObject = () => defaultSat;
-  keepTrackApi.getPlugin(SelectSatManager)?.selectSat(0);
+  ServiceLocator.getCatalogManager().objectCache = [defaultSat];
+  ServiceLocator.getColorSchemeManager().colorData = new Float32Array(Array(100).fill(0));
+  ServiceLocator.getDotsManager().sizeData = Array(100).fill(0) as unknown as Int8Array;
+  ServiceLocator.getDotsManager().positionData = Array(100).fill(0) as unknown as Float32Array;
+  ServiceLocator.getCatalogManager().getObject = () => defaultSat;
+  PluginRegistry.getPlugin(SelectSatManager)?.selectSat(0);
 };
 export const setupMinimumHtml = () => {
-  keepTrackApi.containerRoot.innerHTML = `
+  KeepTrack.getInstance().containerRoot.innerHTML = `
   <div id="keeptrack-root">
     <div id="keeptrack-header"></div>
     <div id="${KeepTrackPlugin.bottomIconsContainerId}"></div>
@@ -271,19 +259,18 @@ export const setupMinimumHtml = () => {
 export const mockUiManager: UiManager = <UiManager>(<unknown>{
   isFooterVisible_: false,
   isInitialized_: true,
-  makeToast_: jest.fn(),
-  addSearchEventListeners_: jest.fn(),
+  makeToast_: vi.fn(),
+  addSearchEventListeners_: vi.fn(),
   activeToastList_: [],
-  dismissAllToasts: jest.fn(),
-  toast: jest.fn(),
+  dismissAllToasts: vi.fn(),
+  toast: vi.fn(),
   M: null,
-  bottomIconPress: jest.fn(),
-  hideSideMenus: jest.fn(),
-  isAnalysisMenuOpen: false,
+  bottomIconPress: vi.fn(),
+  hideSideMenus: vi.fn(),
   isCurrentlyTyping: false,
   isUiVisible: false,
   lastBoxUpdateTime: 0,
-  lastColorScheme: jest.fn(),
+  lastColorScheme: vi.fn(),
   lastNextPassCalcSatId: 0,
   lastNextPassCalcSensorShortName: '',
   lastToast: '',
@@ -291,21 +278,35 @@ export const mockUiManager: UiManager = <UiManager>(<unknown>{
   lookAtLatLon: null,
   searchManager: null,
   updateInterval: 0,
-  updateNextPassOverlay: jest.fn(),
-  colorSchemeChangeAlert: jest.fn(),
-  doSearch: jest.fn(),
-  footerToggle: jest.fn(),
-  hideUi: jest.fn(),
-  init: jest.fn(),
-  initMenuController: jest.fn(),
-  legendHoverMenuClick: jest.fn(),
-  onReady: jest.fn(),
-  updateSelectBox: jest.fn(),
+  updateNextPassOverlay: vi.fn(),
+  colorSchemeChangeAlert: vi.fn(),
+  doSearch: vi.fn(),
+  footerToggle: vi.fn(),
+  hideUi: vi.fn(),
+  init: vi.fn(),
+  initMenuController: vi.fn(),
+  legendHoverMenuClick: vi.fn(),
+  onReady: vi.fn(),
+  updateSelectBox: vi.fn(),
 });
 
 export const mockCameraManager = <Camera>(<unknown>{
   camAngleSnappedOnSat: false,
-  camMatrix: mat4.create().fill(0),
+  camMatrix: mat4.create(),
+  // Per-camera state mirrored from the production Camera class (multi-viewport support)
+  fov: 0.6,
+  viewport: null,
+  satShaderSizes: { minSize: null, maxSize: null },
+  worldShiftOverride: null,
+  clearColorOverride: null,
+  getViewportRect: (gl: WebGL2RenderingContext) => ({ x: 0, y: 0, width: gl?.drawingBufferWidth ?? 1920, height: gl?.drawingBufferHeight ?? 1080 }),
+  getAspectRatio: (gl: WebGL2RenderingContext) => (gl?.drawingBufferWidth ?? 1920) / (gl?.drawingBufferHeight ?? 1080),
+  getViewportNdc: (gl: WebGL2RenderingContext, mouseX: number, mouseY: number) => ({
+    x: (mouseX / (gl?.drawingBufferWidth ?? 1920)) * 2 - 1,
+    y: -((mouseY / (gl?.drawingBufferHeight ?? 1080)) * 2 - 1),
+  }),
+  hasModeDelegate: vi.fn().mockReturnValue(false),
+  setFieldOfView: vi.fn(),
   camPitch: null,
   camPitchSpeed: 0,
   camPitchTarget: null,
@@ -344,8 +345,11 @@ export const mockCameraManager = <Camera>(<unknown>{
   localRotateDif: null,
   localRotateSpeed: null,
   localRotateStartPosition: null,
-  mouseX: 0,
-  mouseY: 0,
+  state: {
+    mouseX: 0,
+    mouseY: 0,
+    zoomTarget: 0,
+  },
   panCurrent: null,
   panSpeed: null,
   panStartPosition: null,
@@ -356,53 +360,72 @@ export const mockCameraManager = <Camera>(<unknown>{
   startMouseX: 0,
   startMouseY: 0,
   zoomTarget: 0,
-  autoPan: jest.fn(),
-  autoRotate: jest.fn(),
-  camSnap: jest.fn(),
-  changeCameraType: jest.fn(),
-  changeZoom: jest.fn(),
-  draw: jest.fn(),
-  exitFixedToSat: jest.fn(),
-  getCamDist: jest.fn(),
-  getCamPos: jest.fn(),
-  getDistFromEarth: jest.fn(),
-  getForwardVector: jest.fn(),
-  init: jest.fn(),
-  lookAtLatLon: jest.fn(),
-  lookAtPosition: jest.fn(),
-  setCameraType: jest.fn(),
-  snapToSat: jest.fn(),
-  update: jest.fn(),
-  zoomLevel: jest.fn(),
-  drawAstronomy: jest.fn(),
-  drawFts: jest.fn(),
-  drawPlanetarium_: jest.fn(),
-  updateCameraSnapMode: jest.fn(),
+  autoPan: vi.fn(),
+  autoRotate: vi.fn(),
+  camSnap: vi.fn(),
+  changeCameraType: vi.fn(),
+  changeZoom: vi.fn(),
+  draw: vi.fn(),
+  exitFixedToSat: vi.fn(),
+  getCamDist: vi.fn(),
+  getCamPos: vi.fn().mockReturnValue([0, 0, 0]),
+  getDistFromEarth: vi.fn(),
+  getForwardVector: vi.fn(),
+  init: vi.fn(),
+  lookAtLatLon: vi.fn(),
+  lookAtPosition: vi.fn(),
+  setCameraType: vi.fn(),
+  snapToSat: vi.fn(),
+  registerCameraModeDelegate: vi.fn(),
+  unregisterCameraModeDelegate: vi.fn(),
+  update: vi.fn(),
+  zoomLevel: vi.fn(),
+  // Real implementations (both read only settingsManager and the zoom level, not the rest of
+  // `this`) so tests exercise the production zoom curve instead of a stub.
+  getZoomFromDistance: Camera.prototype.getZoomFromDistance,
+  calcDistanceBasedOnZoom: Camera.prototype.calcDistanceBasedOnZoom,
+  beginCenterBodyTransition: vi.fn(),
+  snapZoomToDistance: vi.fn(),
+  drawAstronomy: vi.fn(),
+  drawFts: vi.fn(),
+  drawPlanetarium_: vi.fn(),
+  updateCameraSnapMode: vi.fn(),
+  transition: {
+    isActive: false,
+    duration: 500,
+    begin: vi.fn(),
+    beginCenterBody: vi.fn(),
+    cancel: vi.fn(),
+    apply: vi.fn(),
+  },
 });
 
 export const setupDefaultHtml = () => {
-  keepTrackApi.getMainCamera = jest.fn().mockReturnValue(mockCameraManager);
+  PluginRegistry.unregisterAllPlugins();
+  // ServiceLocator.getMainCamera = vi.fn().mockReturnValue(mockCameraManager);
+  Container.getInstance().registerSingleton(Singletons.MainCamera, mockCameraManager);
+  KeepTrack.getInstance().containerRoot = document.body as HTMLDivElement;
   KeepTrack.getDefaultBodyHtml();
   BottomMenu.init();
-  keepTrackApi.containerRoot.innerHTML += `
+  KeepTrack.getInstance().containerRoot.innerHTML += `
     <input id="search"></input>
     <div id="search-holder"></div>
-    <div id="search-icon"></div>
+    <div id="search-btn"></div>
     <div id="sat-hoverbox"></div>
     <div id="sat-infobox"></div>
     <div id="sat-hoverbox1"></div>
-    <div id="fullscreen-icon"></div>
-    <div id="tutorial-icon"></div>
-    <div id="legend-icon"></div>
-    <div id="sound-icon"></div>
+    <div id="fullscreen-btn"></div>
+    <div id="layers-btn"></div>
+    <div id="sound-btn"></div>
+    <div id="colors-rmb-menu"></div>
     `;
 };
 
 export const clearAllCallbacks = () => {
-  for (const callback in keepTrackApi.events) {
-    if (!Object.prototype.hasOwnProperty.call(keepTrackApi.events, callback)) {
+  for (const callback in EventBus.getInstance().events) {
+    if (!Object.prototype.hasOwnProperty.call(EventBus.getInstance().events, callback)) {
       continue;
     }
-    keepTrackApi.events[callback] = [];
+    EventBus.getInstance().events[callback] = [];
   }
 };

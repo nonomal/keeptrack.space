@@ -1,0 +1,7 @@
+{
+  "plugins": {
+    "TimeSlider": {
+      "tooltip": "时间滑块：拖动以调整当天时间"
+    }
+  }
+}

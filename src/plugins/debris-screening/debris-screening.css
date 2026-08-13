@@ -1,0 +1,117 @@
+/**
+ * Styling for the Debris Screening Plugin
+ */
+
+/* Side Menu Form (v13): keep the long RIC labels readable in the 3-up box row */
+#debris-screening-menu .kt-field-row .input-field > label {
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+/*
+ * Stacked-field headroom (same fix as Create Satellite): the shared v13 default
+ * (.kt-field-row .input-field.col { margin-top: 6px }) is too tight when a card
+ * stacks a labelled row under a <select> - the floating label collides with the
+ * row above. Give stacked rows room; the first row in a card only needs the
+ * section-label gap (targeted by adjacency since the label is the first child).
+ */
+#debris-screening-menu .kt-field-row .input-field.col {
+  margin-top: 20px;
+}
+
+#debris-screening-menu .kt-section-label + .kt-field-row .input-field.col {
+  margin-top: 8px;
+}
+
+/*
+ * Align the standalone primary action (Screen for Debris) with the inset cards.
+ * .kt-action is width:100%, so margins alone would push it 12px past the cards;
+ * subtract the margins from the width (border-box) so its edges match the cards.
+ */
+#debris-screening-menu-form > .kt-action {
+  box-sizing: border-box;
+  width: calc(100% - 12px);
+  margin: 8px 6px 0;
+}
+
+
+/* Secondary Menu (Results Panel) */
+.debris-screening-results {
+
+  /* Header row: count on the left, export button on the right */
+  & .ds-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  & .ds-results-count {
+    line-height: 36px;
+  }
+
+  /* Table container */
+  & .ds-table-container {
+    overflow-y: auto;
+    margin: 0;
+  }
+}
+
+/* Results Table */
+#ds-results-table {
+  font-size: 11px;
+
+  & th,
+  & td {
+    padding: 4px;
+  }
+
+  & tbody tr {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+  }
+
+  /* Secondary satellite link styling */
+  & .ds-secondary-link {
+    color: var(--colorTertiary);
+    text-decoration: underline;
+  }
+}
+
+/* Risk Level Badges */
+.ds-risk-badge {
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: bold;
+  font-size: 10px;
+
+  &.risk-critical {
+    background-color: #d32f2f;
+    color: white;
+  }
+
+  &.risk-high {
+    background-color: #f57c00;
+    color: white;
+  }
+
+  &.risk-medium {
+    background-color: #fbc02d;
+    color: black;
+  }
+
+  &.risk-low {
+    background-color: #388e3c;
+    color: white;
+  }
+
+  &.risk-unknown {
+    background-color: #757575;
+    color: white;
+  }
+}

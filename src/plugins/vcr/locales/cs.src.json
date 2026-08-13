@@ -1,0 +1,9 @@
+{
+  "VcrPlugin": {
+    "scenarioEnded": "Scénář ukončen",
+    "clickToPlay": "Klikněte pro přehrávání",
+    "clickToPause": "Klikněte pro pozastavení",
+    "clickToResume": "Klikněte pro obnovení",
+    "endOfScenario": "Nelze přehrát: Čas simulace je na konci scénáře."
+  }
+}

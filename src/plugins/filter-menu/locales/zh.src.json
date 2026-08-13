@@ -1,0 +1,197 @@
+{
+  "plugins": {
+    "FilterMenuPlugin": {
+      "title": "过滤菜单",
+      "bottomIconLabel": "过滤菜单",
+      "help": {
+        "overview": "过滤菜单控制哪些对象会被绘制。开关按对象类型（载荷、碎片、火箭体）、轨道类型（从LEO到GEO及更远）、数据来源和国家分组，可以将目录精确缩减到您正在研究的对象群。",
+        "imgAlt": "带有分组可见性开关的过滤菜单",
+        "imgCaption": "每个开关都会立即隐藏或显示目录的一部分。",
+        "howToUse": "<ol><li>从底部栏打开<strong>过滤菜单</strong>，或按 <strong>F</strong> 键。</li><li>切换开关；每个过滤器应用时场景会立即更新。</li><li>点击<strong>重置为默认值</strong>以恢复标准视图。</li></ol>",
+        "tip1": "过滤器是组合生效的：对象必须通过每个活动的过滤组才能保持可见，因此场景看起来空空如也通常意味着两个过滤器互相排斥。",
+        "tip2": "命令面板提供一键预设，例如仅显示LEO卫星或隐藏碎片和火箭体。",
+        "shortcutToggle": "切换过滤菜单"
+      },
+      "resetToDefaults": "重置为默认值",
+      "defaultTooltip": "关闭以隐藏{name}",
+      "searchPlaceholder": "搜索过滤器...",
+      "commands": {
+        "category": "过滤器",
+        "open": "打开过滤菜单",
+        "resetDefaults": "重置过滤器为默认值",
+        "toggleDebris": "切换碎片可见性",
+        "toggleRocketBodies": "切换火箭体可见性",
+        "toggleUnknownType": "切换未知类型可见性",
+        "toggleNotional": "切换概念卫星可见性",
+        "toggleStarlink": "切换星链可见性",
+        "showOnlyPayloads": "仅显示载荷",
+        "hideDebrisAndRocketBodies": "隐藏碎片和火箭体",
+        "showAllObjectTypes": "显示所有对象类型",
+        "hideAllObjectTypes": "隐藏所有对象类型",
+        "toggleLEO": "切换低轨可见性",
+        "toggleMEO": "切换中轨可见性",
+        "toggleGEO": "切换地球同步轨道可见性",
+        "toggleHEO": "切换高椭圆轨道可见性",
+        "showOnlyLEO": "仅显示低轨卫星",
+        "showOnlyGEO": "仅显示地球同步轨道卫星",
+        "showAllOrbitalRegimes": "显示所有轨道类型",
+        "showOnlyCelestrak": "仅显示CelesTrak卫星",
+        "showAllSources": "显示所有数据来源",
+        "showOnlyUS": "仅显示美国对象",
+        "showOnlyRussia": "仅显示俄罗斯对象",
+        "showOnlyChina": "仅显示中国对象",
+        "showAllCountries": "显示所有国家",
+        "hideAllCountries": "隐藏所有国家"
+      }
+    }
+  },
+  "filterMenu": {
+    "operationalPayloads": {
+      "name": "在轨运行载荷",
+      "category": "对象类型",
+      "tooltip": "当前正在运行的卫星，包括待命、备用或延期任务状态的卫星。"
+    },
+    "nonOperationalPayloads": {
+      "name": "停止运行载荷",
+      "category": "对象类型",
+      "tooltip": "已停止运行或状态未知的卫星。"
+    },
+    "rocketBodies": {
+      "name": "火箭体",
+      "category": "对象类型",
+      "tooltip": "已将载荷送入轨道的火箭上级，现在成为大型空间碎片。"
+    },
+    "debris": {
+      "name": "碎片",
+      "category": "对象类型",
+      "tooltip": "航天器和火箭的碎片，包括已损坏的卫星，不再是完整的个体。"
+    },
+    "unknownType": {
+      "name": "未知类型",
+      "category": "对象类型",
+      "tooltip": "轨道上用途或类型尚未明确识别的物体。"
+    },
+    "notionalSatellites": {
+      "name": "概念卫星",
+      "category": "对象类型",
+      "tooltip": "计划或提议但尚未发射的卫星。"
+    },
+    "groundSensors": {
+      "name": "地面传感器",
+      "category": "对象类型",
+      "tooltip": "用于追踪太空物体的地面雷达和光学传感器。"
+    },
+    "launchFacilities": {
+      "name": "发射设施",
+      "category": "对象类型",
+      "tooltip": "发射火箭的航天发射场和发射台。"
+    },
+    "vleoSatellites": {
+      "name": "超低轨卫星",
+      "category": "轨道类型",
+      "tooltip": "远地点低于400公里的超低地球轨道卫星。"
+    },
+    "leoSatellites": {
+      "name": "低轨卫星",
+      "category": "轨道类型",
+      "tooltip": "远地点在400公里到6000公里之间的低地球轨道卫星。"
+    },
+    "heoSatellites": {
+      "name": "高椭圆轨道卫星",
+      "category": "轨道类型",
+      "tooltip": "偏心率大于等于0.1且远地点低于39786公里的高椭圆轨道卫星。"
+    },
+    "meoSatellites": {
+      "name": "中轨卫星",
+      "category": "轨道类型",
+      "tooltip": "远地点在6000公里到34786公里之间的中地球轨道卫星。"
+    },
+    "geoSatellites": {
+      "name": "地球同步轨道卫星",
+      "category": "轨道类型",
+      "tooltip": "偏心率低于0.1且远地点在34786公里到36786公里之间的地球同步轨道卫星。"
+    },
+    "xgeoSatellites": {
+      "name": "超同步轨道卫星",
+      "category": "轨道类型",
+      "tooltip": "偏心率低于0.1且远地点高于36786公里，或偏心率大于等于0.1且远地点高于39786公里的超同步轨道卫星。"
+    },
+    "source": {
+      "category": "来源"
+    },
+    "vimpelSatellites": {
+      "name": "Vimpel 卫星",
+      "tooltip": "Vimpel 卫星目录由俄罗斯股份公司 JSC Vimpel 与 Keldysh 应用数学研究所合作维护。"
+    },
+    "celestrakSatellites": {
+      "name": "Celestrak 卫星",
+      "tooltip": "Celestrak 是卫星轨道数据的热门来源，提供各种卫星和碎片的 TLE 数据。"
+    },
+    "celestrakSupSatellites": {
+      "name": "Celestrak 补充卫星",
+      "tooltip": "来自 Celestrak 的补充卫星数据，包括主目录中未收录的其他对象。"
+    },
+    "satnogsSatellites": {
+      "name": "SatNOGS 卫星",
+      "tooltip": "来自 SatNOGS 网络的卫星数据，这是一个社区驱动的卫星观测和跟踪项目。"
+    },
+    "countries": {
+      "category": "国家",
+      "unitedStates": {
+        "name": "美国",
+        "tooltip": "包括来自美国的卫星。"
+      },
+      "unitedKingdom": {
+        "name": "英国",
+        "tooltip": "包括来自英国的卫星。"
+      },
+      "france": {
+        "name": "法国",
+        "tooltip": "包括来自法国的卫星。"
+      },
+      "germany": {
+        "name": "德国",
+        "tooltip": "包括来自德国的卫星。"
+      },
+      "japan": {
+        "name": "日本",
+        "tooltip": "包括来自日本的卫星。"
+      },
+      "china": {
+        "name": "中国",
+        "tooltip": "包括来自中国的卫星。"
+      },
+      "india": {
+        "name": "印度",
+        "tooltip": "包括来自印度的卫星。"
+      },
+      "russia": {
+        "name": "俄罗斯",
+        "tooltip": "包括来自俄罗斯的卫星。"
+      },
+      "ussr": {
+        "name": "苏联",
+        "tooltip": "由前苏联发射的卫星的历史名称。"
+      },
+      "southKorea": {
+        "name": "韩国",
+        "tooltip": "包括来自韩国的卫星。"
+      },
+      "australia": {
+        "name": "澳大利亚",
+        "tooltip": "包括来自澳大利亚的卫星。"
+      },
+      "otherCountries": {
+        "name": "其他国家",
+        "tooltip": "包括来自上述未列出国家的卫星。"
+      }
+    },
+    "miscellaneous": {
+      "category": "其他",
+      "starlinkSatellites": {
+        "name": "星链卫星",
+        "tooltip": "SpaceX 星链星座的组成部分，旨在提供全球宽带互联网覆盖。"
+      }
+    }
+  }
+}

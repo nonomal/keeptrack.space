@@ -1,5 +1,5 @@
-import { keepTrackApi } from '@app/keepTrackApi';
-import { errorManagerInstance } from '@app/singletons/errorManager';
+import { errorManagerInstance } from '@app/engine/utils/errorManager';
+import { KeepTrack } from '@app/keeptrack';
 
 export interface MediaRecorderOptions {
   audio: boolean;
@@ -9,6 +9,7 @@ export interface MediaRecorderOptions {
 }
 
 export class StreamManager {
+  static readonly RECORDING_START_DELAY_MS = 500;
   static readonly BIT_RATE_30_MBPS = 30000000;
   static readonly BIT_RATE_20_MBPS = 20000000;
   static readonly BIT_RATE_10_MBPS = 10000000;
@@ -19,13 +20,14 @@ export class StreamManager {
   private mediaRecorder_ = null as MediaRecorder | null;
   private recordedBlobs = [] as Blob[];
   private supportedType: string | undefined;
-  private videoBitsPerSec_ = null as number | null;
+  private readonly videoBitsPerSec_ = null as number | null;
+  private startDelayTimer_: ReturnType<typeof setTimeout> | null = null;
 
   public isVideoRecording = false;
   private stream_: MediaStream;
-  private onError_: () => void;
-  private onMinorError_: () => void;
-  private onStop_: () => void;
+  private readonly onError_: () => void;
+  private readonly onMinorError_: () => void;
+  private readonly onStop_: () => void;
 
   constructor(videoBitsPerSec: number, onStop: () => void, onMinorError: () => void, onError: () => void) {
     this.videoBitsPerSec_ = videoBitsPerSec;
@@ -50,10 +52,10 @@ export class StreamManager {
       audio: false,
     };
 
-    if (window.location.protocol === 'https:' || settingsManager.offlineMode) {
-      const enhancedNavigator = navigator as Navigator &
-      { getDisplayMedia: (options: MediaRecorderOptions) => Promise<MediaStream>; } &
-      { mediaDevices: { getDisplayMedia: (options: MediaRecorderOptions) => Promise<MediaStream>; }; };
+    if (window.isSecureContext || settingsManager.offlineMode) {
+      const enhancedNavigator = navigator as Navigator & { getDisplayMedia: (options: MediaRecorderOptions) => Promise<MediaStream> } & {
+        mediaDevices: { getDisplayMedia: (options: MediaRecorderOptions) => Promise<MediaStream> };
+      };
 
       if ('getDisplayMedia' in navigator) {
         return enhancedNavigator.getDisplayMedia(displayMediaOptions).catch((err: Error) => {
@@ -72,13 +74,11 @@ export class StreamManager {
       this.onError_();
 
       return false;
-
     }
-    errorManagerInstance.warn('No Recording Support in Http! Try Https!');
+    errorManagerInstance.warn('Recording requires a secure context (HTTPS or localhost)');
     this.onError_();
 
     return false;
-
   }
 
   handleDataAvailable(event: BlobEvent): void {
@@ -88,6 +88,11 @@ export class StreamManager {
   }
 
   stop(): void {
+    if (this.startDelayTimer_) {
+      clearTimeout(this.startDelayTimer_);
+      this.startDelayTimer_ = null;
+    }
+
     if (!this.mediaRecorder_) {
       this.isVideoRecording = false;
       this.onStop_();
@@ -101,7 +106,9 @@ export class StreamManager {
     errorManagerInstance.debug('Recorder stopped.');
 
     // Stop all streaming
-    this.stream_.getTracks().forEach((track) => track.stop());
+    this.stream_.getTracks().forEach((track) => {
+      track.stop();
+    });
 
     this.mediaRecorder_.stop();
     this.isVideoRecording = false;
@@ -122,10 +129,10 @@ export class StreamManager {
     a.style.display = 'none';
     a.href = url;
     a.download = name;
-    keepTrackApi.containerRoot.appendChild(a);
+    KeepTrack.getInstance().containerRoot.appendChild(a);
     a.click();
     setTimeout(() => {
-      keepTrackApi.containerRoot.removeChild(a);
+      KeepTrack.getInstance().containerRoot.removeChild(a);
       window.URL.revokeObjectURL(url);
     }, 100);
   }
@@ -160,24 +167,26 @@ export class StreamManager {
           videoBitsPerSecond: this.videoBitsPerSec_ || StreamManager.BIT_RATE_30_MBPS,
         };
 
-        this.recordedBlobs = [];
-        try {
-          this.mediaRecorder_ = new window.MediaRecorder(this.stream_, options);
-        } catch (e) {
-          this.onMinorError_();
-          this.isVideoRecording = false;
+        // Delay recording start so the browser's share-picker dialog has time to dismiss
+        this.startDelayTimer_ = setTimeout(() => {
+          this.startDelayTimer_ = null;
+          this.recordedBlobs = [];
+          try {
+            this.mediaRecorder_ = new window.MediaRecorder(this.stream_, options);
+          } catch {
+            this.onMinorError_();
+            this.isVideoRecording = false;
 
-          return;
-        }
+            return;
+          }
 
-        errorManagerInstance.debug(`Created MediaRecorder ${this.mediaRecorder_} with options ${options}`);
-        this.mediaRecorder_.onstop = this.stop.bind(this);
-        this.mediaRecorder_.ondataavailable = this.handleDataAvailable.bind(this);
-        this.mediaRecorder_.start(100); // collect 100ms of data blobs
-        errorManagerInstance.debug(`Created MediaRecorder ${this.mediaRecorder_}`);
+          this.mediaRecorder_.onstop = this.stop.bind(this);
+          this.mediaRecorder_.ondataavailable = this.handleDataAvailable.bind(this);
+          this.mediaRecorder_.start(100); // collect 100ms of data blobs
+        }, StreamManager.RECORDING_START_DELAY_MS);
       })
       .catch(() => {
-        // errorManagerInstance.warn('Error:' + err);
+        // Do nothing, errors are handled in getStream
       });
   }
 }

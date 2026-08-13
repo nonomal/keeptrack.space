@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "CloudsToggle": {
+      "bottomIconLabel": "Nuages",
+      "commandPalette": {
+        "toggle": "Basculer la couche de nuages"
+      }
+    }
+  }
+}

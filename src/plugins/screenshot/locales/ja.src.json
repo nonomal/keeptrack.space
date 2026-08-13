@@ -1,0 +1,15 @@
+{
+  "plugins": {
+    "Screenshot": {
+      "bottomIconLabel": "写真を撮る",
+      "rmbMenu": {
+        "title": "画像を保存"
+      },
+      "commands": {
+        "take4k": "スクリーンショット (4K)",
+        "takeHd": "スクリーンショット (HD)",
+        "take8k": "スクリーンショット (8K)"
+      }
+    }
+  }
+}

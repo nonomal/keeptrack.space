@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "CloudsToggle": {
+      "bottomIconLabel": "Oblaka",
+      "commandPalette": {
+        "toggle": "Přepnout vrstvu oblak"
+      }
+    }
+  }
+}

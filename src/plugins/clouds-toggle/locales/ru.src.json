@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "CloudsToggle": {
+      "bottomIconLabel": "Облака",
+      "commandPalette": {
+        "toggle": "Переключить слой облаков"
+      }
+    }
+  }
+}

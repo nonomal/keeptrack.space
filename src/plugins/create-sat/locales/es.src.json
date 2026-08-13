@@ -1,0 +1,108 @@
+{
+  "plugins": {
+    "CreateSat": {
+      "bottomIconLabel": "Crear Satélite",
+      "title": "Crear Satélite",
+      "tabs": {
+        "basic": "Básico",
+        "advanced": "Avanzado"
+      },
+      "labels": {
+        "noradId": "ID NORAD del Satélite (90000-99999)",
+        "satelliteName": "Nombre del Satélite",
+        "inclinationDeg": "Inclinación (grados)",
+        "apogeeAltKm": "Altitud del Apogeo (km)",
+        "perigeeAltKm": "Altitud del Perigeo (km)",
+        "objectType": "Tipo de Objeto",
+        "country": "País",
+        "epochYear": "Año de Época",
+        "epochDay": "Día de Época",
+        "inclination": "Inclinación",
+        "rightAscension": "Ascensión Recta",
+        "eccentricity": "Excentricidad",
+        "argOfPerigee": "Argumento del Perigeo",
+        "meanAnomaly": "Anomalía Media",
+        "meanMotion": "Movimiento Medio",
+        "period": "Período",
+        "dataSource": "Fuente de datos",
+        "calculatedParameters": "Parámetros Calculados",
+        "apogeeKm": "Apogeo (km)",
+        "perigeeKm": "Perigeo (km)",
+        "smaKm": "Semieje Mayor (km)",
+        "velocityKms": "Velocidad Orbital (km/s)",
+        "sectionIdentity": "Identidad",
+        "sectionOrbit": "Órbita",
+        "sectionEpoch": "Época",
+        "sectionElements": "Elementos orbitales",
+        "sectionPresets": "Preajustes"
+      },
+      "buttons": {
+        "createSatellite": "Crear Satélite",
+        "saveTle": "Guardar TLE",
+        "makeSunSync": "Inclinación heliosíncrona",
+        "cloneSelected": "Clonar satélite seleccionado"
+      },
+      "options": {
+        "payload": "Carga Útil",
+        "rocketBody": "Cuerpo de Cohete",
+        "debris": "Escombros",
+        "special": "Especial",
+        "unknown": "Desconocido"
+      },
+      "errorMsgs": {
+        "errorCreatingSat": "¡Error al crear el satélite!",
+        "invalidNumericValues": "Por favor, ingrese valores numéricos válidos",
+        "perigeeTooLow": "Perigeo demasiado bajo - el satélite decaería rápidamente",
+        "apogeeMustBeGtePerigee": "El apogeo debe ser >= al perigeo",
+        "inclinationRange": "La inclinación debe estar entre 0 y 180 grados",
+        "invalidInputParams": "Parámetros de entrada no válidos",
+        "invalidSatObject": "Objeto de satélite no válido",
+        "propagationFailed": "Error al propagar el satélite. Pruebe con parámetros diferentes o reporte este problema si los parámetros son correctos.",
+        "noValidTle": "No hay TLE válido para exportar",
+        "exportFailed": "Error al exportar TLE",
+        "invalidNoradId": "ID NORAD no válido. Debe ser un número de 5 dígitos entre 90000 y 99999.",
+        "invalidType": "Tipo no válido. Debe ser 1 (Carga Útil), 2 (Cuerpo de Cohete), 3 (Escombros) o 4 (Especial).",
+        "invalidCountry": "País no válido. Debe seleccionarse de la lista.",
+        "invalidEpochYear": "Año de época no válido. Debe ser un número de 2 dígitos.",
+        "invalidEpochDay": "Día de época no válido. Debe tener el formato NNN.NNNNNNNN (ej., 001.00000000).",
+        "invalidInclination": "Inclinación no válida. Debe tener el formato NNN.NNNN (ej., 000.0000).",
+        "invalidRasc": "Ascensión recta no válida. Debe tener el formato NNN.NNNN (ej., 000.0000).",
+        "invalidEccentricity": "Excentricidad no válida. Debe ser un número de 7 dígitos (ej., 0000000).",
+        "invalidArgPe": "Argumento del perigeo no válido. Debe tener el formato NNN.NNNN (ej., 000.0000).",
+        "invalidMeanAnomaly": "Anomalía media no válida. Debe tener el formato NNN.NNNN (ej., 000.0000).",
+        "invalidMeanMotion": "Movimiento medio no válido. Debe tener el formato NN.NNNNN (ej., 16.00000).",
+        "invalidPeriod": "Período no válido. Debe tener el formato NN.NNNN a NNNN.NNNN (ej., 90.0000, 9999.9999) con 8 dígitos en total.",
+        "invalidSource": "Fuente no válida. No debe estar vacía.",
+        "invalidName": "Nombre no válido. No debe estar vacío.",
+        "slotOccupied": "Sobrescribiendo el satélite existente {name} en la ranura {scc}.",
+        "noFreeSlots": "No quedan ranuras de analista libres (90000-99999 están todas en uso).",
+        "noSatSelected": "Seleccione primero un satélite para clonar."
+      },
+      "successMsgs": {
+        "satCreated": "Satélite {name} ({scc}) creado exitosamente",
+        "tleExported": "TLE exportado exitosamente"
+      },
+      "help": {
+        "overview": "El menú Crear Satélite añade al catálogo un satélite completamente nuevo a partir de los elementos orbitales que usted introduce. Úselo para modelar un lanzamiento planificado, recrear un objeto a partir de elementos publicados o construir casos de prueba. Los satélites creados ocupan ranuras de analista (ID NORAD 90000 a 99999) y solo existen en su sesión.",
+        "imgAlt": "El menú Crear Satélite mostrando la pestaña Básico",
+        "imgCaption": "La pestaña Básico construye una órbita solo con el apogeo, el perigeo y la inclinación.",
+        "tabsHeading": "Pestañas Básico y Avanzado",
+        "tabs": "La pestaña <strong>Básico</strong> solo necesita un ID NORAD, un nombre, la <strong>Inclinación</strong>, la <strong>Altitud del Apogeo</strong> y la <strong>Altitud del Perigeo</strong>; el resto de la órbita se deriva automáticamente. La pestaña <strong>Avanzado</strong> expone el conjunto completo de elementos: <strong>Tipo de Objeto</strong>, <strong>País</strong>, época, <strong>Ascensión Recta</strong>, <strong>Excentricidad</strong>, <strong>Argumento del Perigeo</strong>, <strong>Anomalía Media</strong> y <strong>Movimiento Medio</strong> o <strong>Período</strong> (editar uno recalcula el otro). Un panel de <strong>Parámetros Calculados</strong> muestra el apogeo, el perigeo, el semieje mayor y la velocidad orbital resultantes mientras escribe.",
+        "howToUse": "<ol><li>Abra el menú <strong>Crear Satélite</strong> desde la barra inferior.</li><li>Elija un ID NORAD libre entre 90000 y 99999 y dele un nombre al satélite.</li><li>En la pestaña <strong>Básico</strong> introduzca la inclinación, el apogeo y el perigeo; o cambie a la pestaña <strong>Avanzado</strong> para el conjunto completo de elementos.</li><li>Haga clic en <strong>Crear Satélite</strong>. El nuevo objeto aparece de inmediato y un aviso de confirmación muestra su nombre y número.</li><li>Use <strong>Guardar TLE</strong> para exportar los elementos del satélite creado como un archivo que podrá recargar más adelante.</li></ol>",
+        "tip1": "Cada campo se valida con un mensaje de error específico, de modo que si la creación falla, el aviso le indica exactamente qué valor corregir.",
+        "tip2": "Un perigeo por debajo de unos 100 km se rechaza porque el satélite decaería de inmediato.",
+        "tip3": "Los satélites creados solo duran la sesión; exporte un TLE si quiere conservar el objeto para otro día."
+      },
+      "presets": {
+        "placeholder": "Cargar un preajuste…",
+        "selectLabel": "Preajuste de órbita",
+        "leoIss": "LEO (tipo ISS)",
+        "sso": "Heliosíncrona (800 km)",
+        "geo": "Geoestacionaria (GEO)",
+        "gto": "Transferencia a GEO (GTO)",
+        "molniya": "Molniya",
+        "polar": "Polar (600 km)"
+      }
+    }
+  }
+}

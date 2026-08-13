@@ -1,0 +1,197 @@
+{
+  "plugins": {
+    "FilterMenuPlugin": {
+      "title": "Menu des filtres",
+      "bottomIconLabel": "Menu des filtres",
+      "help": {
+        "overview": "Le menu des filtres contrôle quels objets sont dessinés. Les commutateurs sont regroupés par type d'objet (charges utiles, débris, étages de fusée), régime orbital (de LEO à GEO et au-delà), source de données et pays, afin de réduire le catalogue exactement à la population que vous étudiez.",
+        "imgAlt": "Le menu des filtres avec ses commutateurs de visibilité regroupés",
+        "imgCaption": "Chaque commutateur masque ou affiche instantanément une partie du catalogue.",
+        "howToUse": "<ol><li>Ouvrez le <strong>Menu des filtres</strong> depuis la barre inférieure ou appuyez sur <strong>F</strong>.</li><li>Actionnez les commutateurs ; la scène se met à jour immédiatement à chaque filtre appliqué.</li><li>Cliquez sur <strong>Réinitialiser par défaut</strong> pour restaurer la vue standard.</li></ol>",
+        "tip1": "Les filtres se combinent : un objet doit passer chaque groupe actif pour rester visible ; une scène qui semble vide signifie donc souvent que deux filtres s'excluent mutuellement.",
+        "tip2": "La palette de commandes propose des préréglages en un clic, comme n'afficher que LEO ou masquer les débris et les étages de fusée.",
+        "shortcutToggle": "Basculer le menu des filtres"
+      },
+      "resetToDefaults": "Réinitialiser par défaut",
+      "defaultTooltip": "Désactiver pour masquer {name}",
+      "searchPlaceholder": "Rechercher des filtres...",
+      "commands": {
+        "category": "Filtres",
+        "open": "Ouvrir le menu des filtres",
+        "resetDefaults": "Réinitialiser les filtres par défaut",
+        "toggleDebris": "Basculer la visibilité des débris",
+        "toggleRocketBodies": "Basculer la visibilité des étages de fusée",
+        "toggleUnknownType": "Basculer la visibilité du type inconnu",
+        "toggleNotional": "Basculer la visibilité des satellites notionnels",
+        "toggleStarlink": "Basculer la visibilité de Starlink",
+        "showOnlyPayloads": "Afficher uniquement les charges utiles",
+        "hideDebrisAndRocketBodies": "Masquer les débris et étages de fusée",
+        "showAllObjectTypes": "Afficher tous les types d'objets",
+        "hideAllObjectTypes": "Masquer tous les types d'objets",
+        "toggleLEO": "Basculer la visibilité LEO",
+        "toggleMEO": "Basculer la visibilité MEO",
+        "toggleGEO": "Basculer la visibilité GEO",
+        "toggleHEO": "Basculer la visibilité HEO",
+        "showOnlyLEO": "Afficher uniquement les satellites LEO",
+        "showOnlyGEO": "Afficher uniquement les satellites GEO",
+        "showAllOrbitalRegimes": "Afficher tous les régimes orbitaux",
+        "showOnlyCelestrak": "Afficher uniquement les satellites CelesTrak",
+        "showAllSources": "Afficher toutes les sources",
+        "showOnlyUS": "Afficher uniquement les objets américains",
+        "showOnlyRussia": "Afficher uniquement les objets russes",
+        "showOnlyChina": "Afficher uniquement les objets chinois",
+        "showAllCountries": "Afficher tous les pays",
+        "hideAllCountries": "Masquer tous les pays"
+      }
+    }
+  },
+  "filterMenu": {
+    "operationalPayloads": {
+      "name": "Charges utiles opérationnelles",
+      "category": "Types d'objets",
+      "tooltip": "Satellites actuellement opérationnels, y compris ceux en attente, en réserve ou en mission prolongée."
+    },
+    "nonOperationalPayloads": {
+      "name": "Charges utiles non opérationnelles",
+      "category": "Types d'objets",
+      "tooltip": "Satellites non opérationnels ou dont le statut est inconnu."
+    },
+    "rocketBodies": {
+      "name": "Étages de fusée",
+      "category": "Types d'objets",
+      "tooltip": "Les étages supérieurs des fusées qui ont livré des charges utiles en orbite et sont maintenant de gros débris spatiaux."
+    },
+    "debris": {
+      "name": "Débris",
+      "category": "Types d'objets",
+      "tooltip": "Fragments de vaisseaux spatiaux et de fusées, y compris les satellites cassés, qui ne forment plus un seul morceau."
+    },
+    "unknownType": {
+      "name": "Type inconnu",
+      "category": "Types d'objets",
+      "tooltip": "Objets en orbite dont la fonction ou le type n'est pas encore clairement identifié."
+    },
+    "notionalSatellites": {
+      "name": "Satellites notionnels",
+      "category": "Types d'objets",
+      "tooltip": "Satellites prévus ou proposés mais pas encore lancés."
+    },
+    "groundSensors": {
+      "name": "Capteurs au sol",
+      "category": "Types d'objets",
+      "tooltip": "Capteurs radar et optiques au sol utilisés pour suivre les objets dans l'espace."
+    },
+    "launchFacilities": {
+      "name": "Installations de lancement",
+      "category": "Types d'objets",
+      "tooltip": "Bases spatiales et aires de lancement d'où les fusées sont lancées."
+    },
+    "vleoSatellites": {
+      "name": "Satellites vLEO",
+      "category": "Régimes orbitaux",
+      "tooltip": "Satellites en orbite terrestre très basse avec un apogée inférieur à 400 km."
+    },
+    "leoSatellites": {
+      "name": "Satellites LEO",
+      "category": "Régimes orbitaux",
+      "tooltip": "Satellites en orbite terrestre basse avec un apogée entre 400 km et 6000 km."
+    },
+    "heoSatellites": {
+      "name": "Satellites HEO",
+      "category": "Régimes orbitaux",
+      "tooltip": "Satellites en orbite très elliptique avec une excentricité de 0,1 ou plus et un apogée inférieur à 39786 km."
+    },
+    "meoSatellites": {
+      "name": "Satellites MEO",
+      "category": "Régimes orbitaux",
+      "tooltip": "Satellites en orbite terrestre moyenne avec un apogée entre 6000 km et 34786 km."
+    },
+    "geoSatellites": {
+      "name": "Satellites GEO",
+      "category": "Régimes orbitaux",
+      "tooltip": "Satellites en orbite géostationnaire avec une excentricité inférieure à 0,1 et un apogée entre 34786 km et 36786 km."
+    },
+    "xgeoSatellites": {
+      "name": "Satellites xGEO",
+      "category": "Régimes orbitaux",
+      "tooltip": "Satellites en orbite ex-géosynchrone avec une excentricité inférieure à 0,1 et un apogée supérieur à 36786 km, ou une excentricité de 0,1 ou plus et un apogée supérieur à 39786 km."
+    },
+    "source": {
+      "category": "Source"
+    },
+    "vimpelSatellites": {
+      "name": "Satellites Vimpel",
+      "tooltip": "Le catalogue de satellites Vimpel est maintenu par la société russe JSC Vimpel, en coopération avec l'Institut Keldysh de mathématiques appliquées."
+    },
+    "celestrakSatellites": {
+      "name": "Satellites Celestrak",
+      "tooltip": "Celestrak est une source populaire de données orbitales de satellites, fournissant des TLE pour une large gamme de satellites et de débris."
+    },
+    "celestrakSupSatellites": {
+      "name": "Satellites supplémentaires Celestrak",
+      "tooltip": "Données satellitaires supplémentaires de Celestrak, incluant des objets additionnels absents du catalogue principal."
+    },
+    "satnogsSatellites": {
+      "name": "Satellites SatNOGS",
+      "tooltip": "Données satellitaires du réseau SatNOGS, un projet communautaire d'observation et de suivi des satellites."
+    },
+    "countries": {
+      "category": "Pays",
+      "unitedStates": {
+        "name": "États-Unis",
+        "tooltip": "Comprend les satellites des États-Unis d'Amérique."
+      },
+      "unitedKingdom": {
+        "name": "Royaume-Uni",
+        "tooltip": "Comprend les satellites du Royaume-Uni."
+      },
+      "france": {
+        "name": "France",
+        "tooltip": "Comprend les satellites de France."
+      },
+      "germany": {
+        "name": "Allemagne",
+        "tooltip": "Comprend les satellites d'Allemagne."
+      },
+      "japan": {
+        "name": "Japon",
+        "tooltip": "Comprend les satellites du Japon."
+      },
+      "china": {
+        "name": "Chine",
+        "tooltip": "Comprend les satellites de Chine."
+      },
+      "india": {
+        "name": "Inde",
+        "tooltip": "Comprend les satellites d'Inde."
+      },
+      "russia": {
+        "name": "Russie",
+        "tooltip": "Comprend les satellites de Russie."
+      },
+      "ussr": {
+        "name": "URSS",
+        "tooltip": "Désignation historique pour les satellites lancés par l'ancienne Union soviétique."
+      },
+      "southKorea": {
+        "name": "Corée du Sud",
+        "tooltip": "Comprend les satellites de Corée du Sud."
+      },
+      "australia": {
+        "name": "Australie",
+        "tooltip": "Comprend les satellites d'Australie."
+      },
+      "otherCountries": {
+        "name": "Autres pays",
+        "tooltip": "Comprend les satellites des pays non listés ci-dessus."
+      }
+    },
+    "miscellaneous": {
+      "category": "Divers",
+      "starlinkSatellites": {
+        "name": "Satellites Starlink",
+        "tooltip": "Satellites faisant partie de la constellation Starlink de SpaceX, qui vise à fournir une couverture Internet haut débit mondiale."
+      }
+    }
+  }
+}

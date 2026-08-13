@@ -19,15 +19,17 @@
  * /////////////////////////////////////////////////////////////////////////////
  */
 
-import { KeepTrackApiEvents, MenuMode, ToastMsgType } from '@app/interfaces';
-import { keepTrackApi } from '@app/keepTrackApi';
-import { getEl } from '@app/lib/get-el';
-import { shake } from '@app/lib/shake';
+import { SoundNames } from '@app/engine/audio/sounds';
+import { CameraType } from '@app/engine/camera/camera-type';
+import { MenuMode, ToastMsgType } from '@app/engine/core/interfaces';
+import { PluginRegistry } from '@app/engine/core/plugin-registry';
+import { ServiceLocator } from '@app/engine/core/service-locator';
+import { EventBus } from '@app/engine/events/event-bus';
+import { EventBusEvent } from '@app/engine/events/event-bus-events';
 import { t7e } from '@app/locales/keys';
-import { CameraType } from '@app/singletons/camera';
 import viewInAirPng from '@public/img/icons/view-in-air.png';
-import { DetailedSatellite } from 'ootk';
-import { KeepTrackPlugin } from '../KeepTrackPlugin';
+import { KeepTrackPlugin } from '../../engine/plugins/base-plugin';
+import { IconPlacement, IKeyboardShortcut, UtilityGroup } from '../../engine/plugins/core/plugin-capabilities';
 import { SelectSatManager } from '../select-sat-manager/select-sat-manager';
 
 export class SatelliteViewPlugin extends KeepTrackPlugin {
@@ -37,7 +39,7 @@ export class SatelliteViewPlugin extends KeepTrackPlugin {
 
   constructor() {
     super();
-    this.selectSatManager_ = keepTrackApi.getPlugin(SelectSatManager) as unknown as SelectSatManager; // this will be validated in KeepTrackPlugin constructor
+    this.selectSatManager_ = PluginRegistry.getPlugin(SelectSatManager) as unknown as SelectSatManager; // this will be validated in KeepTrackPlugin constructor
   }
 
   menuMode: MenuMode[] = [MenuMode.ALL];
@@ -45,38 +47,49 @@ export class SatelliteViewPlugin extends KeepTrackPlugin {
   isRequireSatelliteSelected = true;
   bottomIconImg = viewInAirPng;
   isIconDisabledOnLoad = true;
+  isIconDisabled = true;
+  iconPlacement = IconPlacement.UTILITY_ONLY;
+  utilityGroup = UtilityGroup.CAMERA_MODE;
+
+  getKeyboardShortcuts(): IKeyboardShortcut[] {
+    return [
+      {
+        key: '5',
+        callback: () => this.bottomIconCallback(),
+      },
+    ];
+  }
 
   addJs(): void {
     super.addJs();
 
-    keepTrackApi.on(
-      KeepTrackApiEvents.selectSatData,
-      (obj) => {
-        if (obj instanceof DetailedSatellite) {
-          this.setBottomIconToEnabled();
-        } else {
-          this.setBottomIconToDisabled();
-        }
-      },
-    );
+    const camera = ServiceLocator.getMainCamera();
+
+    // Disable satellite mesh rendering in satellite-first-person view
+    EventBus.getInstance().on(EventBusEvent.shouldSkipSatelliteModels, () => camera.cameraType === CameraType.SATELLITE_FIRST_PERSON);
+
+    // Keep icon state in sync with camera type
+    EventBus.getInstance().on(EventBusEvent.updateLoop, () => {
+      const isSatelliteView = ServiceLocator.getMainCamera().cameraType === CameraType.SATELLITE_FIRST_PERSON;
+
+      if (isSatelliteView && !this.isMenuButtonActive && !this.isIconDisabled) {
+        this.setBottomIconToSelected();
+      } else if (!isSatelliteView && this.isMenuButtonActive) {
+        this.setBottomIconToUnselected();
+      }
+    });
   }
 
+  bottomIconCallback = (): void => {
+    if (this.selectSatManager_.selectedSat === -1) {
+      ServiceLocator.getUiManager().toast(t7e('errorMsgs.SelectSatelliteFirst'), ToastMsgType.serious, true);
+      this.shakeBottomIcon();
 
-  bottomIconCallback = () => {
-    if (keepTrackApi.getMainCamera().cameraType === CameraType.SATELLITE) {
-      const uiManagerInstance = keepTrackApi.getUiManager();
-
-      uiManagerInstance.hideSideMenus();
-      keepTrackApi.getMainCamera().cameraType = CameraType.FIXED_TO_SAT; // Back to normal Camera Mode
-      getEl(this.bottomIconElementName)?.classList.remove('bmenu-item-selected');
-    } else if (this.selectSatManager_.selectedSat !== -1) {
-      keepTrackApi.getMainCamera().cameraType = CameraType.SATELLITE; // Activate Satellite Camera Mode
-      getEl(this.bottomIconElementName)?.classList.add('bmenu-item-selected');
-    } else {
-      const uiManagerInstance = keepTrackApi.getUiManager();
-
-      uiManagerInstance.toast(t7e('errorMsgs.SelectSatelliteFirst'), ToastMsgType.serious, true);
-      shake(getEl(this.bottomIconElementName));
+      return;
     }
+
+    ServiceLocator.getSoundManager()?.play(SoundNames.TOGGLE_ON);
+    ServiceLocator.getMainCamera().cameraType = CameraType.SATELLITE_FIRST_PERSON;
+    this.setBottomIconToSelected();
   };
 }

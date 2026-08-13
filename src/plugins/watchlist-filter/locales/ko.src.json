@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "WatchlistFilter": {
+      "bottomIconLabel": "위성 목록만 표시",
+      "errorMsgs": {
+        "noSatellitesInList": "목록에 위성이 없습니다"
+      }
+    }
+  }
+}

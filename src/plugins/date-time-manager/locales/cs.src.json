@@ -1,0 +1,50 @@
+{
+  "plugins": {
+    "DateTimeManager": {
+      "prev": "Předchozí",
+      "next": "Další",
+      "days": {
+        "0": "Neděle",
+        "1": "Pondělí",
+        "2": "Úterý",
+        "3": "Středa",
+        "4": "Čtvrtek",
+        "5": "Pátek",
+        "6": "Sobota"
+      },
+      "days-short": {
+        "0": "Ne",
+        "1": "Po",
+        "2": "Út",
+        "3": "St",
+        "4": "Čt",
+        "5": "Pá",
+        "6": "So"
+      },
+      "months": {
+        "1": "Leden",
+        "2": "Únor",
+        "3": "Březen",
+        "4": "Duben",
+        "5": "Květen",
+        "6": "Červen",
+        "7": "Červenec",
+        "8": "Srpen",
+        "9": "Září",
+        "10": "Říjen",
+        "11": "Listopad",
+        "12": "Prosinec"
+      },
+      "calendar": {
+        "time": "Čas",
+        "hour": "Hodina",
+        "minute": "Minuta",
+        "second": "Sekunda",
+        "now": "Nyní",
+        "done": "Hotovo",
+        "pause": "Pozastavit",
+        "propagation": "Propagace"
+      }
+    }
+  }
+}

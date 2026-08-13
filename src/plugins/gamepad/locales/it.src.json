@@ -1,0 +1,8 @@
+{
+  "plugins": {
+    "GamepadPlugin": {
+      "connected": "Gamepad connesso",
+      "disconnected": "Gamepad disconnesso"
+    }
+  }
+}

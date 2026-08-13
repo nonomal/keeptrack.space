@@ -1,0 +1,40 @@
+/* Load-mode toggle inside the v13 section card */
+#catalog-browser-menu .cb-toggle-row {
+  margin: 4px 0 8px;
+}
+
+#catalog-browser-menu .cb-toggle-label {
+  font-size: 0.85rem;
+  color: var(--color-dark-text-accent);
+}
+
+/* Catalog action rows: let the label grow so the source chip sits next to the
+ * chevron instead of floating in the middle (kt-action uses space-between). */
+#catalog-browser-menu .cb-catalog-item .kt-action-label {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Source type chips */
+#catalog-browser-menu .cb-chip {
+  flex-shrink: 0;
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+#catalog-browser-menu .cb-chip-gp {
+  background: rgba(38, 166, 154, 0.2);
+  color: #26a69a;
+  border: 1px solid rgba(38, 166, 154, 0.4);
+}
+
+#catalog-browser-menu .cb-chip-supgp {
+  background: rgba(255, 183, 77, 0.2);
+  color: #ffb74d;
+  border: 1px solid rgba(255, 183, 77, 0.4);
+}

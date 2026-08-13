@@ -1,19 +1,117 @@
-import { Configuration, HtmlRspackPlugin, LightningCssMinimizerRspackPlugin, SwcJsMinimizerRspackPlugin } from '@rspack/core';
-import CleanTerminalPlugin from 'clean-terminal-webpack-plugin';
+import {
+  Configuration,
+  CopyRspackPlugin,
+  DefinePlugin,
+  DefinePluginOptions,
+  HtmlRspackPlugin,
+  LightningCssMinimizerRspackPlugin,
+  ProgressPlugin,
+  SwcJsMinimizerRspackPlugin,
+} from '@rspack/core';
+import { execSync } from 'node:child_process';
 import DotEnv from 'dotenv-webpack';
-import { dirname } from 'path';
-import { fileURLToPath } from 'url';
-import WebpackBar from 'webpackbar/rspack';
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { BuildConfig } from './lib/config-manager';
+import { reporter } from './lib/reporter';
 export class WebpackManager {
   static readonly DEFAULT_MODE = 'development';
   static readonly DEFAULT_WATCH = false;
   private static config: BuildConfig;
+  private static versionDefine_: DefinePluginOptions;
+
+  /**
+   * Copies the Solar System Pack's textures into the build.
+   *
+   * Everything else the app loads at runtime lives in `public/` and is served straight from
+   * there, but these assets are Pro content and cannot sit in the OSS tree - so the pro build
+   * copies them into the same `textures/` path the free build serves from `public/`, which is
+   * what lets `CelestialBody` ask for `textures/europa4k.jpg` without knowing which build it
+   * is in.
+   *
+   * The pack's meshes (Lucy, Parker Solar Probe) moved to the one Pro mesh directory that
+   * {@link createProMeshAssetPlugins_} copies - two copy patterns writing the same
+   * `meshes/<name>.obj` was a collision waiting to happen.
+   *
+   * Returns nothing at all for an OSS build: no pack, no copy, and the bodies that would have
+   * used these assets are not registered either.
+   */
+  private static createSolarSystemPackAssetPlugins_(dirName: string): CopyRspackPlugin[] {
+    if (!this.config.isPro) {
+      return [];
+    }
+
+    const packAssets = `${dirName}/../src/plugins-pro/solar-system-pack/assets`;
+
+    if (!existsSync(packAssets)) {
+      reporter.warn('Solar System Pack assets not found - the pro build will render its bodies untextured.');
+
+      return [];
+    }
+
+    /*
+     * `to` is resolved relative to output.path, which is `<subFolder>/js` - NOT to the repo
+     * root. An absolute-looking path here is still treated as relative and silently writes
+     * outside the repo, which the build log reports as a successful copy.
+     */
+    return [
+      new CopyRspackPlugin({
+        patterns: [{ from: `${packAssets}/textures`, to: '../textures' }],
+      }),
+    ];
+  }
+
+  /**
+   * Copies the Pro satellite mesh packs into the build.
+   *
+   * Same arrangement as the Solar System Pack above, for the same reason: these OBJ/MTL pairs
+   * are Pro content so they cannot sit in `public/`, but the mesh manager loads every model
+   * from one flat `meshes/` path (`meshes/<name>.obj`) and must not care which build it is in.
+   * `src/plugins-pro/public/meshes` is the canonical home; `scripts/mesh-gen` writes every
+   * model tagged `tier: 'pro'` there.
+   *
+   * An OSS build copies nothing, and the pack that would route to these models is not
+   * registered either (see `mesh-packs.ts`), so those spacecraft keep their generic meshes
+   * rather than 404ing.
+   */
+  private static createProMeshAssetPlugins_(dirName: string): CopyRspackPlugin[] {
+    if (!this.config.isPro) {
+      return [];
+    }
+
+    const proMeshes = `${dirName}/../src/plugins-pro/public/meshes`;
+
+    if (!existsSync(proMeshes)) {
+      reporter.warn('Pro mesh pack not found - named hero spacecraft will fall back to generic models.');
+
+      return [];
+    }
+
+    // `to` is resolved relative to output.path (`<subFolder>/js`) - see the note above.
+    return [
+      new CopyRspackPlugin({
+        patterns: [{ from: proMeshes, to: '../meshes' }],
+      }),
+    ];
+  }
 
   static createConfig(config: BuildConfig, isWatch: boolean = false): Configuration[] {
     this.config = config;
     const fileName = fileURLToPath(import.meta.url);
     const dirName = dirname(fileName);
+    const appVersion = JSON.parse(readFileSync(resolve(dirName, '../package.json'), 'utf-8')).version;
+
+    const commitHash = execSync('git rev-parse --short HEAD').toString().trim();
+
+    this.versionDefine_ = new DefinePlugin({
+      __VERSION__: JSON.stringify(appVersion),
+      __VERSION_DATE__: JSON.stringify(new Date().toISOString()),
+      __COMMIT_HASH__: JSON.stringify(commitHash),
+      __IS_PRO__: JSON.stringify(this.config.isPro),
+      __EDITION__: JSON.stringify(this.config.edition),
+      __PROPAGATOR_BACKEND__: JSON.stringify(this.config.propagatorBackend),
+    });
     const webpackConfig = [] as Configuration[];
     let baseConfig = this.createBaseConfig_(dirName);
     const mode: 'development' | 'production' | 'none' = config.mode ?? 'development';
@@ -30,7 +128,8 @@ export class WebpackManager {
       baseConfig.watchOptions = {
         aggregateTimeout: 300,
         poll: 1000,
-        ignored: /node_modules/u,
+        // ignore node_modules and test
+        ignored: /node_modules|test/u,
       };
     }
 
@@ -39,7 +138,6 @@ export class WebpackManager {
       baseConfig = {
         ...baseConfig,
         ...{
-          cache: true,
           devtool: 'source-map',
           // devtool: 'eval-source-map',
           optimization: {
@@ -54,10 +152,18 @@ export class WebpackManager {
       baseConfig = {
         ...baseConfig,
         ...{
+          devtool: 'hidden-source-map',
           optimization: {
             minimizer: [
               new SwcJsMinimizerRspackPlugin({
-                // JS minimizer configuration
+                minimizerOptions: {
+                  compress: {
+                    keep_classnames: true,
+                  },
+                  mangle: {
+                    keep_classnames: true,
+                  },
+                },
               }),
               new LightningCssMinimizerRspackPlugin({
                 // CSS minimizer configuration
@@ -66,6 +172,14 @@ export class WebpackManager {
           },
         },
       };
+    }
+
+    // Coverage build: keep production behavior (pro profile, all plugins) but emit
+    // readable, source-mapped output so Playwright V8 coverage maps back to TS source.
+    // Inline maps travel with the script in the coverage data, avoiding any .map fetch.
+    if (process.env.COVERAGE === '1') {
+      baseConfig.devtool = 'inline-source-map';
+      baseConfig.optimization = { ...baseConfig.optimization, minimize: false };
     }
 
     // split entry points of main and webworkers
@@ -94,32 +208,39 @@ export class WebpackManager {
    * Returns the base configuration for webpack.
    */
   private static createBaseConfig_(dirName: string): Configuration {
-    console.log(`styleCssPath: ${this.config.styleCssPath}`);
-    console.log(`loadingScreenCssPath: ${this.config.loadingScreenCssPath}`);
-
     return {
       resolve: {
         extensions: ['.ts', '.js'],
         alias: {
           '@app': `${dirName}/../src`,
+          '@engine': `${dirName}/../src/engine`,
+          '@ootk': `${dirName}/../src/engine/ootk`,
+          '@plugins-pro': `${dirName}/../src/plugins-pro`,
+          '@plugins-external': `${dirName}/../src/plugins-external`,
+          // Specific aliases must come before @public so they match first
+          '@public/img/logo.png': `${dirName}/../${this.config.textLogoPath}`,
+          '@public/img/logo-primary.png': `${dirName}/../${this.config.primaryLogoPath}`,
+          '@public/img/logo-secondary.png': `${dirName}/../${this.config.secondaryLogoPath}`,
           '@public': `${dirName}/../public`,
+          // Specific aliases must come before @css so they match first
           '@css/style.css': `${dirName}/../${this.config.styleCssPath}`,
           '@css/loading-screen.css': `${dirName}/../${this.config.loadingScreenCssPath}`,
           '@css': `${dirName}/../public/css`,
+          '@wallpapers': `${dirName}/../${this.config.wallpapersPath}`,
         },
       },
       module: {
         rules: [
           {
             test: /\.(?:png|svg|jpg|jpeg|gif)$/iu,
-            include: [/src/u, /public/u],
+            include: [/src/u, /public/u, /configs/u],
             type: 'asset/resource',
             generator: {
               filename: '../img/[name][ext]',
             },
           },
           {
-            test: /\.(?:mp3|wav|flac)$/iu,
+            test: /\.(?:mp3|wav|flac|m4a)$/iu,
             include: [/src/u, /public/u],
             type: 'asset/resource',
             generator: {
@@ -135,8 +256,14 @@ export class WebpackManager {
             },
           },
           {
+            // Bundle plain-text data files inline as strings (e.g. McCants vmag database)
+            test: /\.txt$/u,
+            include: [/src/u],
+            type: 'asset/source',
+          },
+          {
             test: /\.css$/iu,
-            include: [/node_modules/u, /src/u, /public/u],
+            include: [/node_modules/u, /src/u, /public/u, /configs/u],
             use: ['style-loader', 'css-loader'],
             generator: {
               filename: './css/[name][ext]',
@@ -149,27 +276,38 @@ export class WebpackManager {
             },
           },
           {
+            // Rust/SWC transpile (no type-check — `pnpm run typecheck` (tsgo) owns
+            // types). Replaces ts-loader (JS tsc, transpileOnly:false), which
+            // re-type-checked the whole program on every build child.
             test: /\.tsx?$/u,
-            loader: 'ts-loader',
-            exclude: [/node_modules/u, /\dist/u, /\coverage/u, /\.test\.tsx?$/u, /\src\/admin/u],
+            loader: 'builtin:swc-loader',
+            exclude: [/node_modules/u, /\test/u, /\dist/u, /\coverage/u, /\.test\.tsx?$/u, /\src\/admin/u],
             options: {
-              transpileOnly: false,
-              configFile: 'tsconfig.build.json',
+              jsc: {
+                parser: {
+                  syntax: 'typescript',
+                  tsx: true,
+                },
+                target: 'es2022',
+              },
             },
           },
           {
+            // JS is transpiled by rspack's builtin SWC (no babel-loader). This
+            // rule only relaxes fully-specified ESM resolution so extensionless
+            // imports inside some dependencies keep resolving.
             test: /\.m?js$/u,
             include: [/src/u, /node_modules/u],
             resolve: {
               fullySpecified: false,
             },
-            use: {
-              loader: 'babel-loader',
-            },
           },
           {
+            // Only consume upstream source maps from our own code — not the
+            // thousands of files in node_modules (expensive and noisy).
             test: /\.m?js$/u,
             enforce: 'pre',
+            include: [/src/u],
             use: ['source-map-loader'],
           },
         ],
@@ -188,16 +326,27 @@ export class WebpackManager {
     baseConfig.experiments = {
       topLevelAwait: true,
     };
-    baseConfig.plugins!.push(
-      new CleanTerminalPlugin({
-        beforeCompile: true,
-      }),
-      /*
-       * new CopyRspackPlugin({
-       *   patterns: [{ from: 'public', to: '..' }],
-       * }),
-       */
-    );
+
+    // Persistent filesystem cache: compiled modules are cached across builds, so
+    // local iterative (re)builds are near-instant. A cold CI build simply writes
+    // a fresh cache (no benefit, negligible cost). Invalidated when the build
+    // config or the dependency manifest changes.
+    const buildRoot = dirname(fileURLToPath(import.meta.url));
+
+    // Skip the cache in CI: a cold runner would write ~300 MB it never reuses.
+    baseConfig.cache = process.env.CI
+      ? false
+      : {
+        type: 'persistent',
+        // `version` namespaces the cache by mode so a dev build and a prod build
+        // never read each other's (differently minified) cached modules.
+        version: mode,
+        buildDependencies: [resolve(buildRoot, 'webpack-manager.ts'), resolve(buildRoot, '../package.json')],
+        storage: {
+          type: 'filesystem',
+          directory: 'node_modules/.cache/rspack',
+        },
+      };
     baseConfig.module!.rules!.push({
       test: /\.(?:woff|woff2|eot|ttf|otf)$/iu,
       include: [/src/u],
@@ -225,25 +374,19 @@ export class WebpackManager {
           publicPath: `./${pubPath}js/`,
         },
         plugins: [
-          new CleanTerminalPlugin({
-            beforeCompile: true,
-          }),
+          this.versionDefine_,
+          ...this.createSolarSystemPackAssetPlugins_(dirName),
+          ...this.createProMeshAssetPlugins_(dirName),
           new HtmlRspackPlugin({
             filename: '../index.html',
             template: './public/index.html',
           }),
           new DotEnv({
             systemvars: true,
-            path: '../.env',
+            path: `./${this.config.envFilePath}`,
             allowEmptyValues: true,
           }),
-          new WebpackBar({
-            name: 'KeepTrack Main Code',
-            color: '#66b242',
-            basic: false,
-            fancy: true,
-            profile: false,
-          }),
+          new ProgressPlugin(reporter.createCompileProgressHandler('main')),
         ],
       },
     });
@@ -267,22 +410,17 @@ export class WebpackManager {
           publicPath: `../${pubPath}`,
         },
         plugins: [
+          this.versionDefine_,
           new HtmlRspackPlugin({
             filename: '../auth/callback.html',
             template: './src/plugins-pro/user-account/callback.html',
           }),
           new DotEnv({
             systemvars: true,
-            path: '../.env',
+            path: `./${this.config.envFilePath}`,
             allowEmptyValues: true,
           }),
-          new WebpackBar({
-            name: 'KeepTrack Auth',
-            color: '#66b242',
-            basic: false,
-            fancy: true,
-            profile: false,
-          }),
+          new ProgressPlugin(reporter.createCompileProgressHandler('auth')),
         ],
       },
     });
@@ -292,27 +430,44 @@ export class WebpackManager {
    * Returns the WebWorker configuration object.
    */
   private static createWorkerConfig_(baseConfig: Configuration, dirName: string, subFolder: string, pubPath: string) {
+    const entry: Record<string, string[]> = {
+      positionCruncher: ['./src/webworker/positionCruncher.ts'],
+      orbitCruncher: ['./src/webworker/orbitCruncher.ts'],
+      colorCruncher: ['./src/webworker/colorCruncher.ts'],
+      debrisScreeningWorker: ['./src/webworker/debrisScreeningWorker.ts'],
+      fovPredictionWorker: ['./src/webworker/fovPredictionWorker.ts'],
+      bestPassWorker: ['./src/webworker/bestPassWorker.ts'],
+      closeObjectsWorker: ['./src/webworker/closeObjectsWorker.ts'],
+      proximityOpsWorker: ['./src/webworker/proximityOpsWorker.ts'],
+      time2lonWorker: ['./src/webworker/time2lonWorker.ts'],
+      azRangeHeatmapWorker: ['./src/webworker/azRangeHeatmapWorker.ts'],
+    };
+
+    // Pro-only workers: their source lives in the plugins-pro submodule, so they are
+    // only built (and only present) for pro profiles - never bundled into OSS.
+    if (this.config.isPro) {
+      entry.tipAndCueWorker = ['./src/plugins-pro/tip-and-cue/tipAndCueWorker.ts'];
+      entry.eclipseWorker = ['./src/plugins-pro/eclipse-solar-analysis/eclipseWorker.ts'];
+      entry.coverageWorker = ['./src/plugins-pro/coverage-analysis/coverageWorker.ts'];
+      entry.tocaPocaWorker = ['./src/plugins-pro/toca-poca-plugin/tocaPocaWorker.ts'];
+      entry.overflightWorker = ['./src/plugins-pro/overflight/overflightWorker.ts'];
+      entry.neighborhoodHistoryWorker = ['./src/plugins-pro/neighborhood-history/neighborhoodHistoryWorker.ts'];
+      entry.interceptorWorker = ['./src/plugins-pro/satellite-interceptor/interceptorWorker.ts'];
+      entry.transitFinderWorker = ['./src/plugins-pro/transit-finder/transitFinderWorker.ts'];
+    }
+
     return ({
       ...baseConfig,
       ...{
         name: 'WebWorkers',
-        entry: {
-          positionCruncher: ['./src/webworker/positionCruncher.ts'],
-          orbitCruncher: ['./src/webworker/orbitCruncher.ts'],
-        },
+        entry,
         output: {
           filename: '[name].js',
           path: `${dirName}/../${subFolder}/js`,
           publicPath: `./${pubPath}js/`,
         },
         plugins: [
-          new WebpackBar({
-            name: 'KeepTrack Workers',
-            color: '#66b242',
-            basic: false,
-            fancy: true,
-            profile: false,
-          }),
+          new ProgressPlugin(reporter.createCompileProgressHandler('workers')),
         ],
       },
     });

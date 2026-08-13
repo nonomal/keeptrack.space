@@ -1,0 +1,8 @@
+{
+  "plugins": {
+    "GamepadPlugin": {
+      "connected": "手柄已连接",
+      "disconnected": "手柄已断开"
+    }
+  }
+}

@@ -1,9 +1,11 @@
-import { KeepTrackApiEvents } from '@app/interfaces';
-import { keepTrackApi } from '@app/keepTrackApi';
-import { getEl } from '@app/lib/get-el';
-import { errorManagerInstance } from '@app/singletons/errorManager';
-import { Classification, ClassificationString } from '@app/static/classification';
-import { KeepTrackPlugin } from '../KeepTrackPlugin';
+import { Classification, ClassificationString } from '@app/app/ui/classification';
+import { EventBus } from '@app/engine/events/event-bus';
+import { EventBusEvent } from '@app/engine/events/event-bus-events';
+import { html } from '@app/engine/utils/development/formatter';
+import { errorManagerInstance } from '@app/engine/utils/errorManager';
+import { getEl } from '@app/engine/utils/get-el';
+import { KeepTrack } from '@app/keeptrack';
+import { KeepTrackPlugin } from '../../engine/plugins/base-plugin';
 
 export class ClassificationBar extends KeepTrackPlugin {
   readonly id = 'ClassificationBar';
@@ -34,11 +36,15 @@ export class ClassificationBar extends KeepTrackPlugin {
       this.updateTopMenuHeight_(true);
     }
 
-    getEl(this.textStringDomId)!.innerHTML = classificationString;
-
+    const textStringDom = getEl(this.textStringDomId);
     const classificationContainerDom = getEl(this.containerDomId);
 
-    classificationContainerDom!.style.fontWeight = '500';
+    if (!textStringDom || !classificationContainerDom) {
+      return;
+    }
+
+    textStringDom.innerHTML = classificationString;
+    classificationContainerDom.style.fontWeight = '500';
 
     if (Classification.isValidClassification(classificationString)) {
       const colors = Classification.getColors(classificationString);
@@ -47,8 +53,8 @@ export class ClassificationBar extends KeepTrackPlugin {
       color = colors.color;
     }
 
-    classificationContainerDom!.style.backgroundColor = backgroundColor;
-    classificationContainerDom!.style.color = color;
+    classificationContainerDom.style.backgroundColor = backgroundColor;
+    classificationContainerDom.style.color = color;
 
     this.classificationString_ = classificationString;
   }
@@ -56,22 +62,29 @@ export class ClassificationBar extends KeepTrackPlugin {
   addHtml(): void {
     super.addHtml();
 
-    keepTrackApi.on(KeepTrackApiEvents.uiManagerInit, this.uiManagerInit_.bind(this));
+    EventBus.getInstance().on(EventBusEvent.uiManagerInit, this.uiManagerInit_.bind(this));
   }
 
   private createContainer_(): void {
     const node = document.createElement('div');
 
-    node.innerHTML = keepTrackApi.html`<span id="${this.textStringDomId}"></span>`;
+    node.innerHTML = html`<span id="${this.textStringDomId}"></span>`;
     node.id = this.containerDomId;
     node.style.cssText = `
       height: ${this.containerHeight}px;
       display: flex;
       align-items: center;
+      font-family: monospace;
       justify-content: center;
       `;
 
-    keepTrackApi.containerRoot.insertBefore(node, keepTrackApi.containerRoot.firstChild);
+    const navEl = KeepTrack.getInstance().containerRoot.querySelector('nav');
+
+    if (navEl) {
+      navEl.insertBefore(node, navEl.firstChild);
+    } else {
+      KeepTrack.getInstance().containerRoot.insertBefore(node, KeepTrack.getInstance().containerRoot.firstChild);
+    }
 
     this.isClassificationContainerLoaded_ = true;
   }

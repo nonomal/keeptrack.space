@@ -1,0 +1,14 @@
+{
+  "plugins": {
+    "EarthPresetsPlugin": {
+      "rmbMenu": {
+        "title": "Earth Style",
+        "satelliteImages": "Satellite Images",
+        "alternateSatelliteImages": "Alternate Satellite Images",
+        "engineeringTool": "Engineering Tool",
+        "operationsCenter": "Operations Center",
+        "nineties": "90s Graphics"
+      }
+    }
+  }
+}

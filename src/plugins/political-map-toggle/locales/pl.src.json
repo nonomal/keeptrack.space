@@ -1,0 +1,16 @@
+{
+  "plugins": {
+    "PoliticalMapToggle": {
+      "bottomIconLabel": "Mapa polityczna",
+      "modeOff": "Mapa polityczna wyłączona",
+      "modeBorders": "Tylko granice",
+      "modeBordersLabels": "Granice + nazwy państw",
+      "modeLabels": "Tylko nazwy państw",
+      "commandPalette": {
+        "cycle": "Przełączaj tryb mapy politycznej",
+        "toggle": "Przełącz granice polityczne",
+        "toggleLabels": "Przełącz nazwy państw"
+      }
+    }
+  }
+}

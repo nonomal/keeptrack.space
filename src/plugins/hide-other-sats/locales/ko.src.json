@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "HideOtherSatellitesPlugin": {
+      "bottomIconLabel": "다른 위성 숨기기",
+      "commandPalette": {
+        "toggle": "다른 위성 숨기기 전환"
+      }
+    }
+  }
+}

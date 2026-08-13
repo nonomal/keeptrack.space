@@ -1,0 +1,92 @@
+{
+  "plugins": {
+    "SatConstellations": {
+      "bottomIconLabel": "コンステレーション",
+      "title": "コンステレーションメニュー",
+      "help": {
+        "overview": "コンステレーションメニューは関連する衛星をグループ化し、システムとして調べられるようにします。GPSやGalileoのような航法コンステレーション、通信衛星群、宇宙ステーションなどです。コンステレーションを選択すると、そのメンバーがハイライトされ、概要統計が表示され、すべての衛星が並べ替え可能な表に一覧表示されます。",
+        "imgAlt": "コンステレーションを選択し、その統計と表が表示されたコンステレーションメニュー",
+        "imgCaption": "コンステレーションを選択すると、その統計とRAANごとにグループ化されたメンバーの表が表示されます。",
+        "readingHeading": "統計と表",
+        "reading": "コンステレーションを選択すると、ヘッダーに<strong>衛星</strong>の数、<strong>平均高度</strong>、<strong>傾斜角</strong>の範囲が表示されます。表には各メンバーのNORAD番号、名前、傾斜角、RAAN、近地点、遠地点が表示され、RAANごとにグループ化されるため軌道面が際立ちます。行をクリックするとその衛星が選択されます。",
+        "filtersHeading": "フィルター",
+        "filters": "フィルターパネルで表を絞り込めます。<strong>傾斜角</strong>、<strong>高度</strong>、<strong>RAAN</strong>の最小値と最大値を設定するか、<strong>名前フィルター</strong>を入力します（正規表現が使えます）。<strong>適用</strong>で表が更新され、<strong>リセット</strong>ですべてのフィルターがクリアされます。",
+        "howToUse": "<ol><li>下部バーから<strong>コンステレーション</strong>メニューを開きます（カタログモード）。</li><li>コンステレーション、たとえば<strong>GPS衛星</strong>をクリックします。そのメンバーが3Dビューでハイライトされ、統計と表が埋まります。</li><li>一部のコンステレーションでは、メンバー間に概念的なアップリンク、ダウンリンク、クロスリンクの線が描画されます。</li><li>フィルターパネルを使って軌道面や高度帯を絞り込み、表の行をクリックして個々の衛星を調べます。</li></ol>",
+        "tip1": "最後に選択したコンステレーションは記憶されるため、KeepTrackを再度開くと作業中のグループが復元されます。",
+        "tip2": "コンステレーションはコマンドパレットのコマンドとしても利用できるため、メニューを開かずに移動できます。",
+        "tip3": "RAANごとのグループ化により軌道面が明確になります。同じ軌道面の衛星はほぼ同じRAAN値を共有します。"
+      },
+      "constellations": {
+        "SpaceStations": "宇宙ステーション",
+        "AmateurRadio": "アマチュア無線",
+        "GPSGroup": "GPS衛星",
+        "GalileoGroup": "Galileo衛星",
+        "GlonassGroup": "Glonass衛星",
+        "iridium": "Iridium",
+        "orbcomm": "Orbcomm",
+        "globalstar": "Globalstar",
+        "ses": "SES",
+        "aehf": "MilstarとAEHF",
+        "wgs": "DSCSとWGS",
+        "starlink": "Starlink",
+        "sbirs": "SBIRS",
+        "starlink-gen2": "Starlink Gen2",
+        "starlink-v2": "Starlink v2",
+        "starlink-snapshot": "Starlink（想定）",
+        "starshield": "Starshield",
+        "pwsa": "PWSA",
+        "kuiper": "Kuiper",
+        "ast-spaceobile": "AST SpaceMobile",
+        "oneweb": "OneWeb",
+        "telesat-lightspeed": "Telesat Lightspeed",
+        "boeing": "Boeing",
+        "astra": "Astra",
+        "spinlaunch": "SpinLaunch",
+        "hvnet": "HVNET",
+        "lynk": "Lynk",
+        "guanwang": "国網（Guowang）",
+        "qianfan": "千帆（Qianfan）",
+        "honghu3": "鴻鵠-3（Honghu-3）",
+        "yinhe": "銀河（Yinhe）",
+        "hanwha": "Hanwha"
+      },
+      "sections": {
+        "constellations": "コンステレーション",
+        "statistics": "統計",
+        "results": "結果",
+        "filters": "フィルター"
+      },
+      "stats": {
+        "satellites": "衛星",
+        "avgAltitude": "平均高度",
+        "incRange": "傾斜角"
+      },
+      "table": {
+        "norad": "NORAD",
+        "name": "名前",
+        "inclination": "傾斜角",
+        "raan": "RAAN",
+        "perigee": "近地点",
+        "apogee": "遠地点"
+      },
+      "filters": {
+        "incMin": "最小傾斜角 (°)",
+        "incMax": "最大傾斜角 (°)",
+        "altMin": "最小高度 (km)",
+        "altMax": "最大高度 (km)",
+        "raanMin": "最小RAAN (°)",
+        "raanMax": "最大RAAN (°)",
+        "nameFilter": "名前フィルター",
+        "apply": "適用",
+        "reset": "リセット"
+      },
+      "commands": {
+        "category": "コンステレーション"
+      },
+      "errorMsgs": {
+        "NoConstellationSelected": "コンステレーションが選択されていません",
+        "ConstellationEmpty": "衛星が見つかりません — この星座はまだ軌道上にないか、インポートが必要な場合があります"
+      }
+    }
+  }
+}

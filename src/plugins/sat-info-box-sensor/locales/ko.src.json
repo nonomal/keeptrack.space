@@ -1,0 +1,42 @@
+{
+  "plugins": {
+    "SatInfoBoxSensor": {
+      "sectionTitle": "센서 데이터",
+      "labels": {
+        "range": "거리",
+        "azimuth": "방위각",
+        "elevation": "고도각",
+        "ra": "RA",
+        "dec": "Dec",
+        "beamWidth": "빔 폭",
+        "maxTmxTime": "최대 Tmx 시간",
+        "sun": "태양",
+        "visMag": "겉보기 등급",
+        "nextPass": "다음 패스"
+      },
+      "tooltips": {
+        "range": "센서로부터의 거리",
+        "azimuth": "센서로부터의 각도 (좌/우)",
+        "elevation": "센서로부터의 각도 (상/하)",
+        "ra": "적경",
+        "dec": "적위",
+        "beamWidth": "목표 거리에서의 선형 폭",
+        "maxTmxTime": "RF/빛이 목표에 도달하고 돌아오는 시간",
+        "sun": "태양이 센서에 영향을 주는지 여부",
+        "visMag": "겉보기 등급 (낮은 숫자가 더 밝음)",
+        "nextPass": "다음 커버리지 진입 시간"
+      },
+      "values": {
+        "noEffect": "영향 없음",
+        "sunExclusion": "태양 배제",
+        "noSunlight": "햇빛 없음",
+        "limitedSunlight": "제한된 햇빛",
+        "directSunlight": "직사광선",
+        "unableToCalculate": "계산 불가",
+        "outOfFov": "FOV 밖",
+        "unavailable": "사용 불가",
+        "beyondMaxRange": "최대 거리 초과"
+      }
+    }
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "plugins": {
+    "EarthCenteredView": {
+      "bottomIconLabel": "Geocentrický pohled"
+    }
+  }
+}

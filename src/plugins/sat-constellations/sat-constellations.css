@@ -1,0 +1,82 @@
+/* Side menu width override - ISideMenuConfig.width is not applied to DOM by base plugin */
+#constellations-menu {
+  width: 650px !important;
+}
+
+/* Constellation list (lives inside a v13 section card) */
+.sc-constellation-list {
+  margin: 0;
+}
+
+.sc-constellation-list .menu-selectable {
+  padding: 6px 8px;
+  border-radius: var(--kt-radius-sm, 4px);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.sc-constellation-list .menu-selectable:hover {
+  background-color: rgba(255, 255, 255, 0.09);
+}
+
+/* Stats row (inside a v13 section card) */
+.sc-stats-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  font-size: 0.85rem;
+  color: var(--color-dark-text-accent);
+}
+
+/* Results table (inside a v13 section card) */
+.sc-table-scroll {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.sc-results-table {
+  font-size: 0.8rem;
+  width: 100%;
+}
+
+.sc-results-table th,
+.sc-results-table td {
+  padding: 2px 6px;
+  white-space: nowrap;
+}
+
+.sc-table-row {
+  cursor: pointer;
+}
+
+.sc-table-row:hover {
+  background-color: var(--color-dark-border) !important;
+}
+
+#sc-results-count {
+  display: block;
+  margin-top: 6px;
+  color: var(--color-dark-text-muted);
+}
+
+/* ── v13 dense-form fixes for the filter secondary menu ──────────────────
+ * The filter card stacks multiple labelled rows, so stacked rows need extra
+ * headroom or the floating "active" labels render struck through the row above.
+ * The first row only needs the section-label gap. The focus-underline swap
+ * keeps the :focus-visible outline from overlapping the floating labels. */
+#constellations-menu-secondary .kt-field-row .input-field.col {
+  margin-top: 20px;
+}
+
+#constellations-menu-secondary .kt-section-label + .kt-field-row .input-field.col {
+  margin-top: 8px;
+}
+
+#constellations-menu-secondary .input-field input:focus {
+  border-bottom-color: var(--color-primary) !important;
+  box-shadow: 0 1px 0 0 var(--color-primary);
+}
+
+#constellations-menu-secondary .input-field input:focus-visible {
+  outline: none;
+}

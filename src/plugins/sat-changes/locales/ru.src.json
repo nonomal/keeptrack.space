@@ -1,0 +1,14 @@
+{
+  "plugins": {
+    "SatChanges": {
+      "bottomIconLabel": "Изменения спутников",
+      "title": "Интересные перемещения",
+      "tableHeaders": {
+        "time": "Время",
+        "satellite": "Спут.",
+        "inclination": "Накл.",
+        "period": "Пер."
+      }
+    }
+  }
+}

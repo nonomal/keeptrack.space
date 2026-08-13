@@ -1,0 +1,14 @@
+{
+  "plugins": {
+    "EarthPresetsPlugin": {
+      "rmbMenu": {
+        "title": "Stile Terra",
+        "satelliteImages": "Immagini satellitari",
+        "alternateSatelliteImages": "Immagini satellitari alternative",
+        "engineeringTool": "Strumento ingegneristico",
+        "operationsCenter": "Centro operativo",
+        "nineties": "Grafica anni '90"
+      }
+    }
+  }
+}

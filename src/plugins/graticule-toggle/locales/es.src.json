@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "GraticuleToggle": {
+      "bottomIconLabel": "Retícula",
+      "commandPalette": {
+        "toggle": "Alternar retícula (líneas de cuadrícula)"
+      }
+    }
+  }
+}

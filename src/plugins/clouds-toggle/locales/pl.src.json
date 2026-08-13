@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "CloudsToggle": {
+      "bottomIconLabel": "Chmury",
+      "commandPalette": {
+        "toggle": "Przełącz warstwę chmur"
+      }
+    }
+  }
+}

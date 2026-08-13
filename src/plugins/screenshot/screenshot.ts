@@ -1,8 +1,8 @@
 /**
  * /////////////////////////////////////////////////////////////////////////////
  *
- * planetarium.ts is a plugin for showing the satellites above from the perspective
- * of a view on the earth.
+ * screenshots.ts is a plugin that allows users to take high-resolution screenshots
+ * of the canvas with optional logos and classification text overlaid.
  *
  * https://keeptrack.space
  *
@@ -22,16 +22,27 @@
  * /////////////////////////////////////////////////////////////////////////////
  */
 
-import { KeepTrackApiEvents, MenuMode } from '@app/interfaces';
-import { keepTrackApi } from '@app/keepTrackApi';
-import { errorManagerInstance } from '@app/singletons/errorManager';
-import { Classification } from '@app/static/classification';
+import { Classification } from '@app/app/ui/classification';
+import { MenuMode } from '@app/engine/core/interfaces';
+import { ServiceLocator } from '@app/engine/core/service-locator';
+import { EventBus } from '@app/engine/events/event-bus';
+import { EventBusEvent } from '@app/engine/events/event-bus-events';
+import { ICommandPaletteCommand, IContextMenuConfig } from '@app/engine/plugins/core/plugin-capabilities';
+import { html } from '@app/engine/utils/development/formatter';
+import { errorManagerInstance } from '@app/engine/utils/errorManager';
+import { KeepTrack } from '@app/keeptrack';
+import { t7e } from '@app/locales/keys';
 import cameraPng from '@public/img/icons/camera.png';
-import { KeepTrackPlugin } from '../KeepTrackPlugin';
+import { KeepTrackPlugin } from '../../engine/plugins/base-plugin';
 
 export class Screenshot extends KeepTrackPlugin {
   readonly id = 'Screenshot';
   dependencies_ = [];
+
+  private t_(key: string): string {
+    return t7e(`plugins.Screenshot.${key}` as Parameters<typeof t7e>[0]);
+  }
+
   bottomIconCallback = () => {
     this.saveHiResPhoto('4k');
   };
@@ -63,41 +74,51 @@ export class Screenshot extends KeepTrackPlugin {
   // This is 'disabled' since it does not turn green after being clicked like other buttons.
   isIconDisabled = true;
 
-  menuMode: MenuMode[] = [MenuMode.BASIC, MenuMode.ADVANCED, MenuMode.ALL];
+  menuMode: MenuMode[] = [MenuMode.TOOLS, MenuMode.ALL];
 
   bottomIconImg = cameraPng;
-  rmbCallback = (targetId: string): void => {
-    switch (targetId) {
-      case 'save-hd-rmb':
-        this.saveHiResPhoto('hd');
-        break;
-      case 'save-4k-rmb':
-        this.saveHiResPhoto('4k');
-        break;
-      case 'save-8k-rmb':
-        this.saveHiResPhoto('8k');
-        break;
-      default:
-        break;
+
+  /**
+   * Single-action entry: the resolution submenu is redundant with the command
+   * palette (HD/4K/8K commands), so right-click just takes the standard shot.
+   */
+  getContextMenuConfig(): IContextMenuConfig {
+    return {
+      level1ElementName: 'save-rmb',
+      level1Html: html`<li class="rmb-menu-item" id="save-rmb"><a href="#">${this.t_('rmbMenu.title')}</a></li>`,
+      order: 20,
+      isVisible: () => true,
+    };
+  }
+
+  onContextMenuAction(targetId: string): void {
+    if (targetId === 'save-rmb') {
+      this.saveHiResPhoto('4k');
     }
-  };
+  }
 
-  rmbL1ElementName = 'save-rmb';
-  rmbL1Html = keepTrackApi.html`<li class="rmb-menu-item" id="${this.rmbL1ElementName}"><a href="#">Save Image &#x27A4;</a></li>`;
-
-  isRmbOnEarth = true;
-  isRmbOffEarth = true;
-  isRmbOnSat = true;
-  rmbMenuOrder = 20;
-
-  rmbL2ElementName = 'save-rmb-menu';
-  rmbL2Html = keepTrackApi.html`
-    <ul class='dropdown-contents'>
-      <li id="save-hd-rmb"><a href="#">HD (1920 x 1080)</a></li>
-      <li id="save-4k-rmb"><a href="#">4K (3840 x 2160)</a></li>
-      <li id="save-8k-rmb"><a href="#">8K (7680 x 4320)</a></li>
-    </ul>
-  `;
+  getCommandPaletteCommands(): ICommandPaletteCommand[] {
+    return [
+      {
+        id: 'Screenshot.take4k',
+        label: this.t_('commands.take4k'),
+        category: 'Export',
+        callback: () => this.saveHiResPhoto('4k'),
+      },
+      {
+        id: 'Screenshot.takeHd',
+        label: this.t_('commands.takeHd'),
+        category: 'Export',
+        callback: () => this.saveHiResPhoto('hd'),
+      },
+      {
+        id: 'Screenshot.take8k',
+        label: this.t_('commands.take8k'),
+        category: 'Export',
+        callback: () => this.saveHiResPhoto('8k'),
+      },
+    ];
+  }
 
   saveHiResPhoto = (resolution: string) => {
     switch (resolution) {
@@ -122,19 +143,15 @@ export class Screenshot extends KeepTrackPlugin {
 
   addJs(): void {
     super.addJs();
-    keepTrackApi.on(
-      KeepTrackApiEvents.altCanvasResize,
-      () => this.queuedScreenshot_,
-    );
+    // Re-assert after addHtml() resets it from isIconDisabledOnLoad
+    this.isIconDisabled = true;
+    EventBus.getInstance().on(EventBusEvent.altCanvasResize, () => this.queuedScreenshot_);
 
-    keepTrackApi.on(
-      KeepTrackApiEvents.endOfDraw,
-      () => {
-        if (this.queuedScreenshot_) {
-          this.takeScreenShot();
-        }
-      },
-    );
+    EventBus.getInstance().on(EventBusEvent.endOfDraw, () => {
+      if (this.queuedScreenshot_) {
+        this.takeScreenShot();
+      }
+    });
   }
 
   private queuedScreenshot_ = false;
@@ -156,61 +173,85 @@ export class Screenshot extends KeepTrackPlugin {
   }
 
   private watermarkedDataUrl_() {
-    const canvas = keepTrackApi.getRenderer().domElement;
+    const canvas = ServiceLocator.getRenderer().domElement;
 
-    const tempCanvas = document.createElement('canvas');
-    const tempCtx = tempCanvas.getContext('2d');
+    // Stage 1: Composite WebGL + plugin overlays onto a source canvas
+    const srcCanvas = document.createElement('canvas');
 
-    if (!tempCtx) {
+    srcCanvas.width = canvas.width;
+    srcCanvas.height = canvas.height;
+    const srcCtx = srcCanvas.getContext('2d');
+
+    if (!srcCtx) {
       errorManagerInstance.warn('Failed to get 2D context for temporary canvas. Unable to create screenshot.');
 
       return '';
     }
 
+    srcCtx.drawImage(canvas, 0, 0);
 
-    const cw = tempCanvas.width;
-    const ch = tempCanvas.height;
+    // Allow plugins to draw overlays (e.g. polar view labels) onto the screenshot
+    EventBus.getInstance().emit(EventBusEvent.screenshotComposite, srcCtx, srcCanvas.width, srcCanvas.height);
 
-    tempCanvas.width = canvas.width;
-    tempCanvas.height = canvas.height;
+    // Stage 2: Optionally crop to 1:1 square
+    const shouldCrop = EventBus.getInstance().methods.screenshotShouldCropSquare();
+    let outCanvas: HTMLCanvasElement;
+    let outCtx: CanvasRenderingContext2D;
 
-    const logoHeight = 200;
-    let logoWidth: number; // with will be calculated based on height
-    const padding = 50;
+    if (shouldCrop && srcCanvas.width !== srcCanvas.height) {
+      const size = Math.min(srcCanvas.width, srcCanvas.height);
+      const sx = Math.round((srcCanvas.width - size) / 2);
+      const sy = Math.round((srcCanvas.height - size) / 2);
 
-    tempCtx.drawImage(canvas, 0, 0);
+      outCanvas = document.createElement('canvas');
+      outCanvas.width = size;
+      outCanvas.height = size;
+      outCtx = outCanvas.getContext('2d')!;
+      outCtx.drawImage(srcCanvas, sx, sy, size, size, 0, 0, size, size);
+    } else {
+      outCanvas = srcCanvas;
+      outCtx = srcCtx;
+    }
+
+    const ow = outCanvas.width;
+    const oh = outCanvas.height;
+
+    // Stage 3: Draw logos onto the final output canvas
+    const logoHeight = (200 * (settingsManager.hiResWidth ?? 3840)) / 3840;
+    let logoWidth: number;
+    const padding = shouldCrop ? 100 : 50;
 
     if (settingsManager.isShowSecondaryLogo && this.secondaryLogo) {
       // Draw secondary logo on the left
       logoWidth = this.secondaryLogo.width * (logoHeight / this.secondaryLogo.height);
-      tempCtx.drawImage(this.secondaryLogo, padding, canvas.height - logoHeight - padding, logoWidth, logoHeight);
+      outCtx.drawImage(this.secondaryLogo, padding, oh - logoHeight - padding, logoWidth, logoHeight);
       // Draw primary logo to the right of secondary logo
       logoWidth = this.logo.width * (logoHeight / this.logo.height);
-      tempCtx.drawImage(this.logo, padding + logoWidth + padding, canvas.height - logoHeight - padding, logoWidth, logoHeight);
+      outCtx.drawImage(this.logo, padding + logoWidth + padding, oh - logoHeight - padding, logoWidth, logoHeight);
     } else {
       // Draw only primary logo on the right
       logoWidth = this.logo.width * (logoHeight / this.logo.height);
-      tempCtx.drawImage(this.logo, canvas.width - logoWidth - padding, canvas.height - logoHeight - padding, logoWidth, logoHeight);
+      outCtx.drawImage(this.logo, ow - logoWidth - padding, oh - logoHeight - padding, logoWidth, logoHeight);
     }
 
+    // Stage 4: Draw classification text
     const { classificationstr, classificationColor } = Screenshot.calculateClassificationText_();
 
     if (classificationstr !== '') {
-      tempCtx.font = '24px nasalization';
-      tempCtx.globalAlpha = 1.0;
+      outCtx.font = '24px nasalization';
+      outCtx.globalAlpha = 1.0;
+      outCtx.fillStyle = classificationColor;
 
-      tempCtx.fillStyle = classificationColor;
+      const textWidth = outCtx.measureText(classificationstr).width;
 
-      const textWidth = tempCtx.measureText(classificationstr).width;
-
-      tempCtx.fillText(classificationstr, cw / 2 - textWidth, ch - 20);
-      tempCtx.fillText(classificationstr, cw / 2 - textWidth, 34);
+      outCtx.fillText(classificationstr, ow / 2 - textWidth, oh - 20);
+      outCtx.fillText(classificationstr, ow / 2 - textWidth, 34);
     }
 
-    keepTrackApi.containerRoot.appendChild(tempCanvas);
-    const image = tempCanvas.toDataURL();
+    KeepTrack.getInstance().containerRoot.appendChild(outCanvas);
+    const image = outCanvas.toDataURL();
 
-    tempCanvas.parentNode!.removeChild(tempCanvas);
+    outCanvas.parentNode!.removeChild(outCanvas);
 
     return image;
   }
@@ -224,7 +265,5 @@ export class Screenshot extends KeepTrackPlugin {
       classificationstr: settingsManager.classificationStr ?? '',
       classificationColor: Classification.getColors(settingsManager.classificationStr).backgroundColor,
     };
-
   }
 }
-

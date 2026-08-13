@@ -4,6 +4,7 @@ test_patterns = ["*.test.js"]
 
 exclude_patterns = [
   "src/lib/external/*",
+  "src/engine/ootk/*",
   "*mSat.js*",
   "*/offline/*",
   ]

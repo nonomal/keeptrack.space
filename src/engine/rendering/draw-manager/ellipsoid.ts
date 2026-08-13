@@ -1,0 +1,228 @@
+import { Scene } from '@app/engine/core/scene';
+import { BufferAttribute } from '@app/engine/rendering/buffer-attribute';
+import { DepthManager } from '@app/engine/rendering/depth-manager';
+import { WebGlProgramHelper } from '@app/engine/rendering/webgl-program';
+import { glsl } from '@app/engine/utils/development/formatter';
+import { BaseObject, TemeVec3 } from '@ootk/src/main';
+import { mat4, vec3, vec4 } from 'gl-matrix';
+import { GlUtils } from '../gl-utils';
+
+/* eslint-disable no-useless-escape */
+/* eslint-disable camelcase */
+
+export class Ellipsoid {
+  private readonly attribs_ = {
+    // Vertices are interleaved position + normal (6 floats), but the flat
+    // translucent ellipsoid only reads position; the normal data is skipped by stride.
+    a_position: new BufferAttribute({
+      location: 0,
+      vertices: 3,
+      offset: 0,
+      stride: Float32Array.BYTES_PER_ELEMENT * 6,
+    }),
+  };
+
+  private readonly buffers_ = {
+    vertCount: 0,
+    combinedBuf: null as unknown as WebGLBuffer,
+    vertIndexBuf: null as unknown as WebGLBuffer,
+  };
+
+  private gl_: WebGL2RenderingContext;
+  private isLoaded_ = false;
+  private hasValidPose_ = false;
+  private mvMatrix_: mat4;
+  private program_: WebGLProgram;
+  private vao: WebGLVertexArrayObject;
+
+  drawPosition = [0, 0, 0] as vec3;
+
+  get hasValidPose(): boolean {
+    return this.hasValidPose_;
+  }
+
+  private readonly uniforms_ = {
+    u_pMatrix: <WebGLUniformLocation>(<unknown>null),
+    u_camMatrix: <WebGLUniformLocation>(<unknown>null),
+    u_mvMatrix: <WebGLUniformLocation>(<unknown>null),
+    u_color: <WebGLUniformLocation>(<unknown>null),
+    logDepthBufFC: <WebGLUniformLocation>(<unknown>null),
+    worldShift: <WebGLUniformLocation>(<unknown>null),
+  };
+
+  private radii_: vec3;
+  private color_ = [0.5, 0.5, 0.5, 0.5]; // Set color to gray with alpha
+
+  constructor(radii: vec3) {
+    this.radii_ = radii;
+  }
+
+  setRadii(gl: WebGL2RenderingContext, radii: vec3) {
+    this.radii_ = radii;
+    this.init(gl);
+  }
+
+  setDrawPosition(eci: TemeVec3) {
+    this.drawPosition[0] = eci.x;
+    this.drawPosition[1] = eci.y;
+    this.drawPosition[2] = eci.z;
+  }
+
+  setColor(color: vec4) {
+    this.color_[0] = color[0];
+    this.color_[1] = color[1];
+    this.color_[2] = color[2];
+    this.color_[3] = color[3];
+  }
+
+  draw(pMatrix: mat4, camMatrix: mat4, tgtBuffer = null as WebGLFramebuffer | null) {
+    if (!this.isLoaded_ || !this.hasValidPose_ || !settingsManager.isDrawCovarianceEllipsoid) {
+      return;
+    }
+    if (this.drawPosition[0] === 0 && this.drawPosition[1] === 0 && this.drawPosition[2] === 0) {
+      return;
+    }
+
+    const gl = this.gl_;
+
+    gl.useProgram(this.program_);
+    if (tgtBuffer) {
+      gl.bindFramebuffer(gl.FRAMEBUFFER, tgtBuffer);
+    }
+
+    gl.uniformMatrix4fv(this.uniforms_.u_mvMatrix, false, this.mvMatrix_);
+    gl.uniformMatrix4fv(this.uniforms_.u_pMatrix, false, pMatrix);
+    gl.uniform4fv(this.uniforms_.u_color, this.color_);
+    gl.uniformMatrix4fv(this.uniforms_.u_camMatrix, false, camMatrix);
+    gl.uniform1f(this.uniforms_.logDepthBufFC, DepthManager.getConfig().logDepthBufFC);
+    gl.uniform3fv(this.uniforms_.worldShift, Scene.getInstance().worldShift);
+
+    gl.enable(gl.BLEND);
+    gl.depthMask(false);
+    gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+
+    gl.bindVertexArray(this.vao);
+    gl.drawElements(gl.TRIANGLES, this.buffers_.vertCount, gl.UNSIGNED_SHORT, 0);
+    gl.bindVertexArray(null);
+
+    gl.depthMask(true);
+    gl.disable(gl.BLEND);
+  }
+
+  forceLoaded() {
+    this.isLoaded_ = true;
+  }
+
+  init(gl: WebGL2RenderingContext): void {
+    this.gl_ = gl;
+
+    if (!settingsManager.isDrawCovarianceEllipsoid) {
+      return;
+    }
+
+    this.initProgram_();
+    this.initBuffers_();
+    this.initVao_();
+    this.isLoaded_ = true;
+  }
+
+  update(obj: BaseObject) {
+    if (!this.isLoaded_ || !settingsManager.isDrawCovarianceEllipsoid) {
+      return;
+    }
+    const objWithPos = obj as unknown as { position?: TemeVec3; velocity?: TemeVec3 };
+
+    if (!objWithPos?.position) {
+      this.drawPosition[0] = 0;
+      this.drawPosition[1] = 0;
+      this.drawPosition[2] = 0;
+      this.hasValidPose_ = false;
+
+      return;
+    }
+
+    this.drawPosition[0] = objWithPos.position.x;
+    this.drawPosition[1] = objWithPos.position.y;
+    this.drawPosition[2] = objWithPos.position.z;
+
+    this.mvMatrix_ = mat4.create();
+    mat4.identity(this.mvMatrix_);
+    mat4.translate(this.mvMatrix_, this.mvMatrix_, this.drawPosition);
+
+    const lookAtPos = [
+      objWithPos.position.x + (objWithPos.velocity?.x ?? 0),
+      objWithPos.position.y + (objWithPos.velocity?.y ?? 0),
+      objWithPos.position.z + (objWithPos.velocity?.z ?? 0),
+    ];
+    const up = vec3.normalize(vec3.create(), this.drawPosition);
+
+    mat4.targetTo(this.mvMatrix_, this.drawPosition, lookAtPos, up);
+
+    this.hasValidPose_ = true;
+  }
+
+  private initBuffers_() {
+    const { combinedArray, vertIndex } = GlUtils.ellipsoidFromCovariance(this.radii_);
+
+    this.buffers_.vertCount = vertIndex.length;
+    this.buffers_.combinedBuf = GlUtils.createArrayBuffer(this.gl_, new Float32Array(combinedArray));
+    this.buffers_.vertIndexBuf = GlUtils.createElementArrayBuffer(this.gl_, new Uint16Array(vertIndex));
+  }
+
+  private initProgram_() {
+    const gl = this.gl_;
+
+    this.program_ = new WebGlProgramHelper(gl, this.shaders_.vert, this.shaders_.frag).program;
+    this.gl_.useProgram(this.program_);
+
+    GlUtils.assignAttributes(this.attribs_, gl, this.program_, ['a_position']);
+    GlUtils.assignUniforms(this.uniforms_, gl, this.program_, ['u_pMatrix', 'u_camMatrix', 'u_mvMatrix', 'u_color', 'logDepthBufFC', 'worldShift']);
+  }
+
+  private initVao_() {
+    const gl = this.gl_;
+
+    this.vao = gl.createVertexArray();
+    gl.bindVertexArray(this.vao);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers_.combinedBuf);
+    gl.enableVertexAttribArray(this.attribs_.a_position.location);
+    gl.vertexAttribPointer(this.attribs_.a_position.location, 3, gl.FLOAT, false, Float32Array.BYTES_PER_ELEMENT * 6, 0);
+
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.buffers_.vertIndexBuf);
+
+    gl.bindVertexArray(null);
+  }
+
+  private shaders_ = {
+    frag: glsl`#version 300 es
+      precision highp float;
+      out vec4 fragColor;
+      uniform vec4 u_color;
+      uniform float logDepthBufFC;
+
+      void main(void) {
+        fragColor = vec4(u_color.rgb * u_color.a, u_color.a);
+
+        ${DepthManager.getLogDepthFragCode()}
+      }
+    `,
+    vert: glsl`#version 300 es
+      uniform mat4 u_pMatrix;
+      uniform mat4 u_camMatrix;
+      uniform mat4 u_mvMatrix;
+      uniform vec3 worldShift;
+      uniform float logDepthBufFC;
+
+      in vec3 a_position;
+
+      void main(void) {
+        vec4 position = u_mvMatrix * vec4(a_position, 1.0);
+        position.xyz += worldShift;
+        gl_Position = u_pMatrix * u_camMatrix * position;
+
+        ${DepthManager.getLogDepthVertCode()}
+      }
+    `,
+  };
+}

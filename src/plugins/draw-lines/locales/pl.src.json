@@ -1,0 +1,55 @@
+{
+  "plugins": {
+    "DrawLinesPlugin": {
+      "title": "Rysowanie linii",
+      "bottomIconLabel": "Rysowanie linii",
+      "rmbMenu": {
+        "title": "Rysuj",
+        "eciAxes": "Osie ECI",
+        "xAxesGrid": "Siatka osi X",
+        "yAxesGrid": "Siatka osi Y",
+        "zAxesGrid": "Siatka osi Z",
+        "xAxesRadialGrid": "Siatka radialna osi X",
+        "yAxesRadialGrid": "Siatka radialna osi Y",
+        "zAxesRadialGrid": "Siatka radialna osi Z",
+        "earthToSatellite": "Ziemia do satelity",
+        "sensorToSatellite": "Czujnik do satelity",
+        "satelliteToSatellite": "Satelita do satelity",
+        "satelliteRicAxes": "Osie RIC satelity",
+        "satelliteToSun": "Satelita do Słońca",
+        "satelliteToMoon": "Satelita do Księżyca",
+        "moonOrbit": "Rysuj orbitę Księżyca"
+      },
+      "sections": {
+        "activeLines": "Aktywne linie",
+        "referenceGeometry": "Geometria odniesienia",
+        "objectLines": "Linie obiektów"
+      },
+      "referenceFrameLabel": "Układ odniesienia",
+      "clearAll": "Wyczyść wszystkie linie",
+      "emptyList": "Nie narysowano linii",
+      "remove": "Usuń",
+      "lineTypes": {
+        "reference": "Linia odniesienia",
+        "satToRef": "Satelita do punktu",
+        "satRic": "Osie RIC",
+        "objToObj": "Obiekt do obiektu",
+        "satToSun": "Satelita do Słońca",
+        "satToBody": "Satelita do ciała",
+        "sensorToSat": "Czujnik do satelity",
+        "sensorToSun": "Czujnik do Słońca",
+        "sensorToMoon": "Czujnik do Księżyca",
+        "orbitPath": "Ścieżka orbity",
+        "satScanEarth": "Skan Ziemi",
+        "sensorScanHorizon": "Skan horyzontu",
+        "sensorToRae": "Czujnik do punktu",
+        "generic": "Linia",
+        "sensorMarker": "Znacznik lokalizacji czujnika"
+      },
+      "errorMsgs": {
+        "noPrimarySat": "Nie wybrano głównego satelity dla linii satelita–satelita.",
+        "noSatSelected": "Najpierw wybierz satelitę."
+      }
+    }
+  }
+}

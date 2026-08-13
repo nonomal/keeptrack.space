@@ -1,0 +1,20 @@
+{
+  "colorSchemes": {
+    "CelestrakColorScheme": { "label": "Celestrak" },
+    "ConfidenceColorScheme": { "label": "Достовірність" },
+    "CountryColorScheme": { "label": "Країна" },
+    "GpAgeColorScheme": { "label": "Вік GP" },
+    "MissionColorScheme": { "label": "Місія" },
+    "ObjectTypeColorScheme": { "label": "Тип об'єкта" },
+    "OrbitalPlaneDensityColorScheme": { "label": "Щільність орбітальної площини" },
+    "RcsColorScheme": { "label": "Ефективна площа розсіювання" },
+    "ReentryRiskColorScheme": { "label": "Ризик повторного входу" },
+    "SmallSatColorScheme": { "label": "Малі супутники" },
+    "SourceColorScheme": { "label": "Джерело даних" },
+    "SpatialDensityColorScheme": { "label": "Просторова щільність" },
+    "StarlinkColorScheme": { "label": "Starlink" },
+    "SunlightColorScheme": { "label": "Стан освітленості" },
+    "VelocityColorScheme": { "label": "Швидкість" },
+    "VisualMagnitudeColorScheme": { "label": "Стандартна зоряна величина" }
+  }
+}

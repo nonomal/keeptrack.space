@@ -1,0 +1,197 @@
+{
+  "plugins": {
+    "FilterMenuPlugin": {
+      "title": "Filtermenü",
+      "bottomIconLabel": "Filtermenü",
+      "help": {
+        "overview": "Das Filtermenü steuert, welche Objekte überhaupt gezeichnet werden. Die Schalter sind nach Objekttyp (Nutzlasten, Trümmer, Raketenstufen), orbitalem Bereich (LEO bis GEO und darüber hinaus), Datenquelle und Land gruppiert, sodass Sie den Katalog auf genau die Population reduzieren können, die Sie untersuchen.",
+        "imgAlt": "Das Filtermenü mit seinen gruppierten Sichtbarkeitsschaltern",
+        "imgCaption": "Jeder Schalter blendet sofort einen Teil des Katalogs ein oder aus.",
+        "howToUse": "<ol><li>Öffnen Sie das <strong>Filtermenü</strong> über die untere Leiste oder drücken Sie <strong>F</strong>.</li><li>Betätigen Sie die Schalter; die Szene wird sofort aktualisiert, sobald jeder Filter angewendet wird.</li><li>Klicken Sie auf <strong>Auf Standard zurücksetzen</strong>, um die Standardansicht wiederherzustellen.</li></ol>",
+        "tip1": "Filter wirken kombiniert: Ein Objekt muss jede aktive Gruppe passieren, um sichtbar zu bleiben. Eine leer wirkende Szene bedeutet daher meist, dass sich zwei Filter gegenseitig ausschließen.",
+        "tip2": "Die Befehlspalette bietet Ein-Klick-Voreinstellungen, etwa nur LEO anzuzeigen oder Trümmer und Raketenstufen auszublenden.",
+        "shortcutToggle": "Filtermenü umschalten"
+      },
+      "resetToDefaults": "Auf Standard zurücksetzen",
+      "defaultTooltip": "Deaktivieren, um {name} auszublenden",
+      "searchPlaceholder": "Filter suchen...",
+      "commands": {
+        "category": "Filter",
+        "open": "Filtermenü öffnen",
+        "resetDefaults": "Filter auf Standardwerte zurücksetzen",
+        "toggleDebris": "Trümmer ein-/ausblenden",
+        "toggleRocketBodies": "Raketenstufen ein-/ausblenden",
+        "toggleUnknownType": "Unbekannten Typ ein-/ausblenden",
+        "toggleNotional": "Konzeptionelle Satelliten ein-/ausblenden",
+        "toggleStarlink": "Starlink ein-/ausblenden",
+        "showOnlyPayloads": "Nur Nutzlasten anzeigen",
+        "hideDebrisAndRocketBodies": "Trümmer und Raketenstufen ausblenden",
+        "showAllObjectTypes": "Alle Objekttypen anzeigen",
+        "hideAllObjectTypes": "Alle Objekttypen ausblenden",
+        "toggleLEO": "LEO ein-/ausblenden",
+        "toggleMEO": "MEO ein-/ausblenden",
+        "toggleGEO": "GEO ein-/ausblenden",
+        "toggleHEO": "HEO ein-/ausblenden",
+        "showOnlyLEO": "Nur LEO-Satelliten anzeigen",
+        "showOnlyGEO": "Nur GEO-Satelliten anzeigen",
+        "showAllOrbitalRegimes": "Alle orbitalen Bereiche anzeigen",
+        "showOnlyCelestrak": "Nur CelesTrak-Satelliten anzeigen",
+        "showAllSources": "Alle Quellen anzeigen",
+        "showOnlyUS": "Nur US-Objekte anzeigen",
+        "showOnlyRussia": "Nur russische Objekte anzeigen",
+        "showOnlyChina": "Nur chinesische Objekte anzeigen",
+        "showAllCountries": "Alle Länder anzeigen",
+        "hideAllCountries": "Alle Länder ausblenden"
+      }
+    }
+  },
+  "filterMenu": {
+    "operationalPayloads": {
+      "name": "Betriebsfähige Nutzlasten",
+      "category": "Objekttypen",
+      "tooltip": "Satelliten, die derzeit in Betrieb sind, einschließlich solcher im Standby-, Reserve- oder erweiterten Missionsstatus."
+    },
+    "nonOperationalPayloads": {
+      "name": "Außer Betrieb gesetzte Nutzlasten",
+      "category": "Objekttypen",
+      "tooltip": "Satelliten, die nicht mehr in Betrieb sind oder deren Status unbekannt ist."
+    },
+    "rocketBodies": {
+      "name": "Raketenstufen",
+      "category": "Objekttypen",
+      "tooltip": "Die oberen Stufen von Raketen, die Nutzlasten in den Orbit gebracht haben und nun große Teile von Weltraummüll sind."
+    },
+    "debris": {
+      "name": "Trümmer",
+      "category": "Objekttypen",
+      "tooltip": "Fragmente von Raumfahrzeugen und Raketen, einschließlich zerbrochener Satelliten, die nicht mehr als ein Stück existieren."
+    },
+    "unknownType": {
+      "name": "Unbekannter Typ",
+      "category": "Objekttypen",
+      "tooltip": "Objekte im Orbit, deren Zweck oder Typ noch nicht eindeutig identifiziert ist."
+    },
+    "notionalSatellites": {
+      "name": "Konzeptionelle Satelliten",
+      "category": "Objekttypen",
+      "tooltip": "Satelliten, die geplant oder vorgeschlagen sind, aber noch nicht gestartet wurden."
+    },
+    "groundSensors": {
+      "name": "Bodensensoren",
+      "category": "Objekttypen",
+      "tooltip": "Bodengestützte Radar- und optische Sensoren zur Verfolgung von Weltraumobjekten."
+    },
+    "launchFacilities": {
+      "name": "Startanlagen",
+      "category": "Objekttypen",
+      "tooltip": "Weltraumbahnhöfe und Startrampen, von denen Raketen gestartet werden."
+    },
+    "vleoSatellites": {
+      "name": "vLEO-Satelliten",
+      "category": "Orbitale Bereiche",
+      "tooltip": "Satelliten im sehr niedrigen Erdorbit mit einem Apogäum unter 400 km."
+    },
+    "leoSatellites": {
+      "name": "LEO-Satelliten",
+      "category": "Orbitale Bereiche",
+      "tooltip": "Satelliten im niedrigen Erdorbit mit einem Apogäum zwischen 400 km und 6000 km."
+    },
+    "heoSatellites": {
+      "name": "HEO-Satelliten",
+      "category": "Orbitale Bereiche",
+      "tooltip": "Satelliten im stark elliptischen Orbit mit einer Exzentrizität von 0,1 oder mehr und einem Apogäum unter 39786 km."
+    },
+    "meoSatellites": {
+      "name": "MEO-Satelliten",
+      "category": "Orbitale Bereiche",
+      "tooltip": "Satelliten im mittleren Erdorbit mit einem Apogäum zwischen 6000 km und 34786 km."
+    },
+    "geoSatellites": {
+      "name": "GEO-Satelliten",
+      "category": "Orbitale Bereiche",
+      "tooltip": "Satelliten im geostationären Orbit mit einer Exzentrizität unter 0,1 und einem Apogäum zwischen 34786 km und 36786 km."
+    },
+    "xgeoSatellites": {
+      "name": "xGEO-Satelliten",
+      "category": "Orbitale Bereiche",
+      "tooltip": "Satelliten im Ex-Geosynchronen Orbit mit einer Exzentrizität unter 0,1 und einem Apogäum über 36786 km oder einer Exzentrizität von 0,1 oder mehr und einem Apogäum über 39786 km."
+    },
+    "source": {
+      "category": "Quelle"
+    },
+    "vimpelSatellites": {
+      "name": "Vimpel-Satelliten",
+      "tooltip": "Der Vimpel-Satellitenkatalog wird von der russischen Aktiengesellschaft JSC Vimpel in Zusammenarbeit mit dem Keldysh-Institut für Angewandte Mathematik gepflegt."
+    },
+    "celestrakSatellites": {
+      "name": "Celestrak-Satelliten",
+      "tooltip": "Celestrak ist eine beliebte Quelle für Satellitenbahndaten und bietet TLEs für eine Vielzahl von Satelliten und Trümmern."
+    },
+    "celestrakSupSatellites": {
+      "name": "Celestrak-Ergänzungssatelliten",
+      "tooltip": "Ergänzende Satellitendaten von Celestrak, einschließlich zusätzlicher Objekte, die nicht im Hauptkatalog enthalten sind."
+    },
+    "satnogsSatellites": {
+      "name": "SatNOGS-Satelliten",
+      "tooltip": "Satellitendaten aus dem SatNOGS-Netzwerk, einem gemeinschaftsgetriebenen Projekt zur Satellitenbeobachtung und -verfolgung."
+    },
+    "countries": {
+      "category": "Länder",
+      "unitedStates": {
+        "name": "Vereinigte Staaten",
+        "tooltip": "Umfasst Satelliten aus den Vereinigten Staaten von Amerika."
+      },
+      "unitedKingdom": {
+        "name": "Vereinigtes Königreich",
+        "tooltip": "Umfasst Satelliten aus dem Vereinigten Königreich."
+      },
+      "france": {
+        "name": "Frankreich",
+        "tooltip": "Umfasst Satelliten aus Frankreich."
+      },
+      "germany": {
+        "name": "Deutschland",
+        "tooltip": "Umfasst Satelliten aus Deutschland."
+      },
+      "japan": {
+        "name": "Japan",
+        "tooltip": "Umfasst Satelliten aus Japan."
+      },
+      "china": {
+        "name": "China",
+        "tooltip": "Umfasst Satelliten aus China."
+      },
+      "india": {
+        "name": "Indien",
+        "tooltip": "Umfasst Satelliten aus Indien."
+      },
+      "russia": {
+        "name": "Russland",
+        "tooltip": "Umfasst Satelliten aus Russland."
+      },
+      "ussr": {
+        "name": "UdSSR",
+        "tooltip": "Historische Bezeichnung für Satelliten, die von der ehemaligen Sowjetunion gestartet wurden."
+      },
+      "southKorea": {
+        "name": "Südkorea",
+        "tooltip": "Umfasst Satelliten aus Südkorea."
+      },
+      "australia": {
+        "name": "Australien",
+        "tooltip": "Umfasst Satelliten aus Australien."
+      },
+      "otherCountries": {
+        "name": "Andere Länder",
+        "tooltip": "Umfasst Satelliten aus nicht aufgeführten Ländern."
+      }
+    },
+    "miscellaneous": {
+      "category": "Sonstiges",
+      "starlinkSatellites": {
+        "name": "Starlink-Satelliten",
+        "tooltip": "Satelliten der SpaceX Starlink-Konstellation, die weltweite Breitband-Internetabdeckung bieten soll."
+      }
+    }
+  }
+}

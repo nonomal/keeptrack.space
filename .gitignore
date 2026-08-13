@@ -38,8 +38,10 @@ jspm_packages
 # Optional npm cache directory
 .npm
 
-# Package Lock
-# package-lock.json
+# Package Lock — repo uses pnpm; ignore npm/yarn lockfiles so a stray
+# `npm install` can't silently reintroduce one alongside pnpm-lock.yaml.
+package-lock.json
+yarn.lock
 
 # Optional eslint cache
 .eslintcache
@@ -54,6 +56,10 @@ jspm_packages
 !.vscode/launch.json
 !.vscode/extensions.json
 *.code-workspace
+.idea/
+CLAUDE.md
+.claude
+.github/copilot-instructions.md
 
 # Prettier
 .prettierignore
@@ -77,12 +83,27 @@ public/audio/samples
 public/img/wallpaper/.archive
 public/img/*.xcf
 
-# Jest Coverage
+# TypeDoc Output
+docs/api
+
+# Coverage reports
 coverage/
+coverage-e2e/
+coverage-combined/
+
+# Generated benchmark reports
+benchmark-results/
+
+# Non-redistributable ComSpOC TLE/XTLE sample data for the SGP4 validation
+scripts/sgp4-benchmark/*.tle
+scripts/sgp4-benchmark/*.xtle
+
+# SonarQube scanner working directory + exported issues (offline analysis)
+.scannerwork/
+.sonarqube/
 
 # Build Folder
 dist
-embed
 /lib
 
 # nyc Output
@@ -108,6 +129,13 @@ public/tle/TLEold.json
 # Custom Builds
 custom-builds
 
+# External plugins — nested git clones, restored from external-plugins.json via
+# `npm run plugin -- restore`. The clones themselves are never committed; the
+# lockfile + committed plugin-manifest.external.generated.ts capture the set.
+/src/plugins-external/*
+!/src/plugins-external/.gitkeep
+!/src/plugins-external/README.md
+
 # Library Build
 lib/keepTrack
 lib/example*
@@ -123,7 +151,139 @@ stats.json
 
 # Local env files
 .env
+.env.offline
 
 # Cypress Testing Files
 cypress
 cypress.config.ts
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
+# Generated Locale Files
+src/locales/keys.ts
+src/locales/*.json
+
+# Generated Version File (version is injected at build time via DefinePlugin)
+src/settings/version.js
+
+**/*.notes.md
+
+#plans/
+docs-local
+
+# R2 Data
+public/data/ephemeris
+
+# Offline
+configs/offline/settingsOverride.js
+src/offline-tools
+
+# Wrangler
+.wrangler
+
+scripts/**/*.png
+# ...but the scaffolder ships template icon assets that must be committed.
+!scripts/plugin/templates/**/*.png
+# ...and the KeepTrack badge that stamp.ts applies to published charts and imagery.
+!scripts/watermark/assets/*.png
+# Inspection-only exports of the procedural Mars-moon shapes (npm run mars-moons:mesh).
+# The app builds this geometry at runtime, so shipping the OBJs would just bloat the deploy.
+public/meshes/phobos.obj
+public/meshes/deimos.obj
+
+# ---------------------------------------------------------------------------
+# Solar System Pack — Pro content. Standing leak guard.
+#
+# These belong in src/plugins-pro/solar-system-pack/, not in this repo. The move
+# is done and none of them exist here any more; the block stays so that a stray
+# copy (a generator run pointed at the wrong tree, a bad merge) cannot reach
+# public history on a `git add -A`, where a filter-repo purge is the only undo.
+#
+# Only list paths that are Pro by nature. A pattern that could ever match a
+# legitimate OSS file does more harm than good: it hides that file from `git
+# status` too, and the build then works locally while a clean checkout fails to
+# compile. See docs-local/oss-pro-split-solar-system.md.
+# ---------------------------------------------------------------------------
+
+# Moon and asteroid textures (21 Pro bodies; Phobos/Deimos are OSS and stay tracked).
+public/textures/ariel*.jpg
+public/textures/callisto*.jpg
+public/textures/dione*.jpg
+public/textures/enceladus*.jpg
+public/textures/europa*.jpg
+public/textures/ganymede*.jpg
+public/textures/hygiea*.jpg
+public/textures/iapetus*.jpg
+public/textures/io*.jpg
+public/textures/juno*.jpg
+public/textures/mimas*.jpg
+public/textures/miranda*.jpg
+public/textures/oberon*.jpg
+public/textures/pallas*.jpg
+public/textures/rhea*.jpg
+public/textures/tethys*.jpg
+public/textures/titan*.jpg
+public/textures/triton*.jpg
+public/textures/umbriel*.jpg
+public/textures/vesta*.jpg
+
+# Pro meshes that a stale local generator run may have left behind here.
+#
+# Every Pro model now lives in `src/plugins-pro/public/meshes/` (the mesh generator routes by
+# the model's `tier`, and the pro webpack config copies that directory into the build), so
+# nothing should write these paths anymore. The patterns stay as a backstop: a Pro mesh that
+# lands in the open-source `public/` must never be committable.
+#
+# Voyager, Pioneer and New Horizons are deliberately NOT here: those probes ship in the free
+# deep-space catalog, so their meshes have to ship with them or the OSS build 404s. Only Lucy
+# and Parker are named exclusively by plugins-pro/deep-space-missions-menu.
+public/meshes/lucy.*
+public/meshes/parker-solar-probe.*
+
+# Gated content modules.
+#
+# NOT listed, deliberately: `planet-moon-elements.ts` and anything matching
+# `__tests__/planet-moon-*.test.ts`. The propagator, the `MoonElements` shape and the Phobos
+# and Deimos constants are OSS - the free build imports them - and the thirteen gated sets
+# live in the pack's own `moons/outer-moon-elements.ts`. Ignoring them here made the OSS tree
+# uncompilable from a clean checkout while still building locally.
+src/engine/rendering/draw-manager/asteroid-belt.ts
+src/engine/rendering/draw-manager/asteroid-belt-population.ts
+src/engine/rendering/draw-manager/__tests__/asteroid-belt-*.test.ts
+src/engine/rendering/draw-manager/celestial-bodies/asteroid-shapes.ts
+src/engine/rendering/draw-manager/celestial-bodies/planet-moon-catalog.ts
+src/engine/rendering/draw-manager/celestial-bodies/hygiea*.ts
+src/engine/rendering/draw-manager/celestial-bodies/juno*.ts
+src/engine/rendering/draw-manager/celestial-bodies/pallas*.ts
+src/engine/rendering/draw-manager/celestial-bodies/vesta*.ts
+src/engine/rendering/draw-manager/celestial-bodies/horizons/asteroids/
+
+# Tier 0 generators — these move to src/plugins-pro/scripts/ and never ship publicly.
+scripts/moons/
+scripts/asteroids/
+scripts/video/
+scripts/missile-mesh/
+scripts/article-shots/
+scripts/generate-mmt-migration.ts
+scripts/generate-sdlcd-migration.ts
+
+# The mesh VIEWER is open source (see your models in the engine's own pipeline);
+# the look development and publishing chain built on top of it is not. Listed by
+# name because the two live side by side in scripts/mesh-viewer/.
+scripts/mesh-viewer/media-packages.ts
+scripts/mesh-viewer/media-post.ts
+scripts/mesh-viewer/media-backdrops.ts
+scripts/mesh-viewer/media-map.ts
+scripts/mesh-viewer/capture-rotation.ts
+scripts/mesh-viewer/upload-media-r2.ts
+scripts/mesh-viewer/batch-site-media.mjs
+scripts/mesh-viewer/extract-posters.mjs
+
+src/plugins-pro/data/optical/
+# Belt and braces: the media drop moved into the submodule with its tooling, but
+# a stray render at the old path must never be committable either.
+/scripts/mesh-viewer/media-drop/

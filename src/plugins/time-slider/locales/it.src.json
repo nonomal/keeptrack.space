@@ -1,0 +1,7 @@
+{
+  "plugins": {
+    "TimeSlider": {
+      "tooltip": "Cursore temporale: trascina per regolare l'ora del giorno"
+    }
+  }
+}

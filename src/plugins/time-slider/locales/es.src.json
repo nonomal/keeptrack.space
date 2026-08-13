@@ -1,0 +1,7 @@
+{
+  "plugins": {
+    "TimeSlider": {
+      "tooltip": "Control de Tiempo: Arrastra para ajustar la hora del día"
+    }
+  }
+}

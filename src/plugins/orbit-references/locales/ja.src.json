@@ -1,0 +1,8 @@
+{
+  "plugins": {
+    "OrbitReferences": {
+      "tooltip": "軌道上に分析衛星を作成",
+      "linkText": "軌道参照衛星を生成..."
+    }
+  }
+}

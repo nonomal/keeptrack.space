@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "GraticuleToggle": {
+      "bottomIconLabel": "Siatka kartograficzna",
+      "commandPalette": {
+        "toggle": "Przełącz siatkę kartograficzną (linie siatki)"
+      }
+    }
+  }
+}

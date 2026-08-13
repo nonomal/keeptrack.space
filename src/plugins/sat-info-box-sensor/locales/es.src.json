@@ -1,0 +1,42 @@
+{
+  "plugins": {
+    "SatInfoBoxSensor": {
+      "sectionTitle": "Datos del Sensor",
+      "labels": {
+        "range": "Alcance",
+        "azimuth": "Azimut",
+        "elevation": "Elevación",
+        "ra": "RA",
+        "dec": "Dec",
+        "beamWidth": "Ancho del Haz",
+        "maxTmxTime": "Tiempo Tmx Máx.",
+        "sun": "Sol",
+        "visMag": "Mag. Vis.",
+        "nextPass": "Siguiente Paso"
+      },
+      "tooltips": {
+        "range": "Distancia desde el Sensor",
+        "azimuth": "Ángulo (Izquierda/Derecha) desde el Sensor",
+        "elevation": "Ángulo (Arriba/Abajo) desde el Sensor",
+        "ra": "Ascensión Recta",
+        "dec": "Declinación",
+        "beamWidth": "Ancho lineal en el alcance del objetivo",
+        "maxTmxTime": "Tiempo para que RF/Luz alcance el objetivo y regrese",
+        "sun": "¿Afecta el Sol al Sensor?",
+        "visMag": "Magnitud visual (Números más bajos son más brillantes)",
+        "nextPass": "Próxima vez en cobertura"
+      },
+      "values": {
+        "noEffect": "Sin efecto",
+        "sunExclusion": "Exclusión solar",
+        "noSunlight": "Sin luz solar",
+        "limitedSunlight": "Luz solar limitada",
+        "directSunlight": "Luz solar directa",
+        "unableToCalculate": "No se puede calcular",
+        "outOfFov": "Fuera del FOV",
+        "unavailable": "No disponible",
+        "beyondMaxRange": "Más allá del alcance máximo"
+      }
+    }
+  }
+}
